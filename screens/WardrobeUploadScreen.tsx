@@ -9,10 +9,12 @@ const WardrobeUploadScreen = () => {
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
   const [savedItems, setSavedItems] = useState<
   { image: string; description: string }[]
   >([]);
+  const [title, setTitle] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+
 
 
   const pickImage = async () => {
@@ -24,7 +26,7 @@ const WardrobeUploadScreen = () => {
 
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.Images,
       allowsEditing: true,
       quality: 1,
     });
@@ -42,7 +44,15 @@ const handleSave = () => {
     return;
   }
 
-  setSavedItems(prev => [...prev, { image, description }]);
+   setSavedItems(prev => [
+    ...prev,
+    {
+      image,
+      title,
+      description,
+      tags,
+    },
+  ]);
   alert("Item saved to wardrobe!");
 };
 
@@ -53,7 +63,8 @@ const handleDescribe = async () => {
 
   setLoading(true);
   setDescription(null);
-
+  setTitle(null);
+  setTags([]);
 
   try {
     const base64 = await FileSystem.readAsStringAsync(image, {
@@ -61,7 +72,25 @@ const handleDescribe = async () => {
     });
 
     const result = await describeClothingItem(base64);
-    setDescription(result);
+
+    // 👇 Fix the wrapped markdown formatting
+    const cleanResult = result.replace(/```json|```/g, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanResult);
+    } catch (err) {
+      console.error("❌ JSON Parse error:", err, cleanResult);
+      alert("AI returned invalid formatting. Try again.");
+      return;
+    }
+
+    setTitle(parsed.title);
+    setDescription(parsed.description);
+    setTags(parsed.tags);
+
+
+
   } catch (err) {
     console.error(err);
     alert("Failed to analyze image");
@@ -69,6 +98,7 @@ const handleDescribe = async () => {
     setLoading(false);
   }
 };
+
 
 const handleDeleteItem = () => {
   if (!selectedItem) return;
@@ -84,6 +114,9 @@ const handleDeleteItem = () => {
 
 const [selectedItem, setSelectedItem] = useState<{ image: string; description: string } | null>(null);
 const [modalVisible, setModalVisible] = useState(false);
+
+
+
 
   return (
 
@@ -125,27 +158,52 @@ const [modalVisible, setModalVisible] = useState(false);
   >
     <Pressable style={styles.modalContent}>
 
-      {/* 🧼 Delete Button */}
-      <Button title="Delete Item" color="#ff5c5c" onPress={() => handleDeleteItem()} />
 
-      {selectedItem && (
-        <>
-          <Image
-            source={{ uri: selectedItem.image }}
-            style={{ width: '100%', height: 250, borderRadius: 10 }}
-            resizeMode="cover"
-          />
-          <Text style={{ marginTop: 15 }}>{selectedItem.description}</Text>
+        {selectedItem && (
+  <>
+    {/* 🧼 Modal Delete Button */}
+    <Button title="Delete Item" color="#ff5c5c" onPress={() => handleDeleteItem()} />
+    {/* Modal Image */}
+    <Image
+      source={{ uri: selectedItem.image }}
+      style={{ width: '100%', height: 250, borderRadius: 10 }}
+      resizeMode="cover"
+    />
 
-        </>
-      )}
-        <Button title="Close" onPress={() => setModalVisible(false)} />
+    {/* Modal Title */}
+    <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: 12 }}>
+      {selectedItem.title}
+    </Text>
+
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
+      {selectedItem.tags?.map((tag, index) => (
+        <View
+          key={index}
+          style={{
+            backgroundColor: '#eee',
+            borderRadius: 16,
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            margin: 4,
+          }}
+        >
+          <Text style={{ fontSize: 12 }}>{tag}</Text>
+        </View>
+      ))}
+    </View>
+
+    <Text style={{ marginTop: 10 }}>{selectedItem.description}</Text>
+
+    <Button title="Close" onPress={() => setModalVisible(false)} />
+  </>
+)}
+
     </Pressable>
   </Pressable>
 </Modal>
 
 
-  <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20 }}>
+  <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
     {savedItems.length > 0 && (
       <View style={{ marginTop: 40 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 }}>
@@ -157,31 +215,48 @@ const [modalVisible, setModalVisible] = useState(false);
           style={{ paddingLeft: 20 }}
         >
           {savedItems.map((item, index) => (
-            <View
-              key={index}
-              style={{
-                marginRight: 20,
-                width: 200,
-                backgroundColor: '#f9f9f9',
-                borderRadius: 12,
-                padding: 10,
-                alignItems: 'center',
-              }}
-            >
-                <Pressable onPress={() => {
-                  setSelectedItem(item);
-                  setModalVisible(true);
-                }}>
-                <Image
-                  source={{ uri: item.image }}
-                  style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
-                  resizeMode="cover"
-                />
-              </Pressable>
-              <Text style={{ fontSize: 12, textAlign: 'left' }}>
-                {item.description}
-              </Text>
+          <Pressable
+            key={index}
+            onPress={() => {
+              setSelectedItem(item);
+              setModalVisible(true);
+            }}
+            style={{
+              marginRight: 20,
+              width: 200,
+              backgroundColor: '#f9f9f9',
+              borderRadius: 12,
+              padding: 10,
+              alignItems: 'center',
+            }}
+          >
+            <Image
+              source={{ uri: item.image }}
+              style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
+              resizeMode="cover"
+            />
+            <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>
+              {item.title}
+            </Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 6 }}>
+              {item.tags?.map((tag, tagIndex) => (
+                <View
+                  key={tagIndex}
+                  style={{
+                    backgroundColor: '#e0e0e0',
+                    borderRadius: 20,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    margin: 2,
+                  }}
+                >
+                  <Text style={{ fontSize: 10 }}>{tag}</Text>
+                </View>
+              ))}
             </View>
+          </Pressable>
+
           ))}
         </ScrollView>
       </View>
@@ -207,30 +282,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  imagePicker: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 10,
-    width: 250,
-    height: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+imagePicker: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderStyle: 'dashed',
+  borderRadius: 10,
+  padding: 8,
+  width: 160,
+  height: 160,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+
+image: {
+  width: '100%',
+  height: '100%',
+  resizeMode: 'cover',
+  borderRadius: 10,
+},
 
   placeholder: {
     fontSize: 16,
     color: '#aaa',
   },
 
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    borderRadius: 10,
-  },
 
   modalOverlay: {
     flex: 1,
