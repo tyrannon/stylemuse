@@ -1,5 +1,5 @@
-import { Modal, Pressable } from 'react-native';
-import { View, Button, Image, StyleSheet, Text, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { View, Button, Image, StyleSheet, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput } from 'react-native';
+
 import * as FileSystem from 'expo-file-system';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState } from 'react';
@@ -112,13 +112,23 @@ const handleDeleteItem = () => {
 };
 
 
-const [selectedItem, setSelectedItem] = useState<{ image: string; description: string } | null>(null);
+const [selectedItem, setSelectedItem] = useState<{
+  image: string;
+  title?: string;
+  description: string;
+  tags?: string[];
+} | null>(null);
+
 const [modalVisible, setModalVisible] = useState(false);
+const [editTitle, setEditTitle] = useState<string>("");
+const [editTags, setEditTags] = useState<string[]>([]);
+const [newTagInput, setNewTagInput] = useState<string>("");
 
 
 
 
-  return (
+
+return (
 
 <SafeAreaView style={{ flex: 1 }}>
   <View style={styles.container}>
@@ -141,10 +151,14 @@ const [modalVisible, setModalVisible] = useState(false);
     {description && (
       <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
         <Text style={{ fontWeight: 'bold' }}>Description:</Text>
-        <Text>{description}</Text>
+        <Text style={{ paddingBottom: 10 }}>{description}</Text>
       </View>
     )}
   </View>
+
+
+
+
 
 <Modal
   visible={modalVisible}
@@ -163,6 +177,9 @@ const [modalVisible, setModalVisible] = useState(false);
   <>
     {/* 🧼 Modal Delete Button */}
     <Button title="Delete Item" color="#ff5c5c" onPress={() => handleDeleteItem()} />
+
+
+
     {/* Modal Image */}
     <Image
       source={{ uri: selectedItem.image }}
@@ -170,29 +187,98 @@ const [modalVisible, setModalVisible] = useState(false);
       resizeMode="cover"
     />
 
-    {/* Modal Title */}
-    <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: 12 }}>
-      {selectedItem.title}
-    </Text>
+    {/* Modal Save Changes Button */}
+    <Button
+      title="Save Changes"
+      onPress={() => {
+        if (!selectedItem) return;
+        const updated = savedItems.map((item) =>
+          item.image === selectedItem.image
+            ? {
+                ...item,
+                title: editTitle,
+                tags: editTags,
+              }
+            : item
+        );
+      setSavedItems(updated);
+      setModalVisible(false);
+    }}
+  />
+      
 
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
-      {selectedItem.tags?.map((tag, index) => (
-        <View
-          key={index}
-          style={{
-            backgroundColor: '#eee',
-            borderRadius: 16,
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            margin: 4,
-          }}
-        >
-          <Text style={{ fontSize: 12 }}>{tag}</Text>
-        </View>
-      ))}
-    </View>
+    {/* Modal Title */}
+    <Text style={{ fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Edit Title:</Text>
+    <TextInput
+      value={editTitle}
+      onChangeText={setEditTitle}
+      style={{
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 6,
+        marginTop: 6,
+        marginBottom: 12,
+        width: '100%',
+      }}
+    />
+
+{/* Modal Add New Tag Input Field */}
+<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+  <TextInput
+    placeholder="Add new tag..."
+    value={newTagInput}
+    onChangeText={setNewTagInput}
+    style={{
+      flex: 1,
+      borderColor: '#ccc',
+      borderWidth: 1,
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      marginRight: 6,
+    }}
+  />
+  <Button
+    title="Add"
+    onPress={() => {
+      if (newTagInput.trim() !== "") {
+        setEditTags([...editTags, newTagInput.trim()]);
+        setNewTagInput("");
+      }
+    }}
+  />
+</View>
+
+
+<Text style={{ fontWeight: 'bold', fontSize: 14 }}>Edit Tags:</Text>
+<View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
+  {editTags.map((tag, index) => (
+    <Pressable
+      key={index}
+      onLongPress={() => {
+        const updated = [...editTags];
+        updated.splice(index, 1);
+        setEditTags(updated);
+      }}
+      style={{
+        backgroundColor: '#eee',
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        margin: 4,
+      }}
+    >
+      <Text style={{ fontSize: 12 }}>{tag}</Text>
+    </Pressable>
+  ))}
+</View>
+
+
 
     <Text style={{ marginTop: 10 }}>{selectedItem.description}</Text>
+
+
 
     <Button title="Close" onPress={() => setModalVisible(false)} />
   </>
@@ -219,8 +305,11 @@ const [modalVisible, setModalVisible] = useState(false);
             key={index}
             onPress={() => {
               setSelectedItem(item);
+              setEditTitle(item.title || "");
+              setEditTags(item.tags || []);
               setModalVisible(true);
             }}
+
             style={{
               marginRight: 20,
               width: 200,
@@ -274,6 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 20,
+    borderRadius: 6,
   },
 
   title: {
