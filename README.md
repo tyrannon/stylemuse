@@ -57,7 +57,7 @@ npx expo start
 
 ## 📸 Demo
 
-![StyleMuse demo screenshot](./assets/demo.png)
+![StyleMuse demo screenshot](./assets/DEMO.png)
 *A preview of AI-generated titles, image tagging, and a scrollable wardrobe UI.*
 
 ---
