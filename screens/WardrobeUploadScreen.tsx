@@ -23,6 +23,10 @@ const WardrobeUploadScreen = () => {
   const [editTitle, setEditTitle] = useState<string>("");
   const [editTags, setEditTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState<string>("");
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedItemsForOutfit, setSelectedItemsForOutfit] = useState<string[]>([]);
+  const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
+  const [generatingOutfit, setGeneratingOutfit] = useState(false);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -112,6 +116,47 @@ const WardrobeUploadScreen = () => {
     setSelectedItem(null);
   };
 
+
+const handleGenerateOutfit = async () => {
+  if (selectedItemsForOutfit.length < 2) {
+    alert("Please select at least 2 items to generate an outfit!");
+    return;
+  }
+
+  setGeneratingOutfit(true);
+  
+  try {
+    // Simple timeout to simulate processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Set flag to show the outfit
+    setGeneratedOutfit("ready");
+    
+    alert("Outfit created! 🎉");
+    
+  } catch (error) {
+    console.error('Error generating outfit:', error);
+    alert("Failed to generate outfit. Please try again.");
+  } finally {
+    setGeneratingOutfit(false);
+    setIsSelectionMode(false);
+    // Don't clear selectedItemsForOutfit here so we can show them in the outfit
+  }
+};
+
+
+const handleItemSelection = (imageUri: string) => {
+  if (!isSelectionMode) return;
+  
+  if (selectedItemsForOutfit.includes(imageUri)) {
+    // Remove from selection
+    setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
+  } else {
+    // Add to selection
+    setSelectedItemsForOutfit(prev => [...prev, imageUri]);
+  }
+};
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -127,6 +172,35 @@ const WardrobeUploadScreen = () => {
 
         <Button title="Upload (Coming Soon)" onPress={() => alert('Upload functionality coming soon')} />
 
+{savedItems.length > 1 && (
+  <View style={{ marginTop: 10 }}>
+    <Button 
+      title={isSelectionMode ? "Cancel Selection" : "Generate Outfit"} 
+      onPress={() => {
+        if (isSelectionMode) {
+          setIsSelectionMode(false);
+          setSelectedItemsForOutfit([]);
+        } else {
+          setIsSelectionMode(true);
+        }
+      }}
+    />
+    
+    {isSelectionMode && (
+      <View style={{ marginTop: 10 }}>
+        <Text>Select items to combine (Selected: {selectedItemsForOutfit.length})</Text>
+        <Button 
+          title="Create Outfit" 
+          onPress={handleGenerateOutfit}
+          disabled={generatingOutfit || selectedItemsForOutfit.length < 2}
+        />
+      </View>
+    )}
+  </View>
+)}
+
+{generatingOutfit && <Text>Generating outfit... ✨</Text>}
+
         {loading && <Text>Analyzing with AI...</Text>}
 
         {description && (
@@ -136,6 +210,66 @@ const WardrobeUploadScreen = () => {
           </View>
         )}
       </View>
+
+
+{generatedOutfit && (
+  <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
+    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Your Outfit Combo:</Text>
+    <View style={{
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      backgroundColor: '#f8f8f8',
+      padding: 15,
+      borderRadius: 15,
+      maxWidth: 320,
+      borderWidth: 2,
+      borderColor: '#007AFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    }}>
+      {selectedItemsForOutfit.map((imageUri, index) => {
+        const numItems = selectedItemsForOutfit.length;
+        const itemSize = numItems === 2 ? 140 : numItems === 3 ? 90 : 70;
+        
+        return (
+          <View key={index} style={{ margin: 5 }}>
+            <Image 
+              source={{ uri: imageUri }} 
+              style={{ 
+                width: itemSize, 
+                height: itemSize, 
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: '#fff',
+              }}
+              resizeMode="cover"
+            />
+          </View>
+        );
+      })}
+    </View>
+      <View style={{ marginTop: 15, flexDirection: 'row', justifyContent: 'space-around' }}>
+      <Button 
+        title="Love It!" 
+        onPress={() => {
+          alert("Outfit saved to favorites! ❤️");
+        }}
+      />
+      <Button 
+        title="Try Again" 
+        onPress={() => {
+          setGeneratedOutfit(null);
+          setSelectedItemsForOutfit([]);
+          setIsSelectionMode(true);
+        }}
+      />
+    </View>
+  </View>
+)}
 
       <Modal
         visible={modalVisible}
@@ -261,28 +395,55 @@ const WardrobeUploadScreen = () => {
               style={{ paddingLeft: 20 }}
             >
               {savedItems.map((item, index) => (
-                <Pressable
-                  key={index}
-                  onPress={() => {
-                    setSelectedItem(item);
-                    setEditTitle(item.title || "");
-                    setEditTags(item.tags || []);
-                    setModalVisible(true);
-                  }}
-                  style={{
-                    marginRight: 20,
-                    width: 200,
-                    backgroundColor: '#f9f9f9',
-                    borderRadius: 12,
-                    padding: 10,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Image
-                    source={{ uri: item.image }}
-                    style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
-                    resizeMode="cover"
-                  />
+                  <Pressable
+  key={index}
+  onPress={() => {
+    if (isSelectionMode) {
+      handleItemSelection(item.image);
+    } else {
+      setSelectedItem(item);
+      setEditTitle(item.title || "");
+      setEditTags(item.tags || []);
+      setModalVisible(true);
+    }
+  }}
+  style={{
+    marginRight: 20,
+    width: 200,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    // Add selection styling
+    borderWidth: isSelectionMode && selectedItemsForOutfit.includes(item.image) ? 3 : 0,
+    borderColor: '#007AFF',
+  }}
+>
+  {/* Add selection indicator */}
+  {isSelectionMode && (
+    <View style={{
+      position: 'absolute',
+      top: 5,
+      right: 5,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: selectedItemsForOutfit.includes(item.image) ? '#007AFF' : '#ccc',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    }}>
+      {selectedItemsForOutfit.includes(item.image) && (
+        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>✓</Text>
+      )}
+    </View>
+  )}
+  
+  <Image
+    source={{ uri: item.image }}
+    style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
+    resizeMode="cover"
+  />
                   <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>
                     {item.title}
                   </Text>
