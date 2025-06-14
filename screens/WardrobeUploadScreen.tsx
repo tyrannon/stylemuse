@@ -3,6 +3,8 @@ import * as FileSystem from 'expo-file-system';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { generateOutfitImage } from '../utils/openai';
+
 
 const WardrobeUploadScreen = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -116,7 +118,6 @@ const WardrobeUploadScreen = () => {
     setSelectedItem(null);
   };
 
-
 const handleGenerateOutfit = async () => {
   if (selectedItemsForOutfit.length < 2) {
     alert("Please select at least 2 items to generate an outfit!");
@@ -126,23 +127,32 @@ const handleGenerateOutfit = async () => {
   setGeneratingOutfit(true);
   
   try {
-    // Simple timeout to simulate processing
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Get the descriptions of selected items
+    const selectedItems = savedItems.filter(item => 
+      selectedItemsForOutfit.includes(item.image)
+    );
     
-    // Set flag to show the outfit
-    setGeneratedOutfit("ready");
+    // Use descriptions to generate DALL-E image
+    const descriptions = selectedItems.map(item => item.description);
+    const generatedImageUrl = await generateOutfitImage(descriptions);
     
-    alert("Outfit created! 🎉");
+    if (generatedImageUrl) {
+      setGeneratedOutfit(generatedImageUrl);
+      alert("AI-generated outfit created! 🎨✨");
+    } else {
+      throw new Error("Failed to generate outfit image");
+    }
     
   } catch (error) {
     console.error('Error generating outfit:', error);
-    alert("Failed to generate outfit. Please try again.");
+    alert("Failed to generate AI outfit. Please try again.");
   } finally {
     setGeneratingOutfit(false);
     setIsSelectionMode(false);
-    // Don't clear selectedItemsForOutfit here so we can show them in the outfit
+    // Keep selectedItemsForOutfit so we can show the original items if needed
   }
 };
+
 
 
 const handleItemSelection = (imageUri: string) => {
@@ -172,104 +182,14 @@ const handleItemSelection = (imageUri: string) => {
 
         <Button title="Upload (Coming Soon)" onPress={() => alert('Upload functionality coming soon')} />
 
-{savedItems.length > 1 && (
-  <View style={{ marginTop: 10 }}>
-    <Button 
-      title={isSelectionMode ? "Cancel Selection" : "Generate Outfit"} 
-      onPress={() => {
-        if (isSelectionMode) {
-          setIsSelectionMode(false);
-          setSelectedItemsForOutfit([]);
-        } else {
-          setIsSelectionMode(true);
-        }
-      }}
-    />
-    
-    {isSelectionMode && (
-      <View style={{ marginTop: 10 }}>
-        <Text>Select items to combine (Selected: {selectedItemsForOutfit.length})</Text>
-        <Button 
-          title="Create Outfit" 
-          onPress={handleGenerateOutfit}
-          disabled={generatingOutfit || selectedItemsForOutfit.length < 2}
-        />
-      </View>
-    )}
-  </View>
-)}
 
 {generatingOutfit && <Text>Generating outfit... ✨</Text>}
 
         {loading && <Text>Analyzing with AI...</Text>}
 
-        {description && (
-          <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
-            <Text style={{ fontWeight: 'bold' }}>Description:</Text>
-            <Text style={{ paddingBottom: 10 }}>{description}</Text>
-          </View>
-        )}
       </View>
 
 
-{generatedOutfit && (
-  <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
-    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Your Outfit Combo:</Text>
-    <View style={{
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      backgroundColor: '#f8f8f8',
-      padding: 15,
-      borderRadius: 15,
-      maxWidth: 320,
-      borderWidth: 2,
-      borderColor: '#007AFF',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    }}>
-      {selectedItemsForOutfit.map((imageUri, index) => {
-        const numItems = selectedItemsForOutfit.length;
-        const itemSize = numItems === 2 ? 140 : numItems === 3 ? 90 : 70;
-        
-        return (
-          <View key={index} style={{ margin: 5 }}>
-            <Image 
-              source={{ uri: imageUri }} 
-              style={{ 
-                width: itemSize, 
-                height: itemSize, 
-                borderRadius: 10,
-                borderWidth: 2,
-                borderColor: '#fff',
-              }}
-              resizeMode="cover"
-            />
-          </View>
-        );
-      })}
-    </View>
-      <View style={{ marginTop: 15, flexDirection: 'row', justifyContent: 'space-around' }}>
-      <Button 
-        title="Love It!" 
-        onPress={() => {
-          alert("Outfit saved to favorites! ❤️");
-        }}
-      />
-      <Button 
-        title="Try Again" 
-        onPress={() => {
-          setGeneratedOutfit(null);
-          setSelectedItemsForOutfit([]);
-          setIsSelectionMode(true);
-        }}
-      />
-    </View>
-  </View>
-)}
 
       <Modal
         visible={modalVisible}
@@ -383,7 +303,99 @@ const handleItemSelection = (imageUri: string) => {
         </Pressable>
       </Modal>
 
+      {/*  SCROLLABLE VIEW FOR WARDROBE ITEMS */}
       <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
+        
+{generatedOutfit && (
+  <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
+    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>AI-Generated Outfit:</Text>
+    
+    {/* Show AI-generated image */}
+    <Image 
+      source={{ uri: generatedOutfit }} 
+      style={{ 
+        width: 300, 
+        height: 400, 
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: '#007AFF',
+        marginBottom: 10,
+      }}
+      resizeMode="cover"
+    />
+    
+    {/* Show original selected items as reference */}
+    <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 5 }}>Based on these items:</Text>
+    <View style={{
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      marginBottom: 15,
+    }}>
+      {selectedItemsForOutfit.map((imageUri, index) => (
+        <Image 
+          key={index}
+          source={{ uri: imageUri }} 
+          style={{ 
+            width: 60, 
+            height: 60, 
+            borderRadius: 8,
+            margin: 3,
+            borderWidth: 1,
+            borderColor: '#ddd',
+          }}
+          resizeMode="cover"
+        />
+      ))}
+    </View>
+    
+    <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '80%' }}>
+      <Button 
+        title="Love It!" 
+        onPress={() => {
+          alert("AI outfit saved to favorites! ❤️");
+        }}
+      />
+      <Button 
+        title="Generate New" 
+        onPress={() => {
+          setGeneratedOutfit(null);
+          setSelectedItemsForOutfit([]);
+          setIsSelectionMode(true);
+        }}
+      />
+    </View>
+  </View>
+)}
+
+
+{savedItems.length > 1 && (
+  <View style={{ marginTop: 10, paddingHorizontal: 10, alignItems: 'center' }}>
+    <Button 
+      title={isSelectionMode ? "Cancel Selection" : "Generate Outfit"} 
+      onPress={() => {
+        if (isSelectionMode) {
+          setIsSelectionMode(false);
+          setSelectedItemsForOutfit([]);
+        } else {
+          setIsSelectionMode(true);
+        }
+      }}
+    />
+    
+    {isSelectionMode && (
+      <View style={{ marginTop: 10 }}>
+        <Text>Select items to combine (Selected: {selectedItemsForOutfit.length})</Text>
+        <Button 
+          title="Create Outfit" 
+          onPress={handleGenerateOutfit}
+          disabled={generatingOutfit || selectedItemsForOutfit.length < 2}
+        />
+      </View>
+    )}
+  </View>
+)}
+
         {savedItems.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 }}>
