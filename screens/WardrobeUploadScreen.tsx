@@ -7,6 +7,7 @@ import { generateOutfitImage } from '../utils/openai';
 
 
 const WardrobeUploadScreen = () => {
+  // State Variables
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,11 +25,17 @@ const WardrobeUploadScreen = () => {
 >([]);
   const [title, setTitle] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [selectedItem, setSelectedItem] = useState<{
     image: string;
     title?: string;
     description: string;
     tags?: string[];
+    color?: string;
+    material?: string;
+    style?: string;
+    fit?: string;
   } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [editTitle, setEditTitle] = useState<string>("");
@@ -39,33 +46,36 @@ const WardrobeUploadScreen = () => {
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access media library is required!');
-      return;
-    }
+ const pickImage = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission to access media library is required!');
+    return;
+  }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 1,
+  });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const imageUri = result.assets[0].uri;
-      setImage(imageUri);
-      
-      // Automatically start AI description process
-      await handleAutoDescribeAndSave(imageUri);
-    }
-  };
-
- const handleAutoDescribeAndSave = async (imageUri: string) => {
-  setLoading(true);
-  setDescription(null);
-  setTitle(null);
-  setTags([]);
+  if (!result.canceled && result.assets.length > 0) {
+    const imageUri = result.assets[0].uri;
+    setImage(imageUri);
+    
+    // Single upload (not bulk)
+    await handleAutoDescribeAndSave(imageUri, false);
+  }
+};
+ 
+// Function to handle automatic description and saving of clothing item
+const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
+  if (!isBulkUpload) {
+    setLoading(true);
+    setDescription(null);
+    setTitle(null);
+    setTags([]);
+  }
 
   try {
     const base64 = await FileSystem.readAsStringAsync(imageUri, {
@@ -73,8 +83,6 @@ const WardrobeUploadScreen = () => {
     });
 
     const result = await describeClothingItem(base64);
-
-    // Clean the wrapped markdown formatting
     const cleanResult = result.replace(/```json|```/g, '').trim();
 
     let parsed;
@@ -82,7 +90,9 @@ const WardrobeUploadScreen = () => {
       parsed = JSON.parse(cleanResult);
     } catch (err) {
       console.error("❌ JSON Parse error:", err, cleanResult);
-      alert("AI returned invalid formatting. Try again.");
+      if (!isBulkUpload) {
+        alert("AI returned invalid formatting. Try again.");
+      }
       return;
     }
 
@@ -94,12 +104,14 @@ const WardrobeUploadScreen = () => {
     const itemStyle = parsed.style;
     const itemFit = parsed.fit;
 
-    // Set the state for display
-    setTitle(itemTitle);
-    setDescription(itemDescription);
-    setTags(itemTags);
+    // Set the state for display (only if not bulk upload)
+    if (!isBulkUpload) {
+      setTitle(itemTitle);
+      setDescription(itemDescription);
+      setTags(itemTags);
+    }
 
-    // Automatically save to wardrobe with enhanced data
+    // Save to wardrobe
     setSavedItems(prev => [
       ...prev,
       {
@@ -114,28 +126,94 @@ const WardrobeUploadScreen = () => {
       },
     ]);
 
-    alert("Item analyzed and saved to wardrobe!");
+    if (!isBulkUpload) {
+      alert("Item analyzed and saved to wardrobe!");
+    }
 
   } catch (err) {
     console.error(err);
-    alert("Failed to analyze image");
+    if (!isBulkUpload) {
+      alert("Failed to analyze image");
+    }
   } finally {
-    setLoading(false);
+    if (!isBulkUpload) {
+      setLoading(false);
+    }
+  }
+}; 
+
+// Functions Section
+
+// Function to handle item deletion
+const handleDeleteItem = () => {
+  if (!selectedItem) return;
+
+  setSavedItems(prev =>
+    prev.filter(item => !(item.image === selectedItem.image && item.description === selectedItem.description))
+  );
+
+  setModalVisible(false);
+  setSelectedItem(null);
+};
+
+
+// Function to handle item selection for outfit generation
+const handleItemSelection = (imageUri: string) => {
+  if (!isSelectionMode) return;
+  
+  if (selectedItemsForOutfit.includes(imageUri)) {
+    // Remove from selection
+    setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
+  } else {
+    // Add to selection
+    setSelectedItemsForOutfit(prev => [...prev, imageUri]);
   }
 };
- 
-  const handleDeleteItem = () => {
-    if (!selectedItem) return;
 
-    setSavedItems(prev =>
-      prev.filter(item => !(item.image === selectedItem.image && item.description === selectedItem.description))
-    );
+// Function to pick multiple images for bulk upload
+const pickMultipleImages = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission to access media library is required!');
+    return;
+  }
 
-    setModalVisible(false);
-    setSelectedItem(null);
-  };
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsMultipleSelection: true,
+    quality: 1,
+    selectionLimit: 10,
+  });
 
+  if (!result.canceled && result.assets.length > 0) {
+    setBulkUploading(true);
+    setBulkProgress({ current: 0, total: result.assets.length });
+    
+    alert(`Processing ${result.assets.length} images...`);
+    
+    // Process each image one by one
+    for (let i = 0; i < result.assets.length; i++) {
+      const asset = result.assets[i];
+      setBulkProgress({ current: i + 1, total: result.assets.length });
+      
+      try {
+        // Fix: Pass the isBulkUpload parameter as true
+        await handleAutoDescribeAndSave(asset.uri, true);
+        // Small delay between API calls
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to process image ${i + 1}:`, error);
+        // Continue with next image even if one fails
+      }
+    }
+    
+    setBulkUploading(false);
+    setBulkProgress({ current: 0, total: 0 });
+    alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
+  }
+};
 
+// Function to generate outfit based on selected items
 const handleGenerateOutfit = async () => {
   if (selectedItemsForOutfit.length < 2) {
     alert("Please select at least 2 items to generate an outfit!");
@@ -170,39 +248,82 @@ const handleGenerateOutfit = async () => {
 };
 
 
-const handleItemSelection = (imageUri: string) => {
-  if (!isSelectionMode) return;
-  
-  if (selectedItemsForOutfit.includes(imageUri)) {
-    // Remove from selection
-    setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
-  } else {
-    // Add to selection
-    setSelectedItemsForOutfit(prev => [...prev, imageUri]);
-  }
-};
-
+// View for the Wardrobe Upload Screen 
+  // This is the main component that renders the wardrobe upload screen
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
-        <Text style={styles.title}>Add Clothing Item</Text>
 
-        <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
-          ) : (
-            <Text style={styles.placeholder}>Tap to pick a photo</Text>
-          )}
-        </TouchableOpacity>
+ 
 
-        <Button title="Upload (Coming Soon)" onPress={() => alert('Upload functionality coming soon')} />
-
-
-{generatingOutfit && <Text>Generating outfit... ✨</Text>}
-
-        {loading && <Text>Analyzing with AI...</Text>}
-
+ {/* Image upload section */}
+ <Button 
+    title="📸 Add Multiple Items" 
+    onPress={pickMultipleImages}
+    disabled={bulkUploading}
+  />
+  
+  {/* Progress indicator during bulk upload */}
+  {bulkUploading && (
+    <View style={{ marginTop: 10, alignItems: 'center' }}>
+      <Text>Processing images... ✨</Text>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
+        {bulkProgress.current} of {bulkProgress.total}
+      </Text>
+      <View style={{
+        width: 200,
+        height: 6,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 3,
+        marginTop: 5,
+      }}>
+        <View style={{
+          width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
+          height: '100%',
+          backgroundColor: '#007AFF',
+          borderRadius: 3,
+        }} />
       </View>
+    </View>
+  )}
+
+{/* Demo button to add sample items */}
+<Button 
+  title="🚀 Quick Demo (Add Sample Items)" 
+  onPress={() => {
+    // Add some demo items for testing
+    const demoItems = [
+      {
+        image: 'demo1',
+        title: 'Classic White T-Shirt',
+        description: 'Essential white cotton crew neck t-shirt with relaxed fit',
+        tags: ['white', 'cotton', 'casual', 'basic'],
+        color: 'white',
+        material: 'cotton',
+        style: 'crew neck t-shirt',
+        fit: 'relaxed'
+      },
+      {
+        image: 'demo2', 
+        title: 'Dark Wash Jeans',
+        description: 'High-waisted dark indigo denim jeans with straight leg cut',
+        tags: ['dark blue', 'denim', 'casual', 'jeans'],
+        color: 'dark indigo',
+        material: 'denim',
+        style: 'high-waisted jeans',
+        fit: 'straight leg'
+      }
+    ];
+    
+    setSavedItems(prev => [...prev, ...demoItems]);
+    alert("Demo items added for testing!");
+  }}
+/>
+
+
+{loading && <Text>Analyzing with AI...</Text>}
+
+  </View>
 
 
 
@@ -321,6 +442,12 @@ const handleItemSelection = (imageUri: string) => {
       {/*  SCROLLABLE VIEW FOR WARDROBE ITEMS */}
       <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
         
+{generatingOutfit && ( 
+  <View style={{ marginTop: 20, alignItems: 'center' }}>
+    <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Generating Outfit...✨</Text>
+  </View>
+)}
+
 {generatedOutfit && (
   <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
     <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>AI-Generated Outfit:</Text>
