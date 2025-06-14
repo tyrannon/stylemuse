@@ -11,8 +11,17 @@ const WardrobeUploadScreen = () => {
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedItems, setSavedItems] = useState<
-    { image: string; title?: string; description: string; tags?: string[] }[]
-  >([]);
+  { 
+    image: string; 
+    title?: string; 
+    description: string; 
+    tags?: string[];
+    color?: string;
+    material?: string;
+    style?: string;
+    fit?: string;
+  }[]
+>([]);
   const [title, setTitle] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [selectedItem, setSelectedItem] = useState<{
@@ -52,61 +61,69 @@ const WardrobeUploadScreen = () => {
     }
   };
 
-  const handleAutoDescribeAndSave = async (imageUri: string) => {
-    setLoading(true);
-    setDescription(null);
-    setTitle(null);
-    setTags([]);
+ const handleAutoDescribeAndSave = async (imageUri: string) => {
+  setLoading(true);
+  setDescription(null);
+  setTitle(null);
+  setTags([]);
 
+  try {
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const result = await describeClothingItem(base64);
+
+    // Clean the wrapped markdown formatting
+    const cleanResult = result.replace(/```json|```/g, '').trim();
+
+    let parsed;
     try {
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      const result = await describeClothingItem(base64);
-
-      // Clean the wrapped markdown formatting
-      const cleanResult = result.replace(/```json|```/g, '').trim();
-
-      let parsed;
-      try {
-        parsed = JSON.parse(cleanResult);
-      } catch (err) {
-        console.error("❌ JSON Parse error:", err, cleanResult);
-        alert("AI returned invalid formatting. Try again.");
-        return;
-      }
-
-      const itemTitle = parsed.title;
-      const itemDescription = parsed.description;
-      const itemTags = parsed.tags;
-
-      // Set the state for display
-      setTitle(itemTitle);
-      setDescription(itemDescription);
-      setTags(itemTags);
-
-      // Automatically save to wardrobe
-      setSavedItems(prev => [
-        ...prev,
-        {
-          image: imageUri,
-          title: itemTitle,
-          description: itemDescription,
-          tags: itemTags,
-        },
-      ]);
-
-      alert("Item analyzed and saved to wardrobe!");
-
+      parsed = JSON.parse(cleanResult);
     } catch (err) {
-      console.error(err);
-      alert("Failed to analyze image");
-    } finally {
-      setLoading(false);
+      console.error("❌ JSON Parse error:", err, cleanResult);
+      alert("AI returned invalid formatting. Try again.");
+      return;
     }
-  };
 
+    const itemTitle = parsed.title;
+    const itemDescription = parsed.description;
+    const itemTags = parsed.tags;
+    const itemColor = parsed.color;
+    const itemMaterial = parsed.material;
+    const itemStyle = parsed.style;
+    const itemFit = parsed.fit;
+
+    // Set the state for display
+    setTitle(itemTitle);
+    setDescription(itemDescription);
+    setTags(itemTags);
+
+    // Automatically save to wardrobe with enhanced data
+    setSavedItems(prev => [
+      ...prev,
+      {
+        image: imageUri,
+        title: itemTitle,
+        description: itemDescription,
+        tags: itemTags,
+        color: itemColor,
+        material: itemMaterial,
+        style: itemStyle,
+        fit: itemFit,
+      },
+    ]);
+
+    alert("Item analyzed and saved to wardrobe!");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to analyze image");
+  } finally {
+    setLoading(false);
+  }
+};
+ 
   const handleDeleteItem = () => {
     if (!selectedItem) return;
 
@@ -118,6 +135,7 @@ const WardrobeUploadScreen = () => {
     setSelectedItem(null);
   };
 
+
 const handleGenerateOutfit = async () => {
   if (selectedItemsForOutfit.length < 2) {
     alert("Please select at least 2 items to generate an outfit!");
@@ -127,14 +145,13 @@ const handleGenerateOutfit = async () => {
   setGeneratingOutfit(true);
   
   try {
-    // Get the descriptions of selected items
+    // Get the full item objects (not just descriptions)
     const selectedItems = savedItems.filter(item => 
       selectedItemsForOutfit.includes(item.image)
     );
     
-    // Use descriptions to generate DALL-E image
-    const descriptions = selectedItems.map(item => item.description);
-    const generatedImageUrl = await generateOutfitImage(descriptions);
+    // Pass the full item objects to get better outfit generation
+    const generatedImageUrl = await generateOutfitImage(selectedItems);
     
     if (generatedImageUrl) {
       setGeneratedOutfit(generatedImageUrl);
@@ -149,10 +166,8 @@ const handleGenerateOutfit = async () => {
   } finally {
     setGeneratingOutfit(false);
     setIsSelectionMode(false);
-    // Keep selectedItemsForOutfit so we can show the original items if needed
   }
 };
-
 
 
 const handleItemSelection = (imageUri: string) => {
