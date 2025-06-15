@@ -38,7 +38,7 @@ yarn-error.*
 *.tsbuildinfo
 
 # openai
-utils/openai.ts
+# utils/openai.ts
 
 .env
 .env
