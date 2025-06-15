@@ -164,22 +164,6 @@ npx expo install --fix
 - [ ] Style trend analysis
 - [ ] Calendar integration for occasion-based outfits
 
-## Contributing 🤝
-
-1. Fork the repository
-2. Create your feature branch
-3. Set up your own `.env` file with your OpenAI API key
-4. Make your changes and test thoroughly
-5. Submit a pull request
-
-## License 📄
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## Support 💬
-
-Having issues? Create an issue on GitHub or reach out!
-
 ---
 
 **Built with ❤️ and AI**
