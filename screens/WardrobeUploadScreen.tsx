@@ -700,120 +700,10 @@ const selectWeatherAppropriateItems = (items: any[], weather: any) => {
 
  
 
-{/* Weather display */}
-{weatherData && (
-  <View style={{
-    backgroundColor: '#E3F2FD',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 15,
-    alignItems: 'center'
-  }}>
-    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1976D2' }}>
-      📍 {weatherData.city}
-    </Text>
-    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1976D2' }}>
-      {weatherData.temperature}°F • {weatherData.description}
-    </Text>
-    <Text style={{ fontSize: 12, color: '#666' }}>
-      Feels like {weatherData.feels_like}°F • Humidity {weatherData.humidity}%
-    </Text>
-  </View>
-)}
 
 
 
- {/* Image upload section */}
- <Button 
-    title="📸 Add Multiple Items" 
-    onPress={pickMultipleImages}
-    disabled={bulkUploading}
-  />
-  
-  {/* Progress indicator during bulk upload */}
-  {bulkUploading && (
-    <View style={{ marginTop: 10, alignItems: 'center' }}>
-      <Text>Processing images... ✨</Text>
-      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
-        {bulkProgress.current} of {bulkProgress.total}
-      </Text>
-      <View style={{
-        width: 200,
-        height: 6,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 3,
-        marginTop: 5,
-      }}>
-        <View style={{
-          width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
-          height: '100%',
-          backgroundColor: '#007AFF',
-          borderRadius: 3,
-        }} />
-      </View>
-    </View>
-  )}
-
-{/* Demo button to add sample items */}
-<Button 
-  title="🚀 Quick Demo (Add Sample Items)" 
-  onPress={() => {
-    // Add some demo items for testing
-    const demoItems = [
-      {
-        image: 'demo1',
-        title: 'Classic White T-Shirt',
-        description: 'Essential white cotton crew neck t-shirt with relaxed fit',
-        tags: ['white', 'cotton', 'casual', 'basic'],
-        color: 'white',
-        material: 'cotton',
-        style: 'crew neck t-shirt',
-        fit: 'relaxed'
-      },
-      {
-        image: 'demo2', 
-        title: 'Dark Wash Jeans',
-        description: 'High-waisted dark indigo denim jeans with straight leg cut',
-        tags: ['dark blue', 'denim', 'casual', 'jeans'],
-        color: 'dark indigo',
-        material: 'denim',
-        style: 'high-waisted jeans',
-        fit: 'straight leg'
-      }
-    ];
-    
-    setSavedItems(prev => [...prev, ...demoItems]);
-    alert("Demo items added for testing!");
-  }}
-/>
-
-
-{/* Weather-Based Outfit Button */}
-<Button 
-  title={loadingWeather ? "Getting Weather..." : "🌤️ Weather-Based Outfit"}
-  onPress={async () => {
-    if (savedItems.length < 2) {
-      alert("Add more clothing items to generate weather-based outfits!");
-      return;
-    }
-    
-    // Get weather and auto-select best items
-    const weather = await getLocationAndWeather();
-    if (weather) {
-      // Auto-select weather-appropriate items
-      const weatherAppropriateItems = selectWeatherAppropriateItems(savedItems, weather);
-      setSelectedItemsForOutfit(weatherAppropriateItems);
-      setIsSelectionMode(true);
-      
-      alert(`Weather: ${weather.temperature}°F, ${weather.description}. Selected ${weatherAppropriateItems.length} weather-appropriate items!`);
-    }
-  }}
-  disabled={loadingWeather}
-/>
-
-
-
-{loading && <Text>Analyzing with AI...</Text>}
+ 
 
   </View>
 
@@ -1131,6 +1021,128 @@ const selectWeatherAppropriateItems = (items: any[], weather: any) => {
 )}
 
 
+
+{/* Weather display */}
+{weatherData && (
+  <View style={{
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    marginTop: 20,
+    alignItems: 'center'
+  }}>
+    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1976D2' }}>
+      📍 {weatherData.city}
+    </Text>
+    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1976D2' }}>
+      {weatherData.temperature}°F • {weatherData.description}
+    </Text>
+    <Text style={{ fontSize: 12, color: '#666' }}>
+      Feels like {weatherData.feels_like}°F • Humidity {weatherData.humidity}%
+    </Text>
+  </View>
+)}
+
+
+
+
+
+{/* Image upload section */}
+ <Button 
+    title="📸 Add Multiple Items" 
+    onPress={pickMultipleImages}
+    disabled={bulkUploading}
+  />
+  
+  {/* Progress indicator during bulk upload */}
+  {bulkUploading && (
+    <View style={{ marginTop: 10, alignItems: 'center' }}>
+      <Text>Processing images... ✨</Text>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
+        {bulkProgress.current} of {bulkProgress.total}
+      </Text>
+      <View style={{
+        width: 200,
+        height: 6,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 3,
+        marginTop: 5,
+      }}>
+        <View style={{
+          width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
+          height: '100%',
+          backgroundColor: '#007AFF',
+          borderRadius: 3,
+        }} />
+      </View>
+    </View>
+  )}
+
+{/* Demo button to add sample items */}
+<Button 
+  title="🚀 Quick Demo (Add Sample Items)" 
+  onPress={() => {
+    // Add some demo items for testing
+    const demoItems = [
+      {
+        image: 'demo1',
+        title: 'Classic White T-Shirt',
+        description: 'Essential white cotton crew neck t-shirt with relaxed fit',
+        tags: ['white', 'cotton', 'casual', 'basic'],
+        color: 'white',
+        material: 'cotton',
+        style: 'crew neck t-shirt',
+        fit: 'relaxed'
+      },
+      {
+        image: 'demo2', 
+        title: 'Dark Wash Jeans',
+        description: 'High-waisted dark indigo denim jeans with straight leg cut',
+        tags: ['dark blue', 'denim', 'casual', 'jeans'],
+        color: 'dark indigo',
+        material: 'denim',
+        style: 'high-waisted jeans',
+        fit: 'straight leg'
+      }
+    ];
+    
+    setSavedItems(prev => [...prev, ...demoItems]);
+    alert("Demo items added for testing!");
+  }}
+/>
+
+
+
+
+
+{loading && <Text>Analyzing with AI...</Text>}
+
+
+
+
+{/* Weather-Based Outfit Button */}
+<Button 
+  title={loadingWeather ? "Getting Weather..." : "🌤️ Weather-Based Outfit"}
+  onPress={async () => {
+    if (savedItems.length < 2) {
+      alert("Add more clothing items to generate weather-based outfits!");
+      return;
+    }
+    
+    // Get weather and auto-select best items
+    const weather = await getLocationAndWeather();
+    if (weather) {
+      // Auto-select weather-appropriate items
+      const weatherAppropriateItems = selectWeatherAppropriateItems(savedItems, weather);
+      setSelectedItemsForOutfit(weatherAppropriateItems);
+      setIsSelectionMode(true);
+      
+      alert(`Weather: ${weather.temperature}°F, ${weather.description}. Selected ${weatherAppropriateItems.length} weather-appropriate items!`);
+    }
+  }}
+  disabled={loadingWeather}
+/>
 
 
 {/* // Selection mode for outfit generation */}

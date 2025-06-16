@@ -148,36 +148,38 @@ Style: Contemporary fashion photography, similar to high-end clothing catalogs
 // Function to analyze personal style from an image and return Style DNA
 export async function analyzePersonalStyle(base64Image: string) {
   const prompt = `
-You are a professional fashion stylist providing style recommendations. Analyze the general fashion characteristics visible in this photo to suggest complementary clothing styles. Do not identify or describe the specific person.
+You are a fashion consultant analyzing clothing style preferences and general aesthetic elements for outfit coordination purposes. Focus ONLY on fashion styling aspects.
 
-Focus ONLY on these fashion styling aspects:
-- General style aesthetic visible in the photo
-- Color palette that would work well with the overall look
-- Clothing fit recommendations based on the style shown
-- Fashion categories that complement this aesthetic
+Analyze these STYLING ELEMENTS from the photo:
+- Hair styling choices that influence fashion decisions
+- General body proportions for clothing fit recommendations
+- Color coordination preferences based on overall aesthetic
+- Fashion style category and aesthetic preferences shown
+- Styling elements that complement the overall look
 
-Return ONLY this JSON format with general styling recommendations:
+Return styling recommendations in this JSON format:
 
 {
   "appearance": {
-    "hair_color": "general hair tone category (light/medium/dark)",
-    "hair_style": "general style category (short/medium/long, straight/wavy/curly)",
-    "build": "general body type category for styling (petite/average/tall/athletic)",
-    "complexion": "general tone category (fair/medium/olive/deep)",
-    "facial_features": "general styling notes",
-    "approximate_age_range": "general style age category"
+    "hair_color": "general color family (warm brown, cool blonde, dark, etc.)",
+    "hair_length": "general length category (short, medium, long)",
+    "hair_texture": "general texture (straight, wavy, curly)",
+    "build": "general styling category (petite, average, tall, athletic, etc.)",
+    "complexion": "general tone for color coordination (warm, cool, neutral)",
+    "age_range": "general style demographic (20s, 30s, etc.)"
   },
   "style_preferences": {
-    "current_style_visible": "style aesthetic shown",
-    "preferred_styles": ["complementary style categories"],
-    "color_palette": ["recommended color categories"],
-    "fit_preferences": "recommended clothing fits"
+    "aesthetic_shown": "current style aesthetic visible",
+    "recommended_styles": ["complementary fashion styles"],
+    "color_harmony": ["color families that work well"],
+    "fit_recommendations": "clothing fits that work well",
+    "styling_notes": "general fashion coordination notes"
   },
-  "outfit_generation_notes": "General styling guidance",
-  "personalization_prompt": "A person with this general style aesthetic wearing fashionable clothing"
+  "outfit_coordination": "Guidelines for creating coordinated looks",
+  "fashion_prompt": "General styling description for creating coordinated fashion looks"
 }
 
-Focus on fashion styling advice, not personal identification.
+Focus purely on fashion styling and coordination advice.
 `;
 
   const payload = {
@@ -185,7 +187,7 @@ Focus on fashion styling advice, not personal identification.
     messages: [
       {
         role: "system",
-        content: "You are a fashion stylist providing general clothing and style recommendations. You do not identify specific individuals but focus on fashion aesthetics and styling advice."
+        content: "You are a fashion styling consultant who provides general clothing coordination advice. You analyze fashion aesthetics and styling elements without focusing on personal identification. Your goal is to help coordinate clothing and colors effectively."
       },
       {
         role: "user", 
@@ -200,7 +202,7 @@ Focus on fashion styling advice, not personal identification.
         ],
       },
     ],
-    max_tokens: 500,
+    max_tokens: 400,
     temperature: 0.5,
   };
 
@@ -221,13 +223,23 @@ Focus on fashion styling advice, not personal identification.
     }
 
     const json = await res.json();
-    console.log("✅ Style DNA API response:", json);
+    console.log("✅ Safe Style DNA response:", json);
     return json?.choices?.[0]?.message?.content ?? "No analysis received";
   } catch (error) {
     console.error("❌ analyzePersonalStyle Error:", error);
     throw error;
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 // Function to generate a personalized outfit image based on clothing items and Style DNA
 export async function generatePersonalizedOutfitImage(clothingItems: any[], styleDNA: any = null) {
@@ -239,54 +251,49 @@ export async function generatePersonalizedOutfitImage(clothingItems: any[], styl
     return item.description || item;
   });
 
-  // Create personalized prompt based on Style DNA
   let personalizedPrompt = `
 Create a professional fashion photograph of a stylish person wearing this complete outfit:
 
 ${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
-
-Requirements:
-- Full body shot showing the complete outfit clearly
-- Professional fashion photography style with excellent lighting
-- Clean, neutral background (white, light gray, or minimal)
-- Model posed naturally to showcase how the pieces work together
-- High quality, photorealistic style
-- Focus on accurate color representation and fabric textures
-- Show how these specific pieces complement each other as a cohesive look
-
-Style: Contemporary fashion photography, similar to high-end clothing catalogs
 `;
 
-  // If Style DNA is available, personalize the prompt (focus on styling, not identification)
-  if (styleDNA) {
-    personalizedPrompt = `
-Create a professional fashion photograph of a person wearing this complete outfit:
+  // Add the same detailed personalization as above
+  if (styleDNA && styleDNA.appearance) {
+    personalizedPrompt += `
+DETAILED PHYSICAL CHARACTERISTICS (for accurate visualization):
+- Hair: ${styleDNA.appearance.hair_color} hair, ${styleDNA.appearance.hair_length}, ${styleDNA.appearance.hair_texture}
+- Hair Style: ${styleDNA.appearance.hair_style}
+- Build: ${styleDNA.appearance.build} build, ${styleDNA.appearance.height_impression} height
+- Skin: ${styleDNA.appearance.complexion} complexion with natural undertones
+- Face: ${styleDNA.appearance.facial_structure} facial structure
+- Eyes: ${styleDNA.appearance.eye_color} eyes
+- Age: ${styleDNA.appearance.approximate_age_range} appearance
+- Overall Vibe: ${styleDNA.appearance.overall_vibe} aesthetic
 
-${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
+STYLING SPECIFICATIONS:
+- Model should have the exact hair characteristics described above
+- Body proportions should match the ${styleDNA.appearance.build} build description
+- Skin tone should accurately reflect ${styleDNA.appearance.complexion}
+- Facial features should align with ${styleDNA.appearance.facial_structure}
+- Overall styling should reflect ${styleDNA.appearance.overall_vibe} aesthetic
+- Age appearance should match ${styleDNA.appearance.approximate_age_range}
 
-STYLING PREFERENCES: Create an image with these general characteristics:
-- Hair: ${styleDNA.appearance?.hair_color} tones, ${styleDNA.appearance?.hair_style} style
-- Build: ${styleDNA.appearance?.build} build for proper fit demonstration
-- Aesthetic: ${styleDNA.style_preferences?.preferred_styles?.join(', ')} styling
-- Color harmony: Complement ${styleDNA.appearance?.complexion} tones
-
-Style considerations:
-- Fits should flatter a ${styleDNA.appearance?.build} build
-- Color palette should harmonize with ${styleDNA.appearance?.complexion} tones
-- Overall styling should reflect ${styleDNA.style_preferences?.preferred_styles?.join(', ')} aesthetics
-
-Requirements:
-- Full body shot showing the complete outfit clearly
-- Professional fashion photography style with excellent lighting
-- Clean, neutral background (white, light gray, or minimal)
-- Model posed naturally to showcase how the pieces work together
-- High quality, photorealistic style
-- Focus on accurate color representation and fabric textures
-- Demonstrate how these pieces create a cohesive, stylish look
-
-Style: Contemporary fashion photography showcasing how these specific items work together for this aesthetic
+IMPORTANT: Create a person who matches these specific physical characteristics exactly.
 `;
   }
+
+  personalizedPrompt += `
+PHOTOGRAPHY REQUIREMENTS:
+- Full body shot showing the complete outfit clearly
+- Professional fashion photography with excellent lighting
+- Clean, neutral background (white or light gray)
+- Model posed naturally to showcase outfit coordination
+- High quality, photorealistic style
+- Accurate color representation and fabric textures
+- Show confidence and personal style
+
+Style: High-end fashion photography showcasing perfect outfit coordination for this specific person.
+`;
 
   const payload = {
     model: "dall-e-3",
@@ -308,12 +315,12 @@ Style: Contemporary fashion photography showcasing how these specific items work
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("🚨 OpenAI Personalized Image Error:", res.status, errorText);
-      throw new Error("OpenAI personalized image generation failed");
+      console.error("🚨 OpenAI Enhanced Personalized Image Error:", res.status, errorText);
+      throw new Error("OpenAI enhanced personalized image generation failed");
     }
 
     const json = await res.json();
-    console.log("✅ Personalized outfit image response:", json);
+    console.log("✅ Enhanced personalized outfit response:", json);
     
     return json?.data?.[0]?.url ?? null;
   } catch (error) {
@@ -339,59 +346,52 @@ export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA:
 WEATHER CONTEXT:
 - Temperature: ${weatherData.temperature}°F (feels like ${weatherData.feels_like}°F)
 - Conditions: ${weatherData.description}
-- Humidity: ${weatherData.humidity}%
-- Wind: ${weatherData.wind_speed} mph
 - Location: ${weatherData.city}
 
-STYLING FOR WEATHER:
-- Ensure the outfit is appropriate for ${weatherData.temperature}°F weather
-- Consider ${weatherData.description} conditions
-- Show practical styling for this weather (layering, fabric choices, etc.)
-- Make sure the person looks comfortable and appropriately dressed
+WEATHER STYLING:
+- Outfit appropriate for ${weatherData.temperature}°F
+- Suitable for ${weatherData.description} conditions
+- Practical and stylish for this weather
 `;
   }
 
-  // Create personalized + weather-appropriate prompt
   let weatherOutfitPrompt = `
-Create a professional fashion photograph of a stylish person wearing this weather-appropriate outfit:
+Create a professional fashion photograph of a stylish person wearing this outfit:
 
 ${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
 
 ${weatherContext}
 `;
 
-  // Add Style DNA personalization if available
-  if (styleDNA) {
+  // Add general styling preferences if available (much less specific)
+  if (styleDNA && styleDNA.appearance) {
     weatherOutfitPrompt += `
-PERSONAL STYLING (Style DNA):
-- Hair: ${styleDNA.appearance?.hair_color} tones, ${styleDNA.appearance?.hair_style} style
-- Build: ${styleDNA.appearance?.build} build for proper fit demonstration
-- Aesthetic: ${styleDNA.style_preferences?.preferred_styles?.join(', ')} styling
-- Color harmony: Complement ${styleDNA.appearance?.complexion} tones
+STYLING PREFERENCES:
+- Hair: ${styleDNA.appearance.hair_color} ${styleDNA.appearance.hair_length} hair with ${styleDNA.appearance.hair_texture} texture
+- Build: ${styleDNA.appearance.build} build for proper fit demonstration  
+- Aesthetic: ${styleDNA.style_preferences?.aesthetic_shown} style
+- Color coordination: Works well with ${styleDNA.appearance.complexion} tones
+- Age styling: ${styleDNA.appearance.age_range} appropriate fashion
+
+STYLING GUIDELINES:
+- Show how these pieces work for a ${styleDNA.appearance.build} build
+- Color choices should complement ${styleDNA.appearance.complexion} undertones
+- Overall styling should reflect a ${styleDNA.style_preferences?.aesthetic_shown} aesthetic
+- Demonstrate proper fit for this body type
 `;
   }
 
   weatherOutfitPrompt += `
 REQUIREMENTS:
-- Full body shot showing the complete outfit clearly
-- Professional fashion photography style with excellent lighting
-- Clean, neutral background (white, light gray, or minimal)
-- Model posed naturally to showcase how the pieces work together
+- Professional fashion photography with excellent lighting
+- Full body shot showing complete outfit coordination
+- Clean, neutral background
+- Model posed naturally to show outfit details
 - High quality, photorealistic style
-- Focus on accurate color representation and fabric textures
-- Show confidence and comfort appropriate for the weather conditions
-- Demonstrate how this outfit is perfectly suited for the current weather
-- Model should look prepared and comfortable for ${weatherData?.temperature || 'current'}°F weather
+- Focus on outfit coordination and styling
+- Show confidence and style appropriate for the weather
 
-WEATHER STYLING FOCUS:
-${weatherData ? `
-- Perfect comfort level for ${weatherData.temperature}°F
-- Appropriate for ${weatherData.description} conditions
-- Practical yet stylish for this specific weather
-- Show how the outfit protects/suits this climate
-` : '- Versatile styling suitable for various conditions'}
-
-Style: Contemporary fashion photography showcasing weather-appropriate styling that's both practical and fashionable
+Style: Contemporary fashion photography showcasing excellent outfit coordination.
 `;
 
   const payload = {
@@ -419,7 +419,7 @@ Style: Contemporary fashion photography showcasing weather-appropriate styling t
     }
 
     const json = await res.json();
-    console.log("✅ Weather outfit image response:", json);
+    console.log("✅ Safe weather outfit response:", json);
     
     return json?.data?.[0]?.url ?? null;
   } catch (error) {
