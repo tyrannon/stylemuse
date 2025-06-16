@@ -3,8 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { generateOutfitImage } from '../utils/openai';
-
+import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage } from '../utils/openai';
 
 const WardrobeUploadScreen = () => {
   // State Variables
@@ -49,6 +48,12 @@ const WardrobeUploadScreen = () => {
   // Animated value for spin effect
   // This can be used for any animated effects you want to add later
   const [spinValue] = useState(new Animated.Value(0));
+
+  // State for profile image and style DNA
+  // This can be used for future profile-related features
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [styleDNA, setStyleDNA] = useState<any | null>(null);
+  const [analyzingProfile, setAnalyzingProfile] = useState(false);
 
 
  // Function to pick a single image from the library
@@ -220,6 +225,7 @@ const pickMultipleImages = async () => {
 };
 
 // Function to generate outfit based on selected items
+// This function will create a new outfit image using the selected items
 const handleGenerateOutfit = async () => {
   if (selectedItemsForOutfit.length < 2) {
     alert("Please select at least 2 items to generate an outfit!");
@@ -227,18 +233,21 @@ const handleGenerateOutfit = async () => {
   }
 
   setGeneratingOutfit(true);
-  startSpinAnimation(); // Start the spinning animation
+  startSpinAnimation();
   
   try {
     const selectedItems = savedItems.filter(item => 
       selectedItemsForOutfit.includes(item.image)
     );
     
-    const generatedImageUrl = await generateOutfitImage(selectedItems);
+    // Pass your Style DNA to the outfit generator
+    const generatedImageUrl = await generatePersonalizedOutfitImage(selectedItems, styleDNA);
     
     if (generatedImageUrl) {
       setGeneratedOutfit(generatedImageUrl);
-      alert("AI-generated outfit created! 🎨✨");
+      alert(styleDNA ? 
+        "AI-generated outfit created on YOUR style! 🎨✨" : 
+        "AI-generated outfit created! Upload your photo for personalized results! 📸");
     } else {
       throw new Error("Failed to generate outfit image");
     }
@@ -248,11 +257,10 @@ const handleGenerateOutfit = async () => {
     alert("Failed to generate AI outfit. Please try again.");
   } finally {
     setGeneratingOutfit(false);
-    stopSpinAnimation(); // Stop the spinning animation
+    stopSpinAnimation();
     setIsSelectionMode(false);
   }
 };
-
 
 // Function to start the spinning animation:
 const startSpinAnimation = () => {
@@ -273,11 +281,168 @@ const stopSpinAnimation = () => {
 };
 
 
+// Function to analyze profile image and extract style DNA
+const analyzeProfileImage = async (imageUri: string) => {
+  setAnalyzingProfile(true);
+  
+  try {
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const result = await analyzePersonalStyle(base64);
+    console.log("🔍 Raw Style DNA response:", result);
+    
+    // More aggressive cleaning of the response
+    let cleanResult = result
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .replace(/^[^{]*{/, '{')  // Remove everything before the first {
+      .replace(/}[^}]*$/, '}') // Remove everything after the last }
+      .trim();
+
+    console.log("🧼 Cleaned Style DNA response:", cleanResult);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanResult);
+      setStyleDNA(parsed);
+      console.log("✅ Parsed Style DNA:", parsed);
+      alert("Style DNA analyzed! 🧬✨ Your personal style profile is ready!");
+    } catch (parseErr) {
+      console.error("❌ Style DNA JSON Parse error:", parseErr);
+      console.error("🔍 Attempted to parse:", cleanResult);
+      
+      // Fallback: create a basic style DNA object
+      const fallbackDNA = {
+        appearance: {
+          hair_color: "not specified",
+          hair_style: "not specified", 
+          build: "average",
+          complexion: "medium",
+          facial_features: "general",
+          approximate_age_range: "20s-30s"
+        },
+        style_preferences: {
+          current_style_visible: "casual",
+          preferred_styles: ["casual", "contemporary"],
+          color_palette: ["neutral", "versatile"],
+          fit_preferences: "comfortable"
+        },
+        outfit_generation_notes: "General style preferences",
+        personalization_prompt: "A stylish person with a contemporary casual aesthetic"
+      };
+      
+      setStyleDNA(fallbackDNA);
+      alert("Style DNA created with basic profile! 🧬 (AI response had formatting issues, but we'll still personalize your outfits!)");
+    }
+
+  } catch (err) {
+    console.error("❌ Profile analysis error:", err);
+    alert("Failed to analyze your style. Please try again.");
+  } finally {
+    setAnalyzingProfile(false);
+  }
+};
+
+// Function to pick a profile image and analyze it
+const pickProfileImage = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission to access media library is required!');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 1,
+    aspect: [1, 1], // Square crop for profile photo
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    const imageUri = result.assets[0].uri;
+    setProfileImage(imageUri);
+    
+    // Automatically analyze the profile
+    await analyzeProfileImage(imageUri);
+  }
+};
+
 // View for the Wardrobe Upload Screen 
   // This is the main component that renders the wardrobe upload screen
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
+
+{/* Style DNA Profile Section */}
+<View style={{ marginBottom: 20, alignItems: 'center' }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+    Your Style DNA 🧬
+  </Text>
+  
+  {profileImage ? (
+    <View style={{ alignItems: 'center' }}>
+      <Image 
+        source={{ uri: profileImage }} 
+        style={{ 
+          width: 80, 
+          height: 80, 
+          borderRadius: 40, 
+          borderWidth: 3, 
+          borderColor: styleDNA ? '#4CAF50' : '#FFC107',
+          marginBottom: 10 
+        }} 
+      />
+      {styleDNA && (
+        <View style={{ alignItems: 'center', marginBottom: 10 }}>
+          <Text style={{ fontSize: 12, color: '#4CAF50', fontWeight: 'bold' }}>
+            ✅ Style DNA Ready
+          </Text>
+          <Text style={{ fontSize: 10, color: '#666', textAlign: 'center', maxWidth: 200 }}>
+            {styleDNA.appearance?.hair_color} hair, {styleDNA.appearance?.build} build
+          </Text>
+        </View>
+      )}
+      <Button 
+        title="Update My Photo" 
+        onPress={pickProfileImage}
+        disabled={analyzingProfile}
+      />
+    </View>
+  ) : (
+    <View style={{ alignItems: 'center' }}>
+      <TouchableOpacity 
+        onPress={pickProfileImage}
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          borderWidth: 2,
+          borderStyle: 'dashed',
+          borderColor: '#007AFF',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: 10
+        }}
+      >
+        <Text style={{ fontSize: 24 }}>📸</Text>
+        <Text style={{ fontSize: 10, color: '#007AFF' }}>Add Photo</Text>
+      </TouchableOpacity>
+      <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', maxWidth: 250 }}>
+        Upload your photo to get personalized outfit generation!
+      </Text>
+    </View>
+  )}
+  
+  {analyzingProfile && (
+    <View style={{ marginTop: 10, alignItems: 'center' }}>
+      <Text style={{ color: '#007AFF', fontSize: 12 }}>
+        Analyzing your style DNA... 🧬
+      </Text>
+    </View>
+  )}
+</View>
 
  
 
@@ -550,9 +715,24 @@ const stopSpinAnimation = () => {
 
 {generatedOutfit && (
   <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
-    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>AI-Generated Outfit:</Text>
+    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>
+      {styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "AI-Generated Outfit:"}
+    </Text>
     
-    {/* Show AI-generated image */}
+    {/* Show your profile photo next to the generated outfit if DNA exists */}
+    {styleDNA && profileImage && (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <Image 
+          source={{ uri: profileImage }} 
+          style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} 
+        />
+        <Text style={{ fontSize: 12, color: '#4CAF50', fontWeight: 'bold' }}>
+          Generated based on your Style DNA
+        </Text>
+      </View>
+    )}
+    
+    {/* Rest of your existing generated outfit display... */}
     <Image 
       source={{ uri: generatedOutfit }} 
       style={{ 
@@ -560,11 +740,26 @@ const stopSpinAnimation = () => {
         height: 400, 
         borderRadius: 15,
         borderWidth: 2,
-        borderColor: '#007AFF',
+        borderColor: styleDNA ? '#4CAF50' : '#007AFF',
         marginBottom: 10,
       }}
       resizeMode="cover"
     />
+    
+    {/* Show DNA insights if available */}
+    {styleDNA && (
+      <View style={{ 
+        backgroundColor: '#f0f8f0', 
+        padding: 10, 
+        borderRadius: 10, 
+        marginBottom: 10,
+        maxWidth: 280 
+      }}>
+        <Text style={{ fontSize: 12, color: '#2E7D32', textAlign: 'center' }}>
+          🎯 Tailored for your {styleDNA.appearance?.build} build and {styleDNA.style_preferences?.preferred_styles?.join(', ')} style
+        </Text>
+      </View>
+    )}
     
     {/* Show original selected items as reference */}
     <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 5 }}>Based on these items:</Text>
@@ -614,7 +809,10 @@ const stopSpinAnimation = () => {
 {savedItems.length > 1 && (
   <View style={{ marginTop: 10, paddingHorizontal: 10, alignItems: 'center' }}>
     <Button 
-      title={isSelectionMode ? "Cancel Selection" : "Generate Outfit"} 
+      title={styleDNA ? 
+        `${isSelectionMode ? "Cancel Selection" : "Generate Outfit On Me! 🧬"}` : 
+        `${isSelectionMode ? "Cancel Selection" : "Generate Outfit"}`
+      } 
       onPress={() => {
         if (isSelectionMode) {
           setIsSelectionMode(false);
