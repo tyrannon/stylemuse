@@ -321,3 +321,109 @@ Style: Contemporary fashion photography showcasing how these specific items work
     throw error;
   }
 }
+
+// Function to generate a weather-based outfit image
+export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA: any = null, weatherData: any = null) {
+  // Create detailed clothing descriptions
+  const detailedDescriptions = clothingItems.map(item => {
+    if (item.color && item.material && item.style) {
+      return `${item.color} ${item.material} ${item.style} with ${item.fit} fit - ${item.description}`;
+    }
+    return item.description || item;
+  });
+
+  // Create weather context
+  let weatherContext = "";
+  if (weatherData) {
+    weatherContext = `
+WEATHER CONTEXT:
+- Temperature: ${weatherData.temperature}°F (feels like ${weatherData.feels_like}°F)
+- Conditions: ${weatherData.description}
+- Humidity: ${weatherData.humidity}%
+- Wind: ${weatherData.wind_speed} mph
+- Location: ${weatherData.city}
+
+STYLING FOR WEATHER:
+- Ensure the outfit is appropriate for ${weatherData.temperature}°F weather
+- Consider ${weatherData.description} conditions
+- Show practical styling for this weather (layering, fabric choices, etc.)
+- Make sure the person looks comfortable and appropriately dressed
+`;
+  }
+
+  // Create personalized + weather-appropriate prompt
+  let weatherOutfitPrompt = `
+Create a professional fashion photograph of a stylish person wearing this weather-appropriate outfit:
+
+${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
+
+${weatherContext}
+`;
+
+  // Add Style DNA personalization if available
+  if (styleDNA) {
+    weatherOutfitPrompt += `
+PERSONAL STYLING (Style DNA):
+- Hair: ${styleDNA.appearance?.hair_color} tones, ${styleDNA.appearance?.hair_style} style
+- Build: ${styleDNA.appearance?.build} build for proper fit demonstration
+- Aesthetic: ${styleDNA.style_preferences?.preferred_styles?.join(', ')} styling
+- Color harmony: Complement ${styleDNA.appearance?.complexion} tones
+`;
+  }
+
+  weatherOutfitPrompt += `
+REQUIREMENTS:
+- Full body shot showing the complete outfit clearly
+- Professional fashion photography style with excellent lighting
+- Clean, neutral background (white, light gray, or minimal)
+- Model posed naturally to showcase how the pieces work together
+- High quality, photorealistic style
+- Focus on accurate color representation and fabric textures
+- Show confidence and comfort appropriate for the weather conditions
+- Demonstrate how this outfit is perfectly suited for the current weather
+- Model should look prepared and comfortable for ${weatherData?.temperature || 'current'}°F weather
+
+WEATHER STYLING FOCUS:
+${weatherData ? `
+- Perfect comfort level for ${weatherData.temperature}°F
+- Appropriate for ${weatherData.description} conditions
+- Practical yet stylish for this specific weather
+- Show how the outfit protects/suits this climate
+` : '- Versatile styling suitable for various conditions'}
+
+Style: Contemporary fashion photography showcasing weather-appropriate styling that's both practical and fashionable
+`;
+
+  const payload = {
+    model: "dall-e-3",
+    prompt: weatherOutfitPrompt,
+    n: 1,
+    size: "1024x1024",
+    quality: "standard",
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Weather Outfit Error:", res.status, errorText);
+      throw new Error("OpenAI weather outfit generation failed");
+    }
+
+    const json = await res.json();
+    console.log("✅ Weather outfit image response:", json);
+    
+    return json?.data?.[0]?.url ?? null;
+  } catch (error) {
+    console.error("❌ generateWeatherBasedOutfit Error:", error);
+    throw error;
+  }
+}

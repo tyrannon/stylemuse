@@ -3,7 +3,9 @@ import * as FileSystem from 'expo-file-system';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage } from '../utils/openai';
+import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
+import * as Location from 'expo-location';
+
 
 const WardrobeUploadScreen = () => {
   // State Variables
@@ -54,6 +56,14 @@ const WardrobeUploadScreen = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [styleDNA, setStyleDNA] = useState<any | null>(null);
   const [analyzingProfile, setAnalyzingProfile] = useState(false);
+
+  // State for weather data
+  const [weatherData, setWeatherData] = useState<any | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+
+ 
 
 
  // Function to pick a single image from the library
@@ -226,6 +236,7 @@ const pickMultipleImages = async () => {
 
 // Function to generate outfit based on selected items
 // This function will create a new outfit image using the selected items
+// It will also consider the user's style DNA if available and weather data if provided
 const handleGenerateOutfit = async () => {
   if (selectedItemsForOutfit.length < 2) {
     alert("Please select at least 2 items to generate an outfit!");
@@ -240,14 +251,20 @@ const handleGenerateOutfit = async () => {
       selectedItemsForOutfit.includes(item.image)
     );
     
-    // Pass your Style DNA to the outfit generator
-    const generatedImageUrl = await generatePersonalizedOutfitImage(selectedItems, styleDNA);
+    // Get weather data if we have it, otherwise use regular generation
+    const currentWeather = weatherData || await getLocationAndWeather();
+    
+    // Generate weather-appropriate outfit if we have weather data
+    const generatedImageUrl = currentWeather ? 
+      await generateWeatherBasedOutfit(selectedItems, styleDNA, currentWeather) :
+      await generatePersonalizedOutfitImage(selectedItems, styleDNA);
     
     if (generatedImageUrl) {
       setGeneratedOutfit(generatedImageUrl);
-      alert(styleDNA ? 
-        "AI-generated outfit created on YOUR style! 🎨✨" : 
-        "AI-generated outfit created! Upload your photo for personalized results! 📸");
+      const message = currentWeather ? 
+        `Perfect for ${currentWeather.temperature}°F and ${currentWeather.description}! 🌤️` :
+        (styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸");
+      alert(message);
     } else {
       throw new Error("Failed to generate outfit image");
     }
@@ -261,6 +278,15 @@ const handleGenerateOutfit = async () => {
     setIsSelectionMode(false);
   }
 };
+
+
+
+
+
+
+
+
+
 
 // Function to start the spinning animation:
 const startSpinAnimation = () => {
@@ -369,6 +395,234 @@ const pickProfileImage = async () => {
   }
 };
 
+
+// Function to fetch weather data based on location
+const fetchWeatherData = async (lat: number, lon: number) => {
+  try {
+    // Use environment variable for API key
+    const API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+    
+    if (!API_KEY) {
+      throw new Error('Weather API key not found in environment variables');
+    }
+    
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=imperial`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Weather API request failed');
+    }
+    
+    const data = await response.json();
+    return {
+      temperature: Math.round(data.main.temp),
+      feels_like: Math.round(data.main.feels_like),
+      humidity: data.main.humidity,
+      description: data.weather[0].description,
+      main: data.weather[0].main,
+      wind_speed: Math.round(data.wind.speed),
+      city: data.name
+    };
+  } catch (error) {
+    console.error('❌ Weather fetch error:', error);
+    throw error;
+  }
+};
+
+
+// Function to get location and weather data
+const getLocationAndWeather = async () => {
+  setLoadingWeather(true);
+  
+  try {
+    // Get location permission
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Permission to access location is required for weather-based outfits!');
+      setLoadingWeather(false);
+      return null;
+    }
+
+    // Get current location
+    let currentLocation = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = currentLocation.coords;
+    setLocation({ latitude, longitude });
+
+    // Get weather data
+    const weather = await fetchWeatherData(latitude, longitude);
+    setWeatherData(weather);
+    
+    return weather;
+  } catch (error) {
+    console.error('❌ Location/Weather error:', error);
+    alert('Failed to get location/weather data');
+    return null;
+  } finally {
+    setLoadingWeather(false);
+  }
+};
+
+
+
+
+// Function to select weather-appropriate items based on current weather
+// This function will categorize items and filter them based on the weather conditions
+const selectWeatherAppropriateItems = (items: any[], weather: any) => {
+  const temp = weather.temperature;
+  const isRaining = weather.description.includes('rain');
+  const isSnowing = weather.description.includes('snow');
+  
+  // Categorize items by type
+  const categorizedItems = {
+    tops: [],
+    bottoms: [],
+    outerwear: [],
+    shoes: [],
+    accessories: []
+  };
+  
+  items.forEach(item => {
+    const tags = item.tags || [];
+    const style = item.style?.toLowerCase() || '';
+    const title = item.title?.toLowerCase() || '';
+    
+    // Categorize each item
+    if (tags.some(tag => ['top', 't-shirt', 'shirt', 'blouse', 'tank', 'crop'].includes(tag.toLowerCase())) ||
+        style.includes('shirt') || style.includes('top') || style.includes('blouse')) {
+      categorizedItems.tops.push(item);
+    } else if (tags.some(tag => ['bottom', 'pants', 'jeans', 'shorts', 'skirt', 'dress'].includes(tag.toLowerCase())) ||
+               style.includes('jeans') || style.includes('pants') || style.includes('shorts') || 
+               style.includes('skirt') || style.includes('dress')) {
+      categorizedItems.bottoms.push(item);
+    } else if (tags.some(tag => ['jacket', 'coat', 'blazer', 'cardigan', 'sweater'].includes(tag.toLowerCase())) ||
+               style.includes('jacket') || style.includes('coat') || style.includes('blazer')) {
+      categorizedItems.outerwear.push(item);
+    } else if (tags.some(tag => ['shoes', 'boots', 'sandals', 'sneakers'].includes(tag.toLowerCase())) ||
+               style.includes('shoes') || style.includes('boots')) {
+      categorizedItems.shoes.push(item);
+    } else {
+      categorizedItems.accessories.push(item);
+    }
+  });
+  
+  // Filter by weather appropriateness within each category
+  const filterByWeather = (categoryItems) => {
+    return categoryItems.filter(item => {
+      const tags = item.tags || [];
+      const material = item.material?.toLowerCase() || '';
+      const style = item.style?.toLowerCase() || '';
+      
+      // Cold weather (under 50°F)
+      if (temp < 50) {
+        return tags.some(tag => 
+          ['warm', 'winter', 'long-sleeve', 'pants', 'jeans', 'boots', 'coat', 'jacket', 'sweater'].includes(tag.toLowerCase())
+        ) || ['wool', 'fleece', 'down', 'cashmere', 'denim'].includes(material) ||
+           style.includes('long') || style.includes('jeans') || style.includes('pants');
+      }
+      
+      // Mild weather (50-70°F)
+      if (temp >= 50 && temp <= 70) {
+        return tags.some(tag => 
+          ['light', 'layer', 'jeans', 'pants', 'long-sleeve', 'short-sleeve'].includes(tag.toLowerCase())
+        ) || style.includes('jeans') || style.includes('pants') || !style.includes('shorts');
+      }
+      
+      // Warm weather (over 70°F)
+      if (temp > 70) {
+        return tags.some(tag => 
+          ['summer', 'light', 'short', 'shorts', 'skirt', 'dress', 't-shirt', 'tank', 'sandals'].includes(tag.toLowerCase())
+        ) || ['cotton', 'linen', 'silk'].includes(material) ||
+           style.includes('short') || style.includes('skirt') || style.includes('dress') || style.includes('t-shirt');
+      }
+      
+      return true; // Include if no specific weather rules
+    });
+  };
+  
+  // Get weather-appropriate items from each category
+  const weatherTops = filterByWeather(categorizedItems.tops);
+  const weatherBottoms = filterByWeather(categorizedItems.bottoms);
+  const weatherOuterwear = filterByWeather(categorizedItems.outerwear);
+  const weatherShoes = filterByWeather(categorizedItems.shoes);
+  
+  // Build a balanced outfit
+  const selectedItems = [];
+  
+  // Always pick at least 1 top
+  if (weatherTops.length > 0) {
+    selectedItems.push(weatherTops[0]);
+  } else if (categorizedItems.tops.length > 0) {
+    // Fallback to any top if no weather-appropriate tops
+    selectedItems.push(categorizedItems.tops[0]);
+  }
+  
+  // Always pick at least 1 bottom (unless it's a dress)
+  if (weatherBottoms.length > 0) {
+    const bottom = weatherBottoms[0];
+    // Check if the selected top is a dress
+    const selectedTop = selectedItems[0];
+    const isTopADress = selectedTop && (
+      selectedTop.style?.toLowerCase().includes('dress') ||
+      selectedTop.tags?.some(tag => tag.toLowerCase() === 'dress')
+    );
+    
+    if (!isTopADress) {
+      selectedItems.push(bottom);
+    }
+  } else if (categorizedItems.bottoms.length > 0) {
+    // Fallback to any bottom
+    const selectedTop = selectedItems[0];
+    const isTopADress = selectedTop && (
+      selectedTop.style?.toLowerCase().includes('dress') ||
+      selectedTop.tags?.some(tag => tag.toLowerCase() === 'dress')
+    );
+    
+    if (!isTopADress) {
+      selectedItems.push(categorizedItems.bottoms[0]);
+    }
+  }
+  
+  // Add outerwear for cold weather or if available slots
+  if (temp < 60 && weatherOuterwear.length > 0) {
+    selectedItems.push(weatherOuterwear[0]);
+  } else if (selectedItems.length < 3 && categorizedItems.outerwear.length > 0) {
+    selectedItems.push(categorizedItems.outerwear[0]);
+  }
+  
+  // Add shoes if available and slots remain
+  if (selectedItems.length < 4 && weatherShoes.length > 0) {
+    selectedItems.push(weatherShoes[0]);
+  } else if (selectedItems.length < 4 && categorizedItems.shoes.length > 0) {
+    selectedItems.push(categorizedItems.shoes[0]);
+  }
+  
+  // Fill remaining slots with weather-appropriate accessories or any remaining items
+  while (selectedItems.length < 4 && selectedItems.length < items.length) {
+    const remainingItems = items.filter(item => 
+      !selectedItems.some(selected => selected.image === item.image)
+    );
+    
+    if (remainingItems.length === 0) break;
+    
+    // Prefer weather-appropriate items
+    const weatherAppropriate = filterByWeather(remainingItems);
+    if (weatherAppropriate.length > 0) {
+      selectedItems.push(weatherAppropriate[0]);
+    } else {
+      selectedItems.push(remainingItems[0]);
+    }
+  }
+  
+  return selectedItems.map(item => item.image);
+};
+
+
+
+
+
+
+
 // View for the Wardrobe Upload Screen 
   // This is the main component that renders the wardrobe upload screen
   return (
@@ -446,6 +700,29 @@ const pickProfileImage = async () => {
 
  
 
+{/* Weather display */}
+{weatherData && (
+  <View style={{
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    alignItems: 'center'
+  }}>
+    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1976D2' }}>
+      📍 {weatherData.city}
+    </Text>
+    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1976D2' }}>
+      {weatherData.temperature}°F • {weatherData.description}
+    </Text>
+    <Text style={{ fontSize: 12, color: '#666' }}>
+      Feels like {weatherData.feels_like}°F • Humidity {weatherData.humidity}%
+    </Text>
+  </View>
+)}
+
+
+
  {/* Image upload section */}
  <Button 
     title="📸 Add Multiple Items" 
@@ -509,6 +786,31 @@ const pickProfileImage = async () => {
     alert("Demo items added for testing!");
   }}
 />
+
+
+{/* Weather-Based Outfit Button */}
+<Button 
+  title={loadingWeather ? "Getting Weather..." : "🌤️ Weather-Based Outfit"}
+  onPress={async () => {
+    if (savedItems.length < 2) {
+      alert("Add more clothing items to generate weather-based outfits!");
+      return;
+    }
+    
+    // Get weather and auto-select best items
+    const weather = await getLocationAndWeather();
+    if (weather) {
+      // Auto-select weather-appropriate items
+      const weatherAppropriateItems = selectWeatherAppropriateItems(savedItems, weather);
+      setSelectedItemsForOutfit(weatherAppropriateItems);
+      setIsSelectionMode(true);
+      
+      alert(`Weather: ${weather.temperature}°F, ${weather.description}. Selected ${weatherAppropriateItems.length} weather-appropriate items!`);
+    }
+  }}
+  disabled={loadingWeather}
+/>
+
 
 
 {loading && <Text>Analyzing with AI...</Text>}
@@ -713,11 +1015,34 @@ const pickProfileImage = async () => {
   </View>
 )}
 
+
+
+
+{/* Wardrobe Items List */}
+{/* // Display generated outfit if available */}
 {generatedOutfit && (
   <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
     <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>
-      {styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "AI-Generated Outfit:"}
+      {weatherData && styleDNA ? "Your Personalized Weather Outfit! 🧬🌤️" : 
+       weatherData ? "Perfect Weather Outfit! 🌤️" :
+       styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "AI-Generated Outfit:"}
     </Text>
+    
+    {/* Weather-specific styling indicator */}
+    {weatherData && (
+      <View style={{ 
+        backgroundColor: '#E8F5E8', 
+        padding: 8, 
+        borderRadius: 8, 
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center'
+      }}>
+        <Text style={{ fontSize: 12, color: '#2E7D32', fontWeight: 'bold' }}>
+          🌡️ Perfect for {weatherData.temperature}°F • {weatherData.description}
+        </Text>
+      </View>
+    )}
     
     {/* Show your profile photo next to the generated outfit if DNA exists */}
     {styleDNA && profileImage && (
@@ -740,7 +1065,7 @@ const pickProfileImage = async () => {
         height: 400, 
         borderRadius: 15,
         borderWidth: 2,
-        borderColor: styleDNA ? '#4CAF50' : '#007AFF',
+        borderColor: weatherData ? '#4CAF50' : (styleDNA ? '#4CAF50' : '#007AFF'),
         marginBottom: 10,
       }}
       resizeMode="cover"
@@ -806,6 +1131,9 @@ const pickProfileImage = async () => {
 )}
 
 
+
+
+{/* // Selection mode for outfit generation */}
 {savedItems.length > 1 && (
   <View style={{ marginTop: 10, paddingHorizontal: 10, alignItems: 'center' }}>
     <Button 
@@ -926,8 +1254,10 @@ const pickProfileImage = async () => {
   );
 };
 
+// Export the WardrobeUploadScreen component
 export default WardrobeUploadScreen;
 
+// Styles for the Wardrobe Upload Screen
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
