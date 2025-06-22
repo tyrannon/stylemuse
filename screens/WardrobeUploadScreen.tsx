@@ -698,6 +698,85 @@ const selectWeatherAppropriateItems = (items: any[], weather: any) => {
   )}
 </View>
 
+{/* Spinning animation and loading text */}
+{generatingOutfit && (
+  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
+    {/* Spinning Icon */}
+    <Animated.View
+      style={{
+        transform: [{
+          rotate: spinValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg']
+          })
+        }]
+      }}
+    >
+      <Text style={{ fontSize: 40 }}>✨</Text>
+    </Animated.View>
+    
+    {/* Loading Text */}
+    <Text style={{ 
+      fontSize: 18, 
+      fontWeight: 'bold', 
+      marginTop: 10,
+      color: '#007AFF' 
+    }}>
+      Creating Your Outfit...
+    </Text>
+    
+    {/* Sub-text */}
+    <Text style={{ 
+      fontSize: 14, 
+      color: '#666',
+      marginTop: 5,
+      textAlign: 'center' 
+    }}>
+      AI is designing the perfect look ✨
+    </Text>
+    
+    {/* Progress dots animation */}
+    <View style={{ flexDirection: 'row', marginTop: 15 }}>
+      {[0, 1, 2].map((index) => (
+        <Animated.View
+          key={index}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#007AFF',
+            marginHorizontal: 3,
+            opacity: spinValue.interpolate({
+              inputRange: [0, 0.33, 0.66, 1],
+              outputRange: index === 0 ? [1, 0.3, 0.3, 1] : 
+                         index === 1 ? [0.3, 1, 0.3, 0.3] : 
+                                      [0.3, 0.3, 1, 0.3]
+            })
+          }}
+        />
+      ))}
+    </View>
+    
+    {/* Cancel button */}
+    <TouchableOpacity
+      onPress={() => {
+        setGeneratingOutfit(false);
+        stopSpinAnimation();
+        setIsSelectionMode(true);
+      }}
+      style={{
+        marginTop: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#ccc'
+      }}
+    >
+      <Text style={{ color: '#666' }}>Cancel</Text>
+    </TouchableOpacity>
+  </View>
+)}
  
 
 
@@ -825,85 +904,7 @@ const selectWeatherAppropriateItems = (items: any[], weather: any) => {
       <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
         
 
-{/* Spinning animation and loading text */}
-{generatingOutfit && (
-  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
-    {/* Spinning Icon */}
-    <Animated.View
-      style={{
-        transform: [{
-          rotate: spinValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg']
-          })
-        }]
-      }}
-    >
-      <Text style={{ fontSize: 40 }}>✨</Text>
-    </Animated.View>
-    
-    {/* Loading Text */}
-    <Text style={{ 
-      fontSize: 18, 
-      fontWeight: 'bold', 
-      marginTop: 10,
-      color: '#007AFF' 
-    }}>
-      Creating Your Outfit...
-    </Text>
-    
-    {/* Sub-text */}
-    <Text style={{ 
-      fontSize: 14, 
-      color: '#666',
-      marginTop: 5,
-      textAlign: 'center' 
-    }}>
-      AI is designing the perfect look ✨
-    </Text>
-    
-    {/* Progress dots animation */}
-    <View style={{ flexDirection: 'row', marginTop: 15 }}>
-      {[0, 1, 2].map((index) => (
-        <Animated.View
-          key={index}
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: '#007AFF',
-            marginHorizontal: 3,
-            opacity: spinValue.interpolate({
-              inputRange: [0, 0.33, 0.66, 1],
-              outputRange: index === 0 ? [1, 0.3, 0.3, 1] : 
-                         index === 1 ? [0.3, 1, 0.3, 0.3] : 
-                                      [0.3, 0.3, 1, 0.3]
-            })
-          }}
-        />
-      ))}
-    </View>
-    
-    {/* Cancel button */}
-    <TouchableOpacity
-      onPress={() => {
-        setGeneratingOutfit(false);
-        stopSpinAnimation();
-        setIsSelectionMode(true);
-      }}
-      style={{
-        marginTop: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#ccc'
-      }}
-    >
-      <Text style={{ color: '#666' }}>Cancel</Text>
-    </TouchableOpacity>
-  </View>
-)}
+
 
 
 

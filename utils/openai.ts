@@ -1,11 +1,11 @@
 // Get API key from environment variable
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
-// Add a safety check
+// More forgiving check for debugging
 if (!OPENAI_API_KEY) {
-  throw new Error('OPENAI_API_KEY not found in environment variables');
+  console.warn('⚠️ OPENAI_API_KEY not found in environment variables');
+  // Don't throw immediately - let the functions handle it
 }
-
 
 export async function describeClothingItem(base64Image: string) {
   const prompt = `

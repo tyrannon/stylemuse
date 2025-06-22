@@ -13,7 +13,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tyrannon.stylemuseapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "StyleMuse needs camera access to take photos of your clothing items for AI analysis",
+        "NSPhotoLibraryUsageDescription": "StyleMuse needs photo library access to select clothing images for your virtual wardrobe",
+        "NSLocationWhenInUseUsageDescription": "StyleMuse uses your location to provide weather-based outfit recommendations"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +31,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "058e32e8-871a-4b91-9660-862044af6d5c"
+      }
     }
   }
 }
