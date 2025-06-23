@@ -16,6 +16,8 @@
     "expo": "~53.0.9",
     "expo-file-system": "~18.1.10",
     "expo-image-picker": "~16.1.4",
+    "expo-location": "~18.1.5",
+    "expo-media-library": "^17.1.7",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -25,8 +27,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
     "react-native-vector-icons": "^10.2.0",
-    "react-native-web": "^0.20.0",
-    "expo-location": "~18.1.5"
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

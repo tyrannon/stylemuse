@@ -1,5 +1,6 @@
 import { View, Button, Image, StyleSheet, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
@@ -109,6 +110,20 @@ const WardrobeUploadScreen = () => {
   const [editItemTitle, setEditItemTitle] = useState<string>("");
   const [editItemTags, setEditItemTags] = useState<string[]>([]);
   const [editItemNewTag, setEditItemNewTag] = useState<string>("");
+
+  // State for loved outfit navigation
+  const [currentLovedOutfitIndex, setCurrentLovedOutfitIndex] = useState<number>(0);
+  const [lovedOutfitModalVisible, setLovedOutfitModalVisible] = useState(false);
+
+  // State for wardrobe sorting and filtering
+  const [sortBy, setSortBy] = useState<'recent' | 'category' | 'name'>('recent');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [showSortFilterModal, setShowSortFilterModal] = useState(false);
+
+  // State for wardrobe item view modal
+  const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
+  const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
 
   // Function to pick a single image from the library
   const pickImage = async () => {
@@ -940,6 +955,262 @@ const WardrobeUploadScreen = () => {
     setOutfitModalVisible(true);
   };
 
+  // Function to download image to photo library
+  const downloadImage = async (imageUrl: string) => {
+    try {
+      // Request permission to save to photo library
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Permission to access media library is required to save images!');
+        return;
+      }
+
+      // Download the image
+      const fileUri = FileSystem.documentDirectory + 'outfit_' + Date.now() + '.jpg';
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+      
+      if (downloadResult.status === 200) {
+        // Save to photo library
+        const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+        await MediaLibrary.createAlbumAsync('StyleMuse Outfits', asset, false);
+        alert('✨ Outfit saved to your photo library! 📸');
+      } else {
+        throw new Error('Failed to download image');
+      }
+    } catch (error) {
+      console.error('Error downloading image:', error);
+      alert('Failed to download image. Please try again.');
+    }
+  };
+
+  // Function to navigate to next loved outfit
+  const nextLovedOutfit = () => {
+    if (lovedOutfits.length > 0) {
+      setCurrentLovedOutfitIndex((prev) => 
+        prev === lovedOutfits.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  // Function to navigate to previous loved outfit
+  const previousLovedOutfit = () => {
+    if (lovedOutfits.length > 0) {
+      setCurrentLovedOutfitIndex((prev) => 
+        prev === 0 ? lovedOutfits.length - 1 : prev - 1
+      );
+    }
+  };
+
+  // Function to open loved outfit modal with navigation
+  const openLovedOutfitModal = (outfit: any, index: number) => {
+    setCurrentLovedOutfitIndex(index);
+    setLovedOutfitModalVisible(true);
+  };
+
+  // Function to generate outfit suggestions based on a selected item
+  const generateOutfitSuggestions = (selectedItem: any) => {
+    const itemCategory = categorizeItem(selectedItem);
+    const suggestions = {
+      top: null,
+      bottom: null,
+      shoes: null,
+      jacket: null,
+      hat: null,
+      accessories: null,
+    };
+    
+    // Start with the selected item
+    suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
+    
+    // Get all items in the wardrobe
+    const allItems = [...savedItems];
+    
+    // Remove the selected item from consideration for other slots
+    const remainingItems = allItems.filter(item => item.image !== selectedItem.image);
+    
+    // Suggest items for each category based on style compatibility
+    const suggestItemForCategory = (category: string, excludeItems: any[] = []) => {
+      const categoryItems = remainingItems.filter(item => {
+        const itemCategory = categorizeItem(item);
+        return itemCategory === category && !excludeItems.some(exclude => exclude.image === item.image);
+      });
+      
+      if (categoryItems.length === 0) return null;
+      
+      // Simple scoring system based on style compatibility
+      const scoredItems = categoryItems.map(item => {
+        let score = 0;
+        
+        // Color compatibility
+        if (selectedItem.color && item.color) {
+          const selectedColor = selectedItem.color.toLowerCase();
+          const itemColor = item.color.toLowerCase();
+          
+          // Same color family gets high score
+          if (selectedColor === itemColor) score += 10;
+          // Neutral colors work well together
+          else if ((selectedColor.includes('black') || selectedColor.includes('white') || selectedColor.includes('gray')) &&
+                   (itemColor.includes('black') || itemColor.includes('white') || itemColor.includes('gray'))) score += 8;
+          // Complementary colors
+          else if ((selectedColor.includes('blue') && itemColor.includes('brown')) ||
+                   (selectedColor.includes('brown') && itemColor.includes('blue'))) score += 7;
+        }
+        
+        // Style compatibility
+        if (selectedItem.style && item.style) {
+          const selectedStyle = selectedItem.style.toLowerCase();
+          const itemStyle = item.style.toLowerCase();
+          
+          if (selectedStyle.includes('casual') && itemStyle.includes('casual')) score += 5;
+          if (selectedStyle.includes('formal') && itemStyle.includes('formal')) score += 5;
+          if (selectedStyle.includes('sport') && itemStyle.includes('sport')) score += 5;
+        }
+        
+        // Material compatibility
+        if (selectedItem.material && item.material) {
+          const selectedMaterial = selectedItem.material.toLowerCase();
+          const itemMaterial = item.material.toLowerCase();
+          
+          if (selectedMaterial === itemMaterial) score += 3;
+          if ((selectedMaterial.includes('denim') && itemMaterial.includes('denim')) ||
+              (selectedMaterial.includes('cotton') && itemMaterial.includes('cotton'))) score += 2;
+        }
+        
+        // Random factor to add variety
+        score += Math.random() * 3;
+        
+        return { item, score };
+      });
+      
+      // Sort by score and return the best match
+      scoredItems.sort((a, b) => b.score - a.score);
+      return scoredItems[0]?.item || null;
+    };
+    
+    // Suggest items for each category
+    if (itemCategory !== 'top') suggestions.top = suggestItemForCategory('top');
+    if (itemCategory !== 'bottom') suggestions.bottom = suggestItemForCategory('bottom');
+    if (itemCategory !== 'shoes') suggestions.shoes = suggestItemForCategory('shoes');
+    if (itemCategory !== 'jacket') suggestions.jacket = suggestItemForCategory('jacket');
+    if (itemCategory !== 'hat') suggestions.hat = suggestItemForCategory('hat');
+    if (itemCategory !== 'accessories') suggestions.accessories = suggestItemForCategory('accessories');
+    
+    // Update gear slots with suggestions
+    const newGearSlots = {
+      top: suggestions.top ? {
+        itemId: suggestions.top.image,
+        itemImage: suggestions.top.image,
+        itemTitle: suggestions.top.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      bottom: suggestions.bottom ? {
+        itemId: suggestions.bottom.image,
+        itemImage: suggestions.bottom.image,
+        itemTitle: suggestions.bottom.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      shoes: suggestions.shoes ? {
+        itemId: suggestions.shoes.image,
+        itemImage: suggestions.shoes.image,
+        itemTitle: suggestions.shoes.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      jacket: suggestions.jacket ? {
+        itemId: suggestions.jacket.image,
+        itemImage: suggestions.jacket.image,
+        itemTitle: suggestions.jacket.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      hat: suggestions.hat ? {
+        itemId: suggestions.hat.image,
+        itemImage: suggestions.hat.image,
+        itemTitle: suggestions.hat.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      accessories: suggestions.accessories ? {
+        itemId: suggestions.accessories.image,
+        itemImage: suggestions.accessories.image,
+        itemTitle: suggestions.accessories.title || 'Untitled Item',
+      } : { itemId: null, itemImage: null, itemTitle: null },
+    };
+    
+    setGearSlots(newGearSlots);
+    
+    // Count how many items were suggested
+    const suggestedCount = Object.values(suggestions).filter(item => item !== null).length;
+    
+    // Close the slot selection modal if it's open
+    setSlotSelectionModalVisible(false);
+    setSelectedSlot(null);
+    
+    alert(`✨ Outfit suggestion created! I've filled ${suggestedCount} slots with items that work well with your ${selectedItem.title || 'selected item'}! 🎨`);
+  };
+
+  // Function to get sorted and filtered wardrobe items
+  const getSortedAndFilteredItems = () => {
+    let filteredItems = [...savedItems];
+    
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      filteredItems = filteredItems.filter(item => categorizeItem(item) === filterCategory);
+    }
+    
+    // Apply sorting
+    filteredItems.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'recent':
+          // Items are already in chronological order (newest first) due to how they're added
+          // We'll use the array index as a proxy for recency
+          comparison = savedItems.indexOf(a) - savedItems.indexOf(b);
+          break;
+        case 'category':
+          comparison = categorizeItem(a).localeCompare(categorizeItem(b));
+          break;
+        case 'name':
+          comparison = (a.title || 'Untitled Item').localeCompare(b.title || 'Untitled Item');
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return filteredItems;
+  };
+
+  // Function to get unique categories from wardrobe
+  const getUniqueCategories = () => {
+    const categories = savedItems.map(item => categorizeItem(item));
+    return ['all', ...Array.from(new Set(categories))];
+  };
+
+  // Function to get category display name
+  const getCategoryDisplayName = (category: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Items',
+      'top': 'Tops',
+      'bottom': 'Bottoms',
+      'shoes': 'Shoes',
+      'jacket': 'Jackets',
+      'hat': 'Hats',
+      'accessories': 'Accessories'
+    };
+    return displayNames[category] || category;
+  };
+
+  // Function to get sort display name
+  const getSortDisplayName = (sortType: string) => {
+    const displayNames: { [key: string]: string } = {
+      'recent': 'Recently Added',
+      'category': 'Category',
+      'name': 'Name'
+    };
+    return displayNames[sortType] || sortType;
+  };
+
+  // Function to open wardrobe item view modal
+  const openWardrobeItemView = (item: any) => {
+    setViewingWardrobeItem(item);
+    resetOutfitTransform(); // Reset zoom/pan for new item
+    setWardrobeItemModalVisible(true);
+  };
+
   // View for the Wardrobe Upload Screen 
   // This is the main component that renders the wardrobe upload screen
   return (
@@ -1569,6 +1840,17 @@ const WardrobeUploadScreen = () => {
                         {categorizeItem(item).toUpperCase()}
                       </Text>
                     </View>
+                    
+                    {/* Outfit Ideas Button for Slot Selection */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        generateOutfitSuggestions(item);
+                      }}
+                      style={styles.slotOutfitSuggestionsButton}
+                    >
+                      <Text style={styles.slotOutfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -1619,7 +1901,8 @@ const WardrobeUploadScreen = () => {
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.editItemModalScroll}>
+            {/* Scrollable Form Content */}
+            <ScrollView style={styles.editItemModalScroll} showsVerticalScrollIndicator={true}>
               {editingItem && (
                 <>
                   <Image
@@ -1732,34 +2015,516 @@ const WardrobeUploadScreen = () => {
                       </View>
                     </View>
                   </View>
-                  
-                  <View style={styles.editItemModalActions}>
-                    <TouchableOpacity
-                      onPress={saveEditedItem}
-                      style={styles.saveEditButton}
-                    >
-                      <Text style={styles.saveEditButtonText}>💾 Save Changes</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={() => deleteWardrobeItem(editingItem)}
-                      style={styles.deleteEditButton}
-                    >
-                      <Text style={styles.deleteEditButtonText}>🗑️ Delete Item</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={() => setEditingItem(null)}
-                      style={styles.cancelEditButton}
-                    >
-                      <Text style={styles.cancelEditButtonText}>❌ Cancel</Text>
-                    </TouchableOpacity>
-                  </View>
                 </>
               )}
             </ScrollView>
+            
+            {/* Static Action Buttons */}
+            <View style={styles.editItemModalActions}>
+              <TouchableOpacity
+                onPress={saveEditedItem}
+                style={styles.saveEditButton}
+              >
+                <Text style={styles.saveEditButtonText}>💾 Save Changes</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => deleteWardrobeItem(editingItem)}
+                style={styles.deleteEditButton}
+              >
+                <Text style={styles.deleteEditButtonText}>🗑️ Delete Item</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setEditingItem(null)}
+                style={styles.cancelEditButton}
+              >
+                <Text style={styles.cancelEditButtonText}>❌ Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Loved Outfit Modal with Navigation */}
+      <Modal
+        visible={lovedOutfitModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setLovedOutfitModalVisible(false)}
+      >
+        <View style={styles.outfitModalOverlay}>
+          <View style={styles.outfitModalContent}>
+            {/* Header with navigation */}
+            <View style={styles.outfitModalHeader}>
+              <TouchableOpacity
+                onPress={previousLovedOutfit}
+                style={styles.navigationArrow}
+                disabled={lovedOutfits.length <= 1}
+              >
+                <Text style={[styles.navigationArrowText, lovedOutfits.length <= 1 && styles.navigationArrowDisabled]}>
+                  ◀️
+                </Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.outfitModalTitle}>
+                ❤️ Loved Outfit {currentLovedOutfitIndex + 1} of {lovedOutfits.length}
+              </Text>
+              
+              <TouchableOpacity
+                onPress={nextLovedOutfit}
+                style={styles.navigationArrow}
+                disabled={lovedOutfits.length <= 1}
+              >
+                <Text style={[styles.navigationArrowText, lovedOutfits.length <= 1 && styles.navigationArrowDisabled]}>
+                  ▶️
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Outfit Image */}
+            {lovedOutfits[currentLovedOutfitIndex] && (
+              <View style={styles.imageContainer}>
+                <GestureHandlerRootView style={{ width: '100%', height: '100%' }}>
+                  <PanGestureHandler
+                    onGestureEvent={onPanGestureEvent}
+                    onHandlerStateChange={onPanHandlerStateChange}
+                  >
+                    <Animated.View style={{ width: '100%', height: '100%' }}>
+                      <PinchGestureHandler
+                        onGestureEvent={onPinchGestureEvent}
+                        onHandlerStateChange={onPinchHandlerStateChange}
+                      >
+                        <Animated.View
+                          style={[
+                            styles.zoomableImage,
+                            {
+                              transform: [
+                                { scale: outfitScale },
+                                { translateX: outfitTranslateX },
+                                { translateY: outfitTranslateY }
+                              ]
+                            }
+                          ]}
+                        >
+                          <TouchableOpacity
+                            onPress={() => {
+                              // Single tap to close modal
+                              setLovedOutfitModalVisible(false);
+                            }}
+                            onLongPress={handleDoubleTapZoom}
+                            activeOpacity={1}
+                            style={styles.outfitImageTouchable}
+                          >
+                            <Image
+                              source={{ uri: lovedOutfits[currentLovedOutfitIndex].image }}
+                              style={styles.outfitImage}
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
+                        </Animated.View>
+                      </PinchGestureHandler>
+                    </Animated.View>
+                  </PanGestureHandler>
+                </GestureHandlerRootView>
+              </View>
+            )}
+
+            {/* Outfit Info */}
+            {lovedOutfits[currentLovedOutfitIndex] && (
+              <View style={styles.outfitInfoContainer}>
+                {/* Weather info if available */}
+                {lovedOutfits[currentLovedOutfitIndex].weatherData && (
+                  <View style={styles.weatherInfo}>
+                    <Text style={styles.weatherText}>
+                      🌡️ {lovedOutfits[currentLovedOutfitIndex].weatherData.temperature}°F • {lovedOutfits[currentLovedOutfitIndex].weatherData.description}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Style DNA indicator */}
+                {lovedOutfits[currentLovedOutfitIndex].styleDNA && (
+                  <View style={styles.styleDNAInfo}>
+                    <Text style={styles.styleDNAText}>
+                      🧬 Personalized based on your Style DNA
+                    </Text>
+                  </View>
+                )}
+
+                {/* Gender indicator */}
+                {lovedOutfits[currentLovedOutfitIndex].gender && (
+                  <View style={styles.genderInfo}>
+                    <Text style={styles.genderText}>
+                      {lovedOutfits[currentLovedOutfitIndex].gender === 'male' ? '👨' : 
+                       lovedOutfits[currentLovedOutfitIndex].gender === 'female' ? '👩' : '🌈'} {lovedOutfits[currentLovedOutfitIndex].gender}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Date */}
+                <Text style={styles.outfitDateText}>
+                  Created: {lovedOutfits[currentLovedOutfitIndex].createdAt.toLocaleDateString()}
+                </Text>
+
+                {/* Items used */}
+                <Text style={styles.outfitItemsText}>
+                  {lovedOutfits[currentLovedOutfitIndex].selectedItems.length} items used
+                </Text>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.outfitModalActions}>
+              <TouchableOpacity
+                onPress={() => downloadImage(lovedOutfits[currentLovedOutfitIndex]?.image)}
+                style={styles.downloadButton}
+              >
+                <Text style={styles.downloadButtonText}>⬇️ Download</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => removeLovedOutfit(lovedOutfits[currentLovedOutfitIndex]?.id)}
+                style={styles.removeLovedButton}
+              >
+                <Text style={styles.removeLovedButtonText}>🗑️ Remove</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setLovedOutfitModalVisible(false)}
+                style={styles.closeLovedButton}
+              >
+                <Text style={styles.closeLovedButtonText}>✕ Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sort & Filter Modal */}
+      <Modal
+        visible={showSortFilterModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSortFilterModal(false)}
+      >
+        <Pressable
+          onPress={() => setShowSortFilterModal(false)}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.sortFilterModalContent}>
+            <View style={styles.sortFilterModalHeader}>
+              <Text style={styles.sortFilterModalTitle}>
+                🔍 Sort & Filter Wardrobe
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowSortFilterModal(false)}
+                style={styles.closeSortFilterButton}
+              >
+                <Text style={styles.closeSortFilterButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.sortFilterModalScroll}>
+              {/* Sort Options */}
+              <View style={styles.sortSection}>
+                <Text style={styles.sortSectionTitle}>Sort By:</Text>
+                <View style={styles.sortOptionsContainer}>
+                  {['recent', 'category', 'name'].map((sortType) => (
+                    <TouchableOpacity
+                      key={sortType}
+                      onPress={() => setSortBy(sortType as 'recent' | 'category' | 'name')}
+                      style={[
+                        styles.sortOptionButton,
+                        sortBy === sortType && styles.sortOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.sortOptionButtonText,
+                        sortBy === sortType && styles.sortOptionButtonTextActive
+                      ]}>
+                        {getSortDisplayName(sortType)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Sort Order */}
+              <View style={styles.sortOrderSection}>
+                <Text style={styles.sortSectionTitle}>Sort Order:</Text>
+                <View style={styles.sortOrderContainer}>
+                  <TouchableOpacity
+                    onPress={() => setSortOrder('asc')}
+                    style={[
+                      styles.sortOrderButton,
+                      sortOrder === 'asc' && styles.sortOrderButtonActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.sortOrderButtonText,
+                      sortOrder === 'asc' && styles.sortOrderButtonTextActive
+                    ]}>
+                      ↑ Ascending
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => setSortOrder('desc')}
+                    style={[
+                      styles.sortOrderButton,
+                      sortOrder === 'desc' && styles.sortOrderButtonActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.sortOrderButtonText,
+                      sortOrder === 'desc' && styles.sortOrderButtonTextActive
+                    ]}>
+                      ↓ Descending
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Filter by Category */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Category:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueCategories().map((category) => (
+                    <TouchableOpacity
+                      key={category}
+                      onPress={() => setFilterCategory(category)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterCategory === category && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterCategory === category && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getCategoryDisplayName(category)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Results Preview */}
+              <View style={styles.resultsPreviewSection}>
+                <Text style={styles.sortSectionTitle}>Results:</Text>
+                <View style={styles.resultsPreviewContainer}>
+                  <Text style={styles.resultsPreviewText}>
+                    Showing {getSortedAndFilteredItems().length} of {savedItems.length} items
+                  </Text>
+                  <Text style={styles.resultsPreviewSubtext}>
+                    {filterCategory !== 'all' && `Filtered by: ${getCategoryDisplayName(filterCategory)}`}
+                    {filterCategory !== 'all' && sortBy !== 'recent' && ' • '}
+                    {sortBy !== 'recent' && `Sorted by: ${getSortDisplayName(sortBy)} (${sortOrder === 'asc' ? '↑' : '↓'})`}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+            
+            {/* Action Buttons */}
+            <View style={styles.sortFilterModalActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSortBy('recent');
+                  setSortOrder('desc');
+                  setFilterCategory('all');
+                }}
+                style={styles.resetButton}
+              >
+                <Text style={styles.resetButtonText}>🔄 Reset</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setShowSortFilterModal(false)}
+                style={styles.applyButton}
+              >
+                <Text style={styles.applyButtonText}>✅ Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Wardrobe Item View Modal with Pinch/Zoom */}
+      <Modal
+        visible={wardrobeItemModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setWardrobeItemModalVisible(false)}
+      >
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <View style={styles.outfitModalOverlay}>
+            <View style={styles.outfitModalContent}>
+              {/* Header */}
+              <View style={styles.outfitModalHeader}>
+                <Text style={styles.outfitModalTitle}>
+                  👔 {viewingWardrobeItem?.title || 'Wardrobe Item'}
+                </Text>
+                
+                <TouchableOpacity
+                  onPress={() => setWardrobeItemModalVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Zoomable Image Container */}
+              <View style={styles.imageContainer}>
+                {viewingWardrobeItem ? (
+                  <GestureHandlerRootView style={{ width: '100%', height: '100%' }}>
+                    <PanGestureHandler
+                      onGestureEvent={onPanGestureEvent}
+                      onHandlerStateChange={onPanHandlerStateChange}
+                    >
+                      <Animated.View style={{ width: '100%', height: '100%' }}>
+                        <PinchGestureHandler
+                          onGestureEvent={onPinchGestureEvent}
+                          onHandlerStateChange={onPinchHandlerStateChange}
+                        >
+                          <Animated.View
+                            style={[
+                              styles.zoomableImage,
+                              {
+                                transform: [
+                                  { scale: outfitScale },
+                                  { translateX: outfitTranslateX },
+                                  { translateY: outfitTranslateY }
+                                ]
+                              }
+                            ]}
+                          >
+                            <TouchableOpacity
+                              onPress={() => {
+                                // Single tap to close modal
+                                setWardrobeItemModalVisible(false);
+                              }}
+                              onLongPress={handleDoubleTapZoom}
+                              activeOpacity={1}
+                              style={styles.outfitImageTouchable}
+                            >
+                              <Image
+                                source={{ uri: viewingWardrobeItem.image }}
+                                style={styles.outfitImage}
+                                resizeMode="contain"
+                              />
+                            </TouchableOpacity>
+                          </Animated.View>
+                        </PinchGestureHandler>
+                      </Animated.View>
+                    </PanGestureHandler>
+                  </GestureHandlerRootView>
+                ) : (
+                  <View style={{ justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    <Text style={{ color: '#666', fontSize: 16 }}>No item to display</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Scrollable Content */}
+              <ScrollView style={styles.wardrobeItemModalScroll} showsVerticalScrollIndicator={true}>
+                {/* Action Buttons Under Image */}
+                <View style={styles.wardrobeItemActionButtons}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setWardrobeItemModalVisible(false);
+                      editWardrobeItem(viewingWardrobeItem);
+                    }}
+                    style={styles.wardrobeItemActionButton}
+                  >
+                    <Text style={styles.wardrobeItemActionButtonText}>✏️ Edit Item</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => generateOutfitSuggestions(viewingWardrobeItem)}
+                    style={styles.wardrobeItemActionButton}
+                  >
+                    <Text style={styles.wardrobeItemActionButtonText}>🎨 Outfit Ideas</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Item Info */}
+                {viewingWardrobeItem && (
+                  <View style={styles.wardrobeItemInfoContainer}>
+                    <Text style={styles.wardrobeItemTitle}>
+                      {viewingWardrobeItem.title || 'Untitled Item'}
+                    </Text>
+                    
+                    <Text style={styles.wardrobeItemDescription}>
+                      {viewingWardrobeItem.description}
+                    </Text>
+                    
+                    <View style={styles.wardrobeItemDetails}>
+                      <Text style={styles.wardrobeItemDetail}>
+                        <Text style={styles.wardrobeItemDetailLabel}>Category:</Text> {categorizeItem(viewingWardrobeItem).toUpperCase()}
+                      </Text>
+                      <Text style={styles.wardrobeItemDetail}>
+                        <Text style={styles.wardrobeItemDetailLabel}>Color:</Text> {viewingWardrobeItem.color || 'Not specified'}
+                      </Text>
+                      <Text style={styles.wardrobeItemDetail}>
+                        <Text style={styles.wardrobeItemDetailLabel}>Material:</Text> {viewingWardrobeItem.material || 'Not specified'}
+                      </Text>
+                      <Text style={styles.wardrobeItemDetail}>
+                        <Text style={styles.wardrobeItemDetailLabel}>Style:</Text> {viewingWardrobeItem.style || 'Not specified'}
+                      </Text>
+                      <Text style={styles.wardrobeItemDetail}>
+                        <Text style={styles.wardrobeItemDetailLabel}>Fit:</Text> {viewingWardrobeItem.fit || 'Not specified'}
+                      </Text>
+                    </View>
+                    
+                    {viewingWardrobeItem.tags && viewingWardrobeItem.tags.length > 0 && (
+                      <View style={styles.wardrobeItemTags}>
+                        <Text style={styles.wardrobeItemTagsLabel}>Tags:</Text>
+                        <View style={styles.wardrobeItemTagsContainer}>
+                          {viewingWardrobeItem.tags.map((tag: string, index: number) => (
+                            <View key={index} style={styles.wardrobeItemTag}>
+                              <Text style={styles.wardrobeItemTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Controls */}
+                <View style={styles.outfitModalControls}>
+                  <TouchableOpacity
+                    onPress={() => handlePinchZoom(currentScale + 0.3)}
+                    style={styles.controlButton}
+                  >
+                    <Text style={styles.controlButtonText}>🔍 Zoom In</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={resetOutfitTransform}
+                    style={styles.controlButton}
+                  >
+                    <Text style={styles.controlButtonText}>🔄 Reset</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => handlePinchZoom(currentScale - 0.3)}
+                    style={styles.controlButton}
+                  >
+                    <Text style={styles.controlButtonText}>🔍 Zoom Out</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Instructions */}
+                <View style={styles.instructionsContainer}>
+                  <Text style={styles.instructionsText}>
+                    💡 Pinch to zoom • Drag to pan • Long press to quick zoom • Tap to close
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </GestureHandlerRootView>
       </Modal>
 
       {/*  SCROLLABLE VIEW FOR WARDROBE ITEMS */}
@@ -1896,7 +2661,7 @@ const WardrobeUploadScreen = () => {
 {/* Weather display */}
 {weatherData && (
   <View style={{
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#E3F5E8',
     padding: 12,
     borderRadius: 10,
     marginBottom: 15,
@@ -1952,10 +2717,11 @@ const WardrobeUploadScreen = () => {
 
 {/* Demo button to add sample items */}
 <Button 
-  title="🚀 Quick Demo (Add Sample Items)" 
+  title="🚀 Quick Demo (Add 40 Sample Items)" 
   onPress={() => {
-    // Add some demo items for testing with proper categorization
+    // Comprehensive demo wardrobe with 40 diverse items
     const demoItems = [
+      // TOPS (12 items)
       {
         image: 'https://via.placeholder.com/300x400/FFFFFF/000000?text=White+T-Shirt',
         title: 'Classic White T-Shirt',
@@ -1967,24 +2733,54 @@ const WardrobeUploadScreen = () => {
         fit: 'relaxed'
       },
       {
-        image: 'https://via.placeholder.com/300x400/000080/FFFFFF?text=Dark+Jeans', 
-        title: 'Dark Wash Jeans',
-        description: 'High-waisted dark indigo denim jeans with straight leg cut',
-        tags: ['dark blue', 'denim', 'casual', 'jeans', 'bottom', 'pants'],
-        color: 'dark indigo',
-        material: 'denim',
-        style: 'high-waisted jeans',
-        fit: 'straight leg'
+        image: 'https://via.placeholder.com/300x400/000000/FFFFFF?text=Black+T-Shirt',
+        title: 'Black V-Neck T-Shirt',
+        description: 'Sleek black cotton v-neck t-shirt for a modern look',
+        tags: ['black', 'cotton', 'casual', 'v-neck', 'top', 't-shirt'],
+        color: 'black',
+        material: 'cotton',
+        style: 'v-neck t-shirt',
+        fit: 'slim'
       },
       {
-        image: 'https://via.placeholder.com/300x400/FFFFFF/000000?text=White+Sneakers',
-        title: 'White Sneakers',
-        description: 'Classic white canvas sneakers with rubber sole',
-        tags: ['white', 'canvas', 'casual', 'sneakers', 'shoes', 'footwear'],
-        color: 'white',
-        material: 'canvas',
-        style: 'sneakers',
+        image: 'https://via.placeholder.com/300x400/000080/FFFFFF?text=Navy+Shirt',
+        title: 'Navy Oxford Shirt',
+        description: 'Classic navy blue oxford cotton button-down shirt',
+        tags: ['navy', 'cotton', 'formal', 'button-down', 'top', 'shirt'],
+        color: 'navy blue',
+        material: 'cotton',
+        style: 'oxford shirt',
         fit: 'regular'
+      },
+      {
+        image: 'https://via.placeholder.com/300x400/8B0000/FFFFFF?text=Red+Blouse',
+        title: 'Red Silk Blouse',
+        description: 'Elegant red silk blouse with a sophisticated drape',
+        tags: ['red', 'silk', 'formal', 'elegant', 'top', 'blouse'],
+        color: 'red',
+        material: 'silk',
+        style: 'silk blouse',
+        fit: 'loose'
+      },
+      {
+        image: 'https://via.placeholder.com/300x400/228B22/FFFFFF?text=Green+Sweater',
+        title: 'Forest Green Sweater',
+        description: 'Cozy forest green wool sweater perfect for cold weather',
+        tags: ['green', 'wool', 'warm', 'sweater', 'top', 'knit'],
+        color: 'forest green',
+        material: 'wool',
+        style: 'wool sweater',
+        fit: 'oversized'
+      },
+      {
+        image: 'https://via.placeholder.com/300x400/FFD700/000000?text=Yellow+Tank',
+        title: 'Yellow Tank Top',
+        description: 'Bright yellow cotton tank top for summer days',
+        tags: ['yellow', 'cotton', 'summer', 'tank', 'top', 'casual'],
+        color: 'yellow',
+        material: 'cotton',
+        style: 'tank top',
+        fit: 'fitted'
       },
       {
         image: 'https://via.placeholder.com/300x400/0000FF/FFFFFF?text=Denim+Jacket',
@@ -2261,7 +3057,7 @@ const WardrobeUploadScreen = () => {
               {lovedOutfits.map((outfit, index) => (
                 <TouchableOpacity
                   key={outfit.id}
-                  onPress={() => viewLovedOutfit(outfit)}
+                  onPress={() => openLovedOutfitModal(outfit, index)}
                   style={{
                     marginRight: 20,
                     width: 200,
@@ -2295,6 +3091,25 @@ const WardrobeUploadScreen = () => {
                     }}
                   >
                     <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✕</Text>
+                  </TouchableOpacity>
+
+                  {/* Download button */}
+                  <TouchableOpacity
+                    onPress={() => downloadImage(outfit.image)}
+                    style={{
+                      position: 'absolute',
+                      top: 5,
+                      left: 5,
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#4CAF50',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      zIndex: 1,
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
                   </TouchableOpacity>
 
                   {/* Outfit image */}
@@ -2371,15 +3186,33 @@ const WardrobeUploadScreen = () => {
         {/* Wardrobe Inventory Section */}
         {savedItems.length > 0 && (
           <View style={{ marginTop: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-              👔 Wardrobe Inventory ({savedItems.length} items)
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
+                👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
+              </Text>
+              
+              <TouchableOpacity
+                onPress={() => setShowSortFilterModal(true)}
+                style={styles.sortFilterButton}
+              >
+                <Text style={styles.sortFilterButtonText}>🔍 Sort & Filter</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Current filter display */}
+            {(filterCategory !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
+              <View style={styles.currentFilterContainer}>
+                <Text style={styles.currentFilterText}>
+                  📊 {getCategoryDisplayName(filterCategory)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
+                </Text>
+              </View>
+            )}
             
             <View style={styles.wardrobeInventoryGrid}>
-              {savedItems.map((item, index) => (
+              {getSortedAndFilteredItems().map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => editWardrobeItem(item)}
+                  onPress={() => openWardrobeItemView(item)}
                   style={styles.wardrobeInventoryItem}
                   activeOpacity={0.7}
                 >
@@ -2407,6 +3240,14 @@ const WardrobeUploadScreen = () => {
                         {categorizeItem(item).toUpperCase()}
                       </Text>
                     </View>
+                    
+                    {/* Outfit Suggestions Button */}
+                    <TouchableOpacity
+                      onPress={() => generateOutfitSuggestions(item)}
+                      style={styles.outfitSuggestionsButton}
+                    >
+                      <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+                    </TouchableOpacity>
                     
                     {/* Edit indicator */}
                     <View style={styles.editIndicator}>
@@ -2915,12 +3756,13 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    minHeight: 240,
   },
   wardrobeInventoryItemImage: {
     width: '100%',
-    height: 120,
+    height: 100,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   wardrobeInventoryItemInfo: {
     width: '100%',
@@ -2987,17 +3829,64 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   editItemModalContent: {
-    width: '90%',
+    width: '95%',
     backgroundColor: 'white',
-    padding: 20,
+    padding: 15,
     borderRadius: 10,
-    maxHeight: '80%',
+    height: '90%',
+    flexDirection: 'column',
+  },
+  editItemModalScroll: {
+    flex: 1,
+    marginBottom: 10,
+    paddingHorizontal: 5,
   },
   editItemImage: {
     width: '100%',
-    height: 200,
+    height: 150,
     borderRadius: 8,
     marginBottom: 15,
+  },
+  editItemModalActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  editItemForm: {
+    marginBottom: 15,
+  },
+  editItemField: {
+    marginBottom: 15,
+  },
+  categoryDisplay: {
+    backgroundColor: '#f0f8f0',
+    borderRadius: 4,
+    padding: 4,
+    marginBottom: 5,
+  },
+  categoryDisplayText: {
+    fontSize: 10,
+    color: '#2E7D32',
+    fontWeight: 'bold',
+  },
+  deleteEditButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#ff6b6b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteEditButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
   },
   editItemLabel: {
     fontSize: 14,
@@ -3009,9 +3898,11 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 8,
-    padding: 6,
+    padding: 10,
     marginBottom: 12,
     width: '100%',
+    fontSize: 14,
+    backgroundColor: '#f9f9f9',
   },
   editItemTagsContainer: {
     flexDirection: 'row',
@@ -3068,11 +3959,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: 'white',
-  },
-  editItemModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
   },
   saveEditButton: {
     paddingHorizontal: 20,
@@ -3133,43 +4019,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#666',
   },
-  editItemModalScroll: {
-    maxHeight: '70%',
-    marginBottom: 15,
-  },
-  editItemForm: {
-    marginBottom: 15,
-  },
-  editItemField: {
-    marginBottom: 10,
-  },
-  categoryDisplay: {
-    backgroundColor: '#f0f8f0',
-    borderRadius: 4,
-    padding: 4,
-    marginBottom: 5,
-  },
-  categoryDisplayText: {
-    fontSize: 10,
-    color: '#2E7D32',
-    fontWeight: 'bold',
-  },
-  deleteEditButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    backgroundColor: '#ff6b6b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  deleteEditButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: 'white',
-  },
   editIndicator: {
     backgroundColor: '#007AFF',
     borderRadius: 4,
@@ -3196,5 +4045,449 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#666',
+  },
+  outfitSuggestionsButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 6,
+    marginBottom: 3,
+  },
+  outfitSuggestionsButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  slotOutfitSuggestionsButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 8,
+    marginBottom: 5,
+  },
+  slotOutfitSuggestionsButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  navigationArrow: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  navigationArrowText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  navigationArrowDisabled: {
+    backgroundColor: '#ccc',
+  },
+  outfitInfoContainer: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  styleDNAInfo: {
+    backgroundColor: '#E8F5E8',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  styleDNAText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  genderInfo: {
+    backgroundColor: '#E8F5E8',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  genderText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  outfitDateText: {
+    fontSize: 10,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  outfitItemsText: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  downloadButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 10,
+  },
+  downloadButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  removeLovedButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#ff6b6b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 10,
+  },
+  removeLovedButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  closeLovedButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#ccc',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  closeLovedButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  sortFilterButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  sortFilterButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  currentFilterContainer: {
+    backgroundColor: '#E8F5E8',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  currentFilterText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    textAlign: 'center',
+  },
+  sortSection: {
+    marginBottom: 15,
+  },
+  sortSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  sortOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sortOptionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 5,
+  },
+  sortOptionButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  sortOptionButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  sortOptionButtonTextActive: {
+    color: 'white',
+  },
+  sortOrderSection: {
+    marginBottom: 15,
+  },
+  sortOrderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sortOrderButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 5,
+  },
+  sortOrderButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  sortOrderButtonTextActive: {
+    color: 'white',
+  },
+  filterSection: {
+    marginBottom: 15,
+  },
+  filterOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  filterOptionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 5,
+  },
+  filterOptionButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  filterOptionButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  filterOptionButtonTextActive: {
+    color: 'white',
+  },
+  resultsPreviewSection: {
+    marginBottom: 15,
+  },
+  resultsPreviewContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  resultsPreviewText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  resultsPreviewSubtext: {
+    fontSize: 10,
+    color: '#666',
+  },
+  resetButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#ccc',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 5,
+  },
+  resetButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  applyButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  applyButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  closeSortFilterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeSortFilterButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  sortFilterModalScroll: {
+    maxHeight: '70%',
+    marginBottom: 15,
+  },
+  sortFilterModalContent: {
+    width: '90%',
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    maxHeight: '80%',
+  },
+  sortFilterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sortFilterModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  sortFilterModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  sortOrderButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  wardrobeItemInfoContainer: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  wardrobeItemTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  wardrobeItemDescription: {
+    fontSize: 12,
+    color: '#666',
+  },
+  wardrobeItemDetails: {
+    marginBottom: 10,
+  },
+  wardrobeItemDetail: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 3,
+  },
+  wardrobeItemDetailLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  wardrobeItemTag: {
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    padding: 4,
+    margin: 2,
+  },
+  wardrobeItemTagText: {
+    fontSize: 8,
+    color: '#666',
+  },
+  wardrobeItemTags: {
+    marginBottom: 5,
+  },
+  wardrobeItemTagsLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  wardrobeItemTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  wardrobeItemModalScroll: {
+    flex: 1,
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  wardrobeItemActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  wardrobeItemActionButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  wardrobeItemActionButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
   },
 });
