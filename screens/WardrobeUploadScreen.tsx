@@ -126,6 +126,14 @@ const WardrobeUploadScreen = () => {
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
 
+  // State for bottom navigation and wardrobe visibility
+  const [showWardrobe, setShowWardrobe] = useState(false);
+  const [showLovedItems, setShowLovedItems] = useState(false);
+  const [showOutfitBuilder, setShowOutfitBuilder] = useState(true);
+
+  // State for gender selector modal
+  const [showGenderSelector, setShowGenderSelector] = useState(false);
+
   // Function to pick a single image from the library
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1215,210 +1223,83 @@ const WardrobeUploadScreen = () => {
   // View for the Wardrobe Upload Screen 
   // This is the main component that renders the wardrobe upload screen
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      {/* Main Content */}
+      <View style={{ flex: 1 }}>
+        <View style={styles.container}>
 
-{/* Style DNA Profile Section */}
+{/* App Title */}
 <View style={{ marginBottom: 20, alignItems: 'center' }}>
-  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
-    Your Style DNA 🧬
+  <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: '#333' }}>
+    StyleMuse
   </Text>
-  
-  {profileImage ? (
-    <View style={{ alignItems: 'center' }}>
-      <TouchableOpacity 
-        onPress={pickProfileImage}
-        disabled={analyzingProfile}
-        activeOpacity={0.7}
-        style={{
-          marginTop: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
-        }}
-      >
-        <Image 
-          source={{ uri: profileImage }} 
-          style={{ 
-            width: 80, 
-            height: 80, 
-            borderRadius: 40, 
-            borderWidth: 3, 
-            borderColor: styleDNA ? '#4CAF50' : '#FFC107',
-          }} 
-        />
-        {!analyzingProfile && (
-          <View style={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            backgroundColor: '#007AFF',
-            borderRadius: 12,
-            width: 24,
-            height: 24,
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderWidth: 2,
-            borderColor: 'white',
-          }}>
-            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✏️</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      
-      {/* Style DNA Status */}
-      {styleDNA && (
-        <View style={{ alignItems: 'center', marginTop: 10 }}>
-          <Text style={{ fontSize: 12, color: '#4CAF50', fontWeight: 'bold' }}>
-            ✅ Style DNA Ready
-          </Text>
-          <Text style={{ fontSize: 10, color: '#666', textAlign: 'center', maxWidth: 200 }}>
-            {styleDNA.appearance?.hair_color} hair, {styleDNA.appearance?.build} build
-          </Text>
-        </View>
-      )}
-    </View>
-  ) : (
-    <View style={{ alignItems: 'center' }}>
-      <TouchableOpacity 
-        onPress={pickProfileImage}
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          borderWidth: 2,
-          borderStyle: 'dashed',
-          borderColor: '#007AFF',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: 10
-        }}
-      >
-        <Text style={{ fontSize: 24 }}>📸</Text>
-        <Text style={{ fontSize: 10, color: '#007AFF' }}>Add Photo</Text>
-      </TouchableOpacity>
-      <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', maxWidth: 250 }}>
-        Upload your photo to get personalized outfit generation!
-      </Text>
-    </View>
-  )}
-  
-  {analyzingProfile && (
-    <View style={{ marginTop: 10, alignItems: 'center' }}>
-      <Text style={{ color: '#007AFF', fontSize: 12 }}>
-        Analyzing your style DNA... 🧬
-      </Text>
-    </View>
-  )}
+  <Text style={{ fontSize: 14, color: '#666', textAlign: 'center' }}>
+    AI-Powered Virtual Closet ✨
+  </Text>
 </View>
 
-{/* Gender Selector Section */}
-<View style={{ marginBottom: 20, alignItems: 'center' }}>
-  <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>
-    Gender Identity for Outfit Generation
-  </Text>
-  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
-    <TouchableOpacity
-      onPress={() => setSelectedGender('male')}
-      style={{
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 25,
-        backgroundColor: selectedGender === 'male' ? '#007AFF' : '#f0f0f0',
-        borderWidth: 2,
-        borderColor: selectedGender === 'male' ? '#007AFF' : '#ddd',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: selectedGender === 'male' ? 0.2 : 0.1,
-        shadowRadius: 4,
-        elevation: selectedGender === 'male' ? 3 : 1,
-      }}
-    >
-      <Text style={{ 
-        fontSize: 16, 
-        fontWeight: 'bold',
-        color: selectedGender === 'male' ? 'white' : '#666'
-      }}>
-        👨 Male
-      </Text>
-    </TouchableOpacity>
-
-    <TouchableOpacity
-      onPress={() => setSelectedGender('female')}
-      style={{
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 25,
-        backgroundColor: selectedGender === 'female' ? '#FF69B4' : '#f0f0f0',
-        borderWidth: 2,
-        borderColor: selectedGender === 'female' ? '#FF69B4' : '#ddd',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: selectedGender === 'female' ? 0.2 : 0.1,
-        shadowRadius: 4,
-        elevation: selectedGender === 'female' ? 3 : 1,
-      }}
-    >
-      <Text style={{ 
-        fontSize: 16, 
-        fontWeight: 'bold',
-        color: selectedGender === 'female' ? 'white' : '#666'
-      }}>
-        👩 Female
-      </Text>
-    </TouchableOpacity>
-
-    <TouchableOpacity
-      onPress={() => setSelectedGender('nonbinary')}
-      style={{
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 25,
-        backgroundColor: selectedGender === 'nonbinary' ? '#9B59B6' : '#f0f0f0',
-        borderWidth: 2,
-        borderColor: selectedGender === 'nonbinary' ? '#9B59B6' : '#ddd',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: selectedGender === 'nonbinary' ? 0.2 : 0.1,
-        shadowRadius: 4,
-        elevation: selectedGender === 'nonbinary' ? 3 : 1,
-      }}
-    >
-      <Text style={{ 
-        fontSize: 16, 
-        fontWeight: 'bold',
-        color: selectedGender === 'nonbinary' ? 'white' : '#666'
-      }}>
-        🌈 Non-Binary
-      </Text>
-    </TouchableOpacity>
-  </View>
-  
-  {selectedGender && (
-    <View style={{ 
-      backgroundColor: selectedGender === 'male' ? '#E3F2FD' : 
-                     selectedGender === 'female' ? '#FCE4EC' : '#F3E5F5',
-      padding: 8,
-      borderRadius: 8,
-      marginTop: 10,
+{/* Progress indicator during bulk upload */}
+{bulkUploading && (
+  <View style={{ marginBottom: 20, alignItems: 'center', padding: 15, backgroundColor: '#f8f9fa', borderRadius: 12, marginHorizontal: 20 }}>
+    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#007AFF' }}>
+      Processing images... ✨
+    </Text>
+    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 10 }}>
+      {bulkProgress.current} of {bulkProgress.total}
+    </Text>
+    <View style={{
+      width: 250,
+      height: 8,
+      backgroundColor: '#e0e0e0',
+      borderRadius: 4,
+      overflow: 'hidden',
     }}>
-      <Text style={{ 
-        fontSize: 12, 
-        color: selectedGender === 'male' ? '#1976D2' : 
-               selectedGender === 'female' ? '#C2185B' : '#7B1FA2',
-        fontWeight: 'bold',
-        textAlign: 'center'
-      }}>
-        ✅ Outfits will be generated for {selectedGender === 'male' ? 'masculine' : 
-                                        selectedGender === 'female' ? 'feminine' : 'non-binary'} style
-      </Text>
+      <View style={{
+        width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
+        height: '100%',
+        backgroundColor: '#007AFF',
+        borderRadius: 4,
+      }} />
     </View>
-  )}
-</View>
+    <Text style={{ fontSize: 12, color: '#666', marginTop: 8, textAlign: 'center' }}>
+      AI is analyzing each item and adding to your wardrobe
+    </Text>
+  </View>
+)}
 
-{/* Spinning animation and loading text */}
+{/* Style DNA Analysis Progress */}
+{analyzingProfile && (
+  <View style={{ marginBottom: 20, alignItems: 'center', padding: 15, backgroundColor: '#f0f8f0', borderRadius: 12, marginHorizontal: 20 }}>
+    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#4CAF50' }}>
+      Analyzing Style DNA... 🧬
+    </Text>
+    <View style={{
+      width: 250,
+      height: 8,
+      backgroundColor: '#e0e0e0',
+      borderRadius: 4,
+      overflow: 'hidden',
+    }}>
+      <Animated.View style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#4CAF50',
+        borderRadius: 4,
+        transform: [{
+          translateX: spinValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [-250, 250]
+          })
+        }]
+      }} />
+    </View>
+    <Text style={{ fontSize: 12, color: '#666', marginTop: 8, textAlign: 'center' }}>
+      AI is analyzing your style preferences and appearance
+    </Text>
+  </View>
+)}
+
+{/* Spinning animation and loading text for outfit generation */}
 {generatingOutfit && (
   <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
     {/* Spinning Icon */}
@@ -2537,184 +2418,9 @@ const WardrobeUploadScreen = () => {
 
 
 
-{/* Wardrobe Items List */}
-{/* Display generated outfit button if available */}
-{generatedOutfit && (
-  <View style={{ marginTop: 20, paddingHorizontal: 10, alignItems: 'center' }}>
-    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>
-      {weatherData && styleDNA ? "Your Personalized Weather Outfit! 🧬🌤️" : 
-       weatherData ? "Perfect Weather Outfit! 🌤️" :
-       styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "AI-Generated Outfit Ready!"}
-    </Text>
-    
-    {/* Weather-specific styling indicator */}
-    {weatherData && (
-      <View style={{ 
-        backgroundColor: '#E8F5E8', 
-        padding: 8, 
-        borderRadius: 8, 
-        marginBottom: 10,
-        flexDirection: 'row',
-        alignItems: 'center'
-      }}>
-        <Text style={{ fontSize: 12, color: '#2E7D32', fontWeight: 'bold' }}>
-          🌡️ Perfect for {weatherData.temperature}°F • {weatherData.description}
-        </Text>
-      </View>
-    )}
-    
-    {/* Show your profile photo if DNA exists */}
-    {styleDNA && profileImage && (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Image 
-          source={{ uri: profileImage }} 
-          style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} 
-        />
-        <Text style={{ fontSize: 12, color: '#4CAF50', fontWeight: 'bold' }}>
-          Generated based on your Style DNA
-        </Text>
-      </View>
-    )}
-    
-    {/* Button to view the outfit in modal */}
-    <TouchableOpacity
-      onPress={() => {
-        console.log('Opening modal, generatedOutfit:', generatedOutfit);
-        setOutfitModalVisible(true);
-      }}
-      style={{
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 30,
-        paddingVertical: 15,
-        borderRadius: 25,
-        marginBottom: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-      }}
-    >
-      <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-        👗 View Your Outfit
-      </Text>
-    </TouchableOpacity>
-    
-    {/* Show DNA insights if available */}
-    {styleDNA && (
-      <View style={{ 
-        backgroundColor: '#f0f8f0', 
-        padding: 10, 
-        borderRadius: 10, 
-        marginBottom: 10,
-        maxWidth: 280 
-      }}>
-        <Text style={{ fontSize: 12, color: '#2E7D32', textAlign: 'center' }}>
-          🎯 Tailored for your {styleDNA.appearance?.build} build and {styleDNA.style_preferences?.preferred_styles?.join(', ')} style
-        </Text>
-      </View>
-    )}
-    
-    {/* Show original selected items as reference */}
-    <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 5 }}>Based on these items:</Text>
-    <View style={{
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      marginBottom: 15,
-    }}>
-      {selectedItemsForOutfit.map((imageUri, index) => (
-        <Image 
-          key={index}
-          source={{ uri: imageUri }} 
-          style={{ 
-            width: 60, 
-            height: 60, 
-            borderRadius: 8,
-            margin: 3,
-            borderWidth: 1,
-            borderColor: '#ddd',
-          }}
-          resizeMode="cover"
-        />
-      ))}
-    </View>
-    
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '80%' }}>
-      <Button 
-        title="Love It!" 
-        onPress={saveOutfitToLoved}
-      />
-      <Button 
-        title="Close and Select New" 
-        onPress={() => {
-          setGeneratedOutfit(null);
-          setSelectedItemsForOutfit([]);
-          setIsSelectionMode(true);
-        }}
-      />
-    </View>
-  </View>
-)}
 
 
 
-{/* Weather display */}
-{weatherData && (
-  <View style={{
-    backgroundColor: '#E3F5E8',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 15,
-    marginTop: 20,
-    alignItems: 'center'
-  }}>
-    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1976D2' }}>
-      📍 {weatherData.city}
-    </Text>
-    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1976D2' }}>
-      {weatherData.temperature}°F • {weatherData.description}
-    </Text>
-    <Text style={{ fontSize: 12, color: '#666' }}>
-      Feels like {weatherData.feels_like}°F • Humidity {weatherData.humidity}%
-    </Text>
-  </View>
-)}
-
-
-
-
-
-{/* Image upload section */}
- <Button 
-    title="📸 Add Multiple Items" 
-    onPress={pickMultipleImages}
-    disabled={bulkUploading}
-  />
-  
-  {/* Progress indicator during bulk upload */}
-  {bulkUploading && (
-    <View style={{ marginTop: 10, alignItems: 'center' }}>
-      <Text>Processing images... ✨</Text>
-      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
-        {bulkProgress.current} of {bulkProgress.total}
-      </Text>
-      <View style={{
-        width: 200,
-        height: 6,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 3,
-        marginTop: 5,
-      }}>
-        <View style={{
-          width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
-          height: '100%',
-          backgroundColor: '#007AFF',
-          borderRadius: 3,
-        }} />
-      </View>
-    </View>
-  )}
 
 {/* Demo button to add sample items */}
 <Button 
@@ -2853,414 +2559,629 @@ const WardrobeUploadScreen = () => {
 
 
 
-{/* Outfit Builder */}
-        {savedItems.length > 0 && (
-          <View style={{ marginTop: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-              🎮 Outfit Builder
+{/* Outfit Builder - Always Show */}
+{showOutfitBuilder && (
+<View style={{ marginTop: 20 }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
+    🎮 Outfit Builder
+  </Text>
+  
+  {/* Gear Slot Grid */}
+  <View style={styles.gearSlotGrid}>
+    {/* First Row */}
+    <View style={styles.gearRow}>
+      <TouchableOpacity
+        onPress={() => openSlotSelection('top')}
+        style={[styles.gearSlot, gearSlots.top.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.top.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.top.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('top')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>👕</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          TOP {gearSlots.top.itemImage && `(${getItemsByCategory('top').length})`}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => openSlotSelection('bottom')}
+        style={[styles.gearSlot, gearSlots.bottom.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.bottom.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.bottom.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('bottom')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>👖</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          BOTTOM {gearSlots.bottom.itemImage && `(${getItemsByCategory('bottom').length})`}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => openSlotSelection('shoes')}
+        style={[styles.gearSlot, gearSlots.shoes.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.shoes.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.shoes.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('shoes')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>👟</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          SHOES {gearSlots.shoes.itemImage && `(${getItemsByCategory('shoes').length})`}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Second Row */}
+    <View style={styles.gearRow}>
+      <TouchableOpacity
+        onPress={() => openSlotSelection('jacket')}
+        style={[styles.gearSlot, gearSlots.jacket.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.jacket.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.jacket.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('jacket')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>🧥</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          JACKET {gearSlots.jacket.itemImage && `(${getItemsByCategory('jacket').length})`}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => openSlotSelection('hat')}
+        style={[styles.gearSlot, gearSlots.hat.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.hat.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.hat.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('hat')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>🎩</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          HAT {gearSlots.hat.itemImage && `(${getItemsByCategory('hat').length})`}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => openSlotSelection('accessories')}
+        style={[styles.gearSlot, gearSlots.accessories.itemImage && styles.gearSlotFilled]}
+      >
+        {gearSlots.accessories.itemImage ? (
+          <>
+            <Image source={{ uri: gearSlots.accessories.itemImage }} style={styles.gearSlotImage} />
+            <TouchableOpacity
+              onPress={() => clearGearSlot('accessories')}
+              style={styles.clearSlotButton}
+            >
+              <Text style={styles.clearSlotText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.gearSlotIcon}>💍</Text>
+        )}
+        <Text style={styles.gearSlotLabel}>
+          ACCESSORIES {gearSlots.accessories.itemImage && `(${getItemsByCategory('accessories').length})`}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+
+  {/* Generate Outfit Button */}
+  <View style={{ marginTop: 20, alignItems: 'center' }}>
+    <TouchableOpacity
+      onPress={handleGenerateOutfit}
+      disabled={generatingOutfit || getEquippedItems().length < 1}
+      style={[
+        styles.generateOutfitButton,
+        (generatingOutfit || getEquippedItems().length < 1) && styles.generateOutfitButtonDisabled
+      ]}
+    >
+      <Text style={styles.generateOutfitButtonText}>
+        {generatingOutfit ? '🎮 Generating...' : '🎮 Generate Outfit'}
+      </Text>
+    </TouchableOpacity>
+    
+    {getEquippedItems().length > 0 && (
+      <Text style={styles.equippedCount}>
+        Equipped: {getEquippedItems().length} items
+      </Text>
+    )}
+  </View>
+
+  {/* Clear All Button */}
+  <View style={{ marginTop: 15, alignItems: 'center' }}>
+    <TouchableOpacity
+      onPress={() => {
+        setGearSlots({
+          top: { itemId: null, itemImage: null, itemTitle: null },
+          bottom: { itemId: null, itemImage: null, itemTitle: null },
+          shoes: { itemId: null, itemImage: null, itemTitle: null },
+          jacket: { itemId: null, itemImage: null, itemTitle: null },
+          hat: { itemId: null, itemImage: null, itemTitle: null },
+          accessories: { itemId: null, itemImage: null, itemTitle: null },
+        });
+      }}
+      style={styles.clearAllButton}
+    >
+      <Text style={styles.clearAllButtonText}>🗑️ Clear All Slots</Text>
+    </TouchableOpacity>
+  </View>
+</View>
+)}
+
+{/* Loved Outfits Section */}
+{lovedOutfits.length > 0 && showLovedItems && (
+  <View style={{ marginTop: 40 }}>
+    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 }}>
+      ❤️ Loved Outfits ({lovedOutfits.length}):
+    </Text>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ paddingLeft: 20 }}
+    >
+      {lovedOutfits.map((outfit, index) => (
+        <TouchableOpacity
+          key={outfit.id}
+          onPress={() => openLovedOutfitModal(outfit, index)}
+          style={{
+            marginRight: 20,
+            width: 200,
+            backgroundColor: '#fff5f5',
+            borderRadius: 12,
+            padding: 10,
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: '#ff6b6b',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          {/* Remove button */}
+          <TouchableOpacity
+            onPress={() => removeLovedOutfit(outfit.id)}
+            style={{
+              position: 'absolute',
+              top: 5,
+              right: 5,
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: '#ff6b6b',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Download button */}
+          <TouchableOpacity
+            onPress={() => downloadImage(outfit.image)}
+            style={{
+              position: 'absolute',
+              top: 5,
+              left: 5,
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: '#4CAF50',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
+          </TouchableOpacity>
+
+          {/* Outfit image */}
+          <Image
+            source={{ uri: outfit.image }}
+            style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
+            resizeMode="cover"
+          />
+
+          {/* Weather info if available */}
+          {outfit.weatherData && (
+            <View style={{
+              backgroundColor: '#E8F5E8',
+              padding: 4,
+              borderRadius: 6,
+              marginBottom: 6,
+            }}>
+              <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: 'bold' }}>
+                🌡️ {outfit.weatherData.temperature}°F
+              </Text>
+            </View>
+          )}
+
+          {/* Style DNA indicator */}
+          {outfit.styleDNA && (
+            <View style={{
+              backgroundColor: '#f0f8f0',
+              padding: 4,
+              borderRadius: 6,
+              marginBottom: 6,
+            }}>
+              <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: 'bold' }}>
+                🧬 Personalized
+              </Text>
+            </View>
+          )}
+
+          {/* Gender indicator */}
+          {outfit.gender && (
+            <View style={{
+              backgroundColor: outfit.gender === 'male' ? '#E3F2FD' : 
+                               outfit.gender === 'female' ? '#FCE4EC' : '#F3E5F5',
+              padding: 4,
+              borderRadius: 6,
+              marginBottom: 6,
+            }}>
+              <Text style={{ 
+                fontSize: 10, 
+                color: outfit.gender === 'male' ? '#1976D2' : 
+                       outfit.gender === 'female' ? '#C2185B' : '#7B1FA2',
+                fontWeight: 'bold' 
+              }}>
+                {outfit.gender === 'male' ? '👨' : 
+                 outfit.gender === 'female' ? '👩' : '🌈'} {outfit.gender}
+              </Text>
+            </View>
+          )}
+
+          {/* Date */}
+          <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
+            {outfit.createdAt.toLocaleDateString()}
+          </Text>
+
+          {/* Items used */}
+          <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
+            {outfit.selectedItems.length} items used
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  </View>
+)}
+
+{/* Wardrobe Inventory Section */}
+{savedItems.length > 0 && showWardrobe && (
+  <View style={{ marginTop: 40 }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
+        👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
+      </Text>
+      
+      <TouchableOpacity
+        onPress={() => setShowSortFilterModal(true)}
+        style={styles.sortFilterButton}
+      >
+        <Text style={styles.sortFilterButtonText}>🔍 Sort & Filter</Text>
+      </TouchableOpacity>
+    </View>
+    
+    {/* Current filter display */}
+    {(filterCategory !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
+      <View style={styles.currentFilterContainer}>
+        <Text style={styles.currentFilterText}>
+          📊 {getCategoryDisplayName(filterCategory)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
+        </Text>
+      </View>
+    )}
+    
+    <View style={styles.wardrobeInventoryGrid}>
+      {getSortedAndFilteredItems().map((item, index) => (
+        <TouchableOpacity
+          key={index}
+          onPress={() => openWardrobeItemView(item)}
+          style={styles.wardrobeInventoryItem}
+          activeOpacity={0.7}
+        >
+          <Image
+            source={{ uri: item.image }}
+            style={styles.wardrobeInventoryItemImage}
+            resizeMode="cover"
+          />
+          
+          <View style={styles.wardrobeInventoryItemInfo}>
+            <Text style={styles.wardrobeInventoryItemTitle}>
+              {item.title || 'Untitled Item'}
             </Text>
             
-            {/* Gear Slot Grid */}
-            <View style={styles.gearSlotGrid}>
-              {/* First Row */}
-              <View style={styles.gearRow}>
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('top')}
-                  style={[styles.gearSlot, gearSlots.top.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.top.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.top.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('top')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>👕</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    TOP {gearSlots.top.itemImage && `(${getItemsByCategory('top').length})`}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('bottom')}
-                  style={[styles.gearSlot, gearSlots.bottom.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.bottom.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.bottom.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('bottom')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>👖</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    BOTTOM {gearSlots.bottom.itemImage && `(${getItemsByCategory('bottom').length})`}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('shoes')}
-                  style={[styles.gearSlot, gearSlots.shoes.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.shoes.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.shoes.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('shoes')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>👟</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    SHOES {gearSlots.shoes.itemImage && `(${getItemsByCategory('shoes').length})`}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Second Row */}
-              <View style={styles.gearRow}>
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('jacket')}
-                  style={[styles.gearSlot, gearSlots.jacket.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.jacket.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.jacket.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('jacket')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>🧥</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    JACKET {gearSlots.jacket.itemImage && `(${getItemsByCategory('jacket').length})`}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('hat')}
-                  style={[styles.gearSlot, gearSlots.hat.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.hat.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.hat.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('hat')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>🎩</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    HAT {gearSlots.hat.itemImage && `(${getItemsByCategory('hat').length})`}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => openSlotSelection('accessories')}
-                  style={[styles.gearSlot, gearSlots.accessories.itemImage && styles.gearSlotFilled]}
-                >
-                  {gearSlots.accessories.itemImage ? (
-                    <>
-                      <Image source={{ uri: gearSlots.accessories.itemImage }} style={styles.gearSlotImage} />
-                      <TouchableOpacity
-                        onPress={() => clearGearSlot('accessories')}
-                        style={styles.clearSlotButton}
-                      >
-                        <Text style={styles.clearSlotText}>✕</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.gearSlotIcon}>💍</Text>
-                  )}
-                  <Text style={styles.gearSlotLabel}>
-                    ACCESSORIES {gearSlots.accessories.itemImage && `(${getItemsByCategory('accessories').length})`}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.wardrobeInventoryItemTags}>
+              {item.tags?.slice(0, 3).map((tag, tagIndex) => (
+                <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
+                  <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
+                </View>
+              ))}
             </View>
+            
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>
+                {categorizeItem(item).toUpperCase()}
+              </Text>
+            </View>
+            
+            {/* Outfit Suggestions Button */}
+            <TouchableOpacity
+              onPress={() => generateOutfitSuggestions(item)}
+              style={styles.outfitSuggestionsButton}
+            >
+              <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+            </TouchableOpacity>
+            
+            {/* Edit indicator */}
+            <View style={styles.editIndicator}>
+              <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </View>
+)}
+      </ScrollView>
+      </View>
 
-            {/* Generate Outfit Button */}
-            <View style={{ marginTop: 20, alignItems: 'center' }}>
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNavigation}>
+        {/* Outfit Builder Toggle Button */}
+        <TouchableOpacity
+          onPress={() => {
+            setShowOutfitBuilder(!showOutfitBuilder);
+            if (showOutfitBuilder) {
+              // When hiding outfit builder, show wardrobe and loved items
+              setShowWardrobe(true);
+              setShowLovedItems(true);
+            } else {
+              // When showing outfit builder, hide wardrobe and loved items
+              setShowWardrobe(false);
+              setShowLovedItems(false);
+            }
+          }}
+          style={styles.bottomNavButton}
+        >
+          <Text style={[styles.bottomNavIcon, showOutfitBuilder && styles.bottomNavIconActive]}>
+            🎮
+          </Text>
+          <Text style={[styles.bottomNavLabel, showOutfitBuilder && styles.bottomNavLabelActive]}>
+            Builder
+          </Text>
+        </TouchableOpacity>
+
+        {/* Combined Wardrobe & Loved Items Toggle Button */}
+        <TouchableOpacity
+          onPress={() => {
+            const newWardrobeState = !showWardrobe;
+            const newLovedState = !showLovedItems;
+            setShowWardrobe(newWardrobeState);
+            setShowLovedItems(newLovedState);
+            if (newWardrobeState || newLovedState) {
+              // When showing wardrobe/loved items, hide outfit builder
+              setShowOutfitBuilder(false);
+            }
+          }}
+          style={styles.bottomNavButton}
+        >
+          <Text style={[styles.bottomNavIcon, (showWardrobe || showLovedItems) && styles.bottomNavIconActive]}>
+            👔
+          </Text>
+          <Text style={[styles.bottomNavLabel, (showWardrobe || showLovedItems) && styles.bottomNavLabelActive]}>
+            Wardrobe
+          </Text>
+        </TouchableOpacity>
+
+        {/* Plus Button (Center) */}
+        <TouchableOpacity
+          onPress={pickMultipleImages}
+          style={styles.plusButton}
+        >
+          <Text style={styles.plusButtonIcon}>+</Text>
+        </TouchableOpacity>
+
+        {/* Gender Selector Button */}
+        <TouchableOpacity
+          onPress={() => setShowGenderSelector(true)}
+          style={[
+            styles.bottomNavButton,
+            !selectedGender && styles.bottomNavButtonWarning
+          ]}
+        >
+          <Text style={[
+            styles.bottomNavIcon, 
+            selectedGender ? styles.bottomNavIconActive : styles.bottomNavIconWarning
+          ]}>
+            {selectedGender === 'male' ? '👨' : 
+             selectedGender === 'female' ? '👩' : 
+             selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
+          </Text>
+          <Text style={[
+            styles.bottomNavLabel, 
+            selectedGender ? styles.bottomNavLabelActive : styles.bottomNavLabelWarning
+          ]}>
+            {selectedGender ? selectedGender : 'Gender'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Style DNA Profile Button */}
+        <TouchableOpacity
+          onPress={pickProfileImage}
+          style={styles.profileButton}
+        >
+          {profileImage ? (
+            <Image 
+              source={{ uri: profileImage }} 
+              style={[styles.profileButtonImage, styleDNA && styles.profileButtonImageActive]} 
+            />
+          ) : (
+            <Text style={styles.profileButtonPlaceholder}>🧬</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Gender Selector Modal */}
+      <Modal
+        visible={showGenderSelector}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowGenderSelector(false)}
+      >
+        <Pressable
+          onPress={() => setShowGenderSelector(false)}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.genderSelectorModal}>
+            <View style={styles.genderSelectorHeader}>
+              <Text style={styles.genderSelectorTitle}>
+                Select Gender Identity
+              </Text>
               <TouchableOpacity
-                onPress={handleGenerateOutfit}
-                disabled={generatingOutfit || getEquippedItems().length < 1}
-                style={[
-                  styles.generateOutfitButton,
-                  (generatingOutfit || getEquippedItems().length < 1) && styles.generateOutfitButtonDisabled
-                ]}
+                onPress={() => setShowGenderSelector(false)}
+                style={styles.closeGenderButton}
               >
-                <Text style={styles.generateOutfitButtonText}>
-                  {generatingOutfit ? '🎮 Generating...' : '🎮 Generate Outfit'}
-                </Text>
+                <Text style={styles.closeGenderButtonText}>✕</Text>
               </TouchableOpacity>
-              
-              {getEquippedItems().length > 0 && (
-                <Text style={styles.equippedCount}>
-                  Equipped: {getEquippedItems().length} items
-                </Text>
-              )}
             </View>
-
-            {/* Clear All Button */}
-            <View style={{ marginTop: 15, alignItems: 'center' }}>
+            
+            <Text style={styles.genderSelectorSubtitle}>
+              This helps AI generate outfits that match your preferred style
+            </Text>
+            
+            <View style={styles.genderOptionsContainer}>
               <TouchableOpacity
                 onPress={() => {
-                  setGearSlots({
-                    top: { itemId: null, itemImage: null, itemTitle: null },
-                    bottom: { itemId: null, itemImage: null, itemTitle: null },
-                    shoes: { itemId: null, itemImage: null, itemTitle: null },
-                    jacket: { itemId: null, itemImage: null, itemTitle: null },
-                    hat: { itemId: null, itemImage: null, itemTitle: null },
-                    accessories: { itemId: null, itemImage: null, itemTitle: null },
-                  });
+                  setSelectedGender('male');
+                  setShowGenderSelector(false);
                 }}
-                style={styles.clearAllButton}
+                style={[
+                  styles.genderOption,
+                  selectedGender === 'male' && styles.genderOptionActive
+                ]}
               >
-                <Text style={styles.clearAllButtonText}>🗑️ Clear All Slots</Text>
+                <Text style={styles.genderOptionIcon}>👨</Text>
+                <Text style={[
+                  styles.genderOptionText,
+                  selectedGender === 'male' && styles.genderOptionTextActive
+                ]}>
+                  Male
+                </Text>
+                <Text style={styles.genderOptionDescription}>
+                  Masculine styling
+                </Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
-        {/* Loved Outfits Section */}
-        {lovedOutfits.length > 0 && (
-          <View style={{ marginTop: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 }}>
-              ❤️ Loved Outfits ({lovedOutfits.length}):
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ paddingLeft: 20 }}
-            >
-              {lovedOutfits.map((outfit, index) => (
-                <TouchableOpacity
-                  key={outfit.id}
-                  onPress={() => openLovedOutfitModal(outfit, index)}
-                  style={{
-                    marginRight: 20,
-                    width: 200,
-                    backgroundColor: '#fff5f5',
-                    borderRadius: 12,
-                    padding: 10,
-                    alignItems: 'center',
-                    borderWidth: 2,
-                    borderColor: '#ff6b6b',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                >
-                  {/* Remove button */}
-                  <TouchableOpacity
-                    onPress={() => removeLovedOutfit(outfit.id)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      right: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#ff6b6b',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✕</Text>
-                  </TouchableOpacity>
-
-                  {/* Download button */}
-                  <TouchableOpacity
-                    onPress={() => downloadImage(outfit.image)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      left: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#4CAF50',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
-                  </TouchableOpacity>
-
-                  {/* Outfit image */}
-                  <Image
-                    source={{ uri: outfit.image }}
-                    style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
-                    resizeMode="cover"
-                  />
-
-                  {/* Weather info if available */}
-                  {outfit.weatherData && (
-                    <View style={{
-                      backgroundColor: '#E8F5E8',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: 'bold' }}>
-                        🌡️ {outfit.weatherData.temperature}°F
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Style DNA indicator */}
-                  {outfit.styleDNA && (
-                    <View style={{
-                      backgroundColor: '#f0f8f0',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: 'bold' }}>
-                        🧬 Personalized
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Gender indicator */}
-                  {outfit.gender && (
-                    <View style={{
-                      backgroundColor: outfit.gender === 'male' ? '#E3F2FD' : 
-                                       outfit.gender === 'female' ? '#FCE4EC' : '#F3E5F5',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ 
-                        fontSize: 10, 
-                        color: outfit.gender === 'male' ? '#1976D2' : 
-                               outfit.gender === 'female' ? '#C2185B' : '#7B1FA2',
-                        fontWeight: 'bold' 
-                      }}>
-                        {outfit.gender === 'male' ? '👨' : 
-                         outfit.gender === 'female' ? '👩' : '🌈'} {outfit.gender}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Date */}
-                  <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
-                    {outfit.createdAt.toLocaleDateString()}
-                  </Text>
-
-                  {/* Items used */}
-                  <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
-                    {outfit.selectedItems.length} items used
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Wardrobe Inventory Section */}
-        {savedItems.length > 0 && (
-          <View style={{ marginTop: 40 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
-                👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
-              </Text>
-              
               <TouchableOpacity
-                onPress={() => setShowSortFilterModal(true)}
-                style={styles.sortFilterButton}
+                onPress={() => {
+                  setSelectedGender('female');
+                  setShowGenderSelector(false);
+                }}
+                style={[
+                  styles.genderOption,
+                  selectedGender === 'female' && styles.genderOptionActive
+                ]}
               >
-                <Text style={styles.sortFilterButtonText}>🔍 Sort & Filter</Text>
+                <Text style={styles.genderOptionIcon}>👩</Text>
+                <Text style={[
+                  styles.genderOptionText,
+                  selectedGender === 'female' && styles.genderOptionTextActive
+                ]}>
+                  Female
+                </Text>
+                <Text style={styles.genderOptionDescription}>
+                  Feminine styling
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedGender('nonbinary');
+                  setShowGenderSelector(false);
+                }}
+                style={[
+                  styles.genderOption,
+                  selectedGender === 'nonbinary' && styles.genderOptionActive
+                ]}
+              >
+                <Text style={styles.genderOptionIcon}>🌈</Text>
+                <Text style={[
+                  styles.genderOptionText,
+                  selectedGender === 'nonbinary' && styles.genderOptionTextActive
+                ]}>
+                  Non-Binary
+                </Text>
+                <Text style={styles.genderOptionDescription}>
+                  Gender-neutral styling
+                </Text>
               </TouchableOpacity>
             </View>
-            
-            {/* Current filter display */}
-            {(filterCategory !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
-              <View style={styles.currentFilterContainer}>
-                <Text style={styles.currentFilterText}>
-                  📊 {getCategoryDisplayName(filterCategory)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
+
+            {selectedGender && (
+              <View style={[
+                styles.genderConfirmation,
+                selectedGender === 'male' && { backgroundColor: '#E3F2FD' },
+                selectedGender === 'female' && { backgroundColor: '#FCE4EC' },
+                selectedGender === 'nonbinary' && { backgroundColor: '#F3E5F5' }
+              ]}>
+                <Text style={[
+                  styles.genderConfirmationText,
+                  selectedGender === 'male' && { color: '#1976D2' },
+                  selectedGender === 'female' && { color: '#C2185B' },
+                  selectedGender === 'nonbinary' && { color: '#7B1FA2' }
+                ]}>
+                  ✅ Outfits will be generated for {selectedGender === 'male' ? 'masculine' : 
+                                                  selectedGender === 'female' ? 'feminine' : 'non-binary'} style
                 </Text>
               </View>
             )}
-            
-            <View style={styles.wardrobeInventoryGrid}>
-              {getSortedAndFilteredItems().map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => openWardrobeItemView(item)}
-                  style={styles.wardrobeInventoryItem}
-                  activeOpacity={0.7}
-                >
-                  <Image
-                    source={{ uri: item.image }}
-                    style={styles.wardrobeInventoryItemImage}
-                    resizeMode="cover"
-                  />
-                  
-                  <View style={styles.wardrobeInventoryItemInfo}>
-                    <Text style={styles.wardrobeInventoryItemTitle}>
-                      {item.title || 'Untitled Item'}
-                    </Text>
-                    
-                    <View style={styles.wardrobeInventoryItemTags}>
-                      {item.tags?.slice(0, 3).map((tag, tagIndex) => (
-                        <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
-                          <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                    
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>
-                        {categorizeItem(item).toUpperCase()}
-                      </Text>
-                    </View>
-                    
-                    {/* Outfit Suggestions Button */}
-                    <TouchableOpacity
-                      onPress={() => generateOutfitSuggestions(item)}
-                      style={styles.outfitSuggestionsButton}
-                    >
-                      <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
-                    </TouchableOpacity>
-                    
-                    {/* Edit indicator */}
-                    <View style={styles.editIndicator}>
-                      <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -4490,5 +4411,196 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: 'white',
+  },
+  bottomNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  bottomNavButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+  },
+  bottomNavIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+    color: '#666',
+  },
+  bottomNavIconActive: {
+    color: '#007AFF',
+  },
+  bottomNavLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#666',
+  },
+  bottomNavLabelActive: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
+  plusButton: {
+    width: 56,
+    height: 56,
+    backgroundColor: '#007AFF',
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  plusButtonIcon: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  profileButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileButtonImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  profileButtonImageActive: {
+    borderWidth: 3,
+    borderColor: '#4CAF50',
+  },
+  profileButtonPlaceholder: {
+    fontSize: 20,
+    color: '#666',
+  },
+  genderSelectorModal: {
+    width: '90%',
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  genderSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  genderSelectorTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeGenderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeGenderButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  genderSelectorSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  genderOptionsContainer: {
+    marginBottom: 20,
+  },
+  genderOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  genderOptionActive: {
+    backgroundColor: '#f0f8f0',
+    borderColor: '#4CAF50',
+  },
+  genderOptionIcon: {
+    fontSize: 32,
+    marginRight: 15,
+  },
+  genderOptionText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+  },
+  genderOptionTextActive: {
+    color: '#4CAF50',
+  },
+  genderOptionDescription: {
+    fontSize: 12,
+    color: '#666',
+  },
+  genderConfirmation: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  genderConfirmationText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  bottomNavButtonWarning: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#ff6b6b',
+  },
+  bottomNavIconWarning: {
+    color: '#999',
+  },
+  bottomNavLabelWarning: {
+    color: '#999',
   },
 });
