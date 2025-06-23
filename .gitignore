@@ -40,5 +40,5 @@ yarn-error.*
 # openai
 # utils/openai.ts
 
-.env
-.env
+eas.json
+eas.local.backup.json

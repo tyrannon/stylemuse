@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
 import * as Location from 'expo-location';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
+import Constants from 'expo-constants';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -448,11 +449,11 @@ const WardrobeUploadScreen = () => {
   // Function to fetch weather data based on location
   const fetchWeatherData = async (lat: number, lon: number) => {
     try {
-      // Use environment variable for API key
-      const API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
+      // Use app config for API key
+      const API_KEY = Constants.expoConfig?.extra?.openWeatherApiKey;
       
       if (!API_KEY) {
-        throw new Error('Weather API key not found in environment variables');
+        throw new Error('Weather API key not found in app config');
       }
       
       const response = await fetch(

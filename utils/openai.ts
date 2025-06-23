@@ -1,9 +1,10 @@
-// Get API key from environment variable
-const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+import Constants from 'expo-constants';
+
+const OPENAI_API_KEY = Constants.expoConfig?.extra?.openAIApiKey;
 
 // More forgiving check for debugging
 if (!OPENAI_API_KEY) {
-  console.warn('⚠️ OPENAI_API_KEY not found in environment variables');
+  console.warn('⚠️ OPENAI_API_KEY not found in app config');
   // Don't throw immediately - let the functions handle it
 }
 
