@@ -231,18 +231,8 @@ Focus purely on fashion styling and coordination advice.
   }
 }
 
-
-
-
-
-
-
-
-
-
-
 // Function to generate a personalized outfit image based on clothing items and Style DNA
-export async function generatePersonalizedOutfitImage(clothingItems: any[], styleDNA: any = null) {
+export async function generatePersonalizedOutfitImage(clothingItems: any[], styleDNA: any = null, gender: string | null = null) {
   // Create detailed clothing descriptions
   const detailedDescriptions = clothingItems.map(item => {
     if (item.color && item.material && item.style) {
@@ -256,6 +246,16 @@ Create a professional fashion photograph of a stylish person wearing this comple
 
 ${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
 `;
+
+  // Add gender specification if provided
+  if (gender) {
+    const genderText = gender === 'male' ? 'masculine' : 
+                      gender === 'female' ? 'feminine' : 
+                      'non-binary';
+    personalizedPrompt += `
+GENDER IDENTITY: The model should have a ${genderText} appearance and styling appropriate for ${genderText} fashion.
+`;
+  }
 
   // Add the same detailed personalization as above
   if (styleDNA && styleDNA.appearance) {
@@ -330,7 +330,7 @@ Style: High-end fashion photography showcasing perfect outfit coordination for t
 }
 
 // Function to generate a weather-based outfit image
-export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA: any = null, weatherData: any = null) {
+export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA: any = null, weatherData: any = null, gender: string | null = null) {
   // Create detailed clothing descriptions
   const detailedDescriptions = clothingItems.map(item => {
     if (item.color && item.material && item.style) {
@@ -362,6 +362,16 @@ ${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
 
 ${weatherContext}
 `;
+
+  // Add gender specification if provided
+  if (gender) {
+    const genderText = gender === 'male' ? 'masculine' : 
+                      gender === 'female' ? 'feminine' : 
+                      'non-binary';
+    weatherOutfitPrompt += `
+GENDER IDENTITY: The model should have a ${genderText} appearance and styling appropriate for ${genderText} fashion.
+`;
+  }
 
   // Add general styling preferences if available (much less specific)
   if (styleDNA && styleDNA.appearance) {
