@@ -62,6 +62,18 @@ const WardrobeUploadScreen = () => {
     createdAt: Date;
   }[]>([]);
 
+  // State for all generated outfits (including loved ones)
+  const [allGeneratedOutfits, setAllGeneratedOutfits] = useState<{
+    id: string;
+    image: string;
+    weatherData?: any;
+    styleDNA?: any;
+    selectedItems: string[];
+    gender: string | null;
+    createdAt: Date;
+    isLoved: boolean;
+  }[]>([]);
+
   // Animated value for spin effect
   const [spinValue] = useState(new Animated.Value(0));
 
@@ -126,10 +138,12 @@ const WardrobeUploadScreen = () => {
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
 
-  // State for bottom navigation and wardrobe visibility
+  // State for bottom navigation and page visibility
   const [showWardrobe, setShowWardrobe] = useState(false);
   const [showLovedItems, setShowLovedItems] = useState(false);
   const [showOutfitBuilder, setShowOutfitBuilder] = useState(true);
+  const [showOutfitsPage, setShowOutfitsPage] = useState(false);
+  const [showProfilePage, setShowProfilePage] = useState(false);
 
   // State for gender selector modal
   const [showGenderSelector, setShowGenderSelector] = useState(false);
@@ -349,6 +363,21 @@ const WardrobeUploadScreen = () => {
         setGeneratedOutfit(generatedImageUrl);
         resetOutfitTransform(); // Reset transform for new image
         setOutfitModalVisible(true); // Show the modal
+        
+        // Add to all generated outfits
+        const newOutfit = {
+          id: Date.now().toString(),
+          image: generatedImageUrl,
+          weatherData: currentWeather || null,
+          styleDNA: styleDNA || null,
+          selectedItems: equippedItems.map(item => item.image),
+          gender: selectedGender || null,
+          createdAt: new Date(),
+          isLoved: false,
+        };
+        
+        setAllGeneratedOutfits(prev => [newOutfit, ...prev]); // Add to beginning of array
+        
         const message = currentWeather ? 
           `Perfect for ${currentWeather.temperature}°F and ${currentWeather.description}! 🌤️` :
           (styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸");
