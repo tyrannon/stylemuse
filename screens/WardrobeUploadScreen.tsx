@@ -964,26 +964,111 @@ const WardrobeUploadScreen = () => {
   const saveOutfitToLoved = () => {
     if (!generatedOutfit) return;
     
-    const equippedItems = getEquippedItems();
+    // Find the outfit in allGeneratedOutfits and mark it as loved
+    const outfitToLove = allGeneratedOutfits.find(outfit => outfit.image === generatedOutfit);
     
-    const newLovedOutfit = {
-      id: Date.now().toString(),
-      image: generatedOutfit,
-      weatherData: weatherData || null,
-      styleDNA: styleDNA || null,
-      selectedItems: equippedItems.map(item => item.image),
-      gender: selectedGender || null,
-      createdAt: new Date(),
-    };
-    
-    setLovedOutfits(prev => [newLovedOutfit, ...prev]); // Add to beginning of array
-    alert("Outfit saved to your Loved collection! ❤️");
+    if (outfitToLove) {
+      // Update allGeneratedOutfits to mark as loved
+      setAllGeneratedOutfits(prev => 
+        prev.map(outfit => 
+          outfit.id === outfitToLove.id 
+            ? { ...outfit, isLoved: true }
+            : outfit
+        )
+      );
+      
+      // Add to loved outfits if not already there
+      const isAlreadyLoved = lovedOutfits.some(loved => loved.id === outfitToLove.id);
+      if (!isAlreadyLoved) {
+        const newLovedOutfit = {
+          id: outfitToLove.id,
+          image: outfitToLove.image,
+          weatherData: outfitToLove.weatherData,
+          styleDNA: outfitToLove.styleDNA,
+          selectedItems: outfitToLove.selectedItems,
+          gender: outfitToLove.gender,
+          createdAt: outfitToLove.createdAt,
+        };
+        
+        setLovedOutfits(prev => [newLovedOutfit, ...prev]); // Add to beginning of array
+      }
+      
+      alert("Outfit saved to your Loved collection! ❤️");
+    }
   };
 
   // Function to remove outfit from loved collection
   const removeLovedOutfit = (outfitId: string) => {
     setLovedOutfits(prev => prev.filter(outfit => outfit.id !== outfitId));
+    // Also update allGeneratedOutfits to mark as not loved
+    setAllGeneratedOutfits(prev => 
+      prev.map(outfit => 
+        outfit.id === outfitId 
+          ? { ...outfit, isLoved: false }
+          : outfit
+      )
+    );
     alert("Outfit removed from Loved collection");
+  };
+
+  // Function to toggle love status of an outfit
+  const toggleOutfitLove = (outfitId: string) => {
+    const outfit = allGeneratedOutfits.find(o => o.id === outfitId);
+    if (!outfit) return;
+
+    if (outfit.isLoved) {
+      // Remove from loved
+      removeLovedOutfit(outfitId);
+    } else {
+      // Add to loved
+      setAllGeneratedOutfits(prev => 
+        prev.map(o => 
+          o.id === outfitId 
+            ? { ...o, isLoved: true }
+            : o
+        )
+      );
+      
+      const newLovedOutfit = {
+        id: outfit.id,
+        image: outfit.image,
+        weatherData: outfit.weatherData,
+        styleDNA: outfit.styleDNA,
+        selectedItems: outfit.selectedItems,
+        gender: outfit.gender,
+        createdAt: outfit.createdAt,
+      };
+      
+      setLovedOutfits(prev => [newLovedOutfit, ...prev]);
+      alert("Outfit added to Loved collection! ❤️");
+    }
+  };
+
+  // Function to switch between pages
+  const switchToPage = (page: 'builder' | 'wardrobe' | 'outfits' | 'profile') => {
+    // Reset all page states
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowOutfitsPage(false);
+    setShowProfilePage(false);
+
+    // Show the selected page
+    switch (page) {
+      case 'builder':
+        setShowOutfitBuilder(true);
+        break;
+      case 'wardrobe':
+        setShowWardrobe(true);
+        setShowLovedItems(true);
+        break;
+      case 'outfits':
+        setShowOutfitsPage(true);
+        break;
+      case 'profile':
+        setShowProfilePage(true);
+        break;
+    }
   };
 
   // Function to view loved outfit in modal
@@ -2779,145 +2864,7 @@ const WardrobeUploadScreen = () => {
 </View>
 )}
 
-{/* Loved Outfits Section */}
-{lovedOutfits.length > 0 && showLovedItems && (
-  <View style={{ marginTop: 40 }}>
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 }}>
-      ❤️ Loved Outfits ({lovedOutfits.length}):
-    </Text>
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ paddingLeft: 20 }}
-    >
-      {lovedOutfits.map((outfit, index) => (
-        <TouchableOpacity
-          key={outfit.id}
-          onPress={() => openLovedOutfitModal(outfit, index)}
-          style={{
-            marginRight: 20,
-            width: 200,
-            backgroundColor: '#fff5f5',
-            borderRadius: 12,
-            padding: 10,
-            alignItems: 'center',
-            borderWidth: 2,
-            borderColor: '#ff6b6b',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          {/* Remove button */}
-          <TouchableOpacity
-            onPress={() => removeLovedOutfit(outfit.id)}
-            style={{
-              position: 'absolute',
-              top: 5,
-              right: 5,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: '#ff6b6b',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 1,
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✕</Text>
-          </TouchableOpacity>
 
-          {/* Download button */}
-          <TouchableOpacity
-            onPress={() => downloadImage(outfit.image)}
-            style={{
-              position: 'absolute',
-              top: 5,
-              left: 5,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: '#4CAF50',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 1,
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
-          </TouchableOpacity>
-
-          {/* Outfit image */}
-          <Image
-            source={{ uri: outfit.image }}
-            style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
-            resizeMode="cover"
-          />
-
-          {/* Weather info if available */}
-          {outfit.weatherData && (
-            <View style={{
-              backgroundColor: '#E8F5E8',
-              padding: 4,
-              borderRadius: 6,
-              marginBottom: 6,
-            }}>
-              <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: 'bold' }}>
-                🌡️ {outfit.weatherData.temperature}°F
-              </Text>
-            </View>
-          )}
-
-          {/* Style DNA indicator */}
-          {outfit.styleDNA && (
-            <View style={{
-              backgroundColor: '#f0f8f0',
-              padding: 4,
-              borderRadius: 6,
-              marginBottom: 6,
-            }}>
-              <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: 'bold' }}>
-                🧬 Personalized
-              </Text>
-            </View>
-          )}
-
-          {/* Gender indicator */}
-          {outfit.gender && (
-            <View style={{
-              backgroundColor: outfit.gender === 'male' ? '#E3F2FD' : 
-                               outfit.gender === 'female' ? '#FCE4EC' : '#F3E5F5',
-              padding: 4,
-              borderRadius: 6,
-              marginBottom: 6,
-            }}>
-              <Text style={{ 
-                fontSize: 10, 
-                color: outfit.gender === 'male' ? '#1976D2' : 
-                       outfit.gender === 'female' ? '#C2185B' : '#7B1FA2',
-                fontWeight: 'bold' 
-              }}>
-                {outfit.gender === 'male' ? '👨' : 
-                 outfit.gender === 'female' ? '👩' : '🌈'} {outfit.gender}
-              </Text>
-            </View>
-          )}
-
-          {/* Date */}
-          <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
-            {outfit.createdAt.toLocaleDateString()}
-          </Text>
-
-          {/* Items used */}
-          <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
-            {outfit.selectedItems.length} items used
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-)}
 
 {/* Wardrobe Inventory Section */}
 {savedItems.length > 0 && showWardrobe && (
@@ -2995,25 +2942,338 @@ const WardrobeUploadScreen = () => {
     </View>
   </View>
 )}
+
+{/* Generated Outfits Page */}
+{showOutfitsPage && (
+  <View style={{ marginTop: 20 }}>
+    {/* Page Header */}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center', flex: 1, color: '#333' }}>
+        ✨ Generated Outfits
+      </Text>
+      <TouchableOpacity
+        onPress={() => setShowGenderSelector(true)}
+        style={[
+          styles.genderSelectorButtonSmall,
+          !selectedGender && styles.genderSelectorButtonWarning
+        ]}
+      >
+        <Text style={[
+          styles.genderSelectorIconSmall,
+          selectedGender ? styles.genderSelectorIconActive : styles.genderSelectorIconWarning
+        ]}>
+          {selectedGender === 'male' ? '👨' : 
+           selectedGender === 'female' ? '👩' : 
+           selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Loved Outfits Section */}
+    {lovedOutfits.length > 0 && (
+      <View style={{ marginBottom: 30 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, color: '#ff6b6b' }}>
+          ❤️ Loved Outfits ({lovedOutfits.length})
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ paddingLeft: 20 }}
+          contentContainerStyle={{ paddingRight: 20 }}
+        >
+          {lovedOutfits.map((outfit, index) => (
+            <TouchableOpacity
+              key={outfit.id}
+              onPress={() => openLovedOutfitModal(outfit, index)}
+              style={styles.lovedOutfitCard}
+            >
+              {/* Love heart indicator */}
+              <View style={styles.loveHeartIndicator}>
+                <Text style={styles.loveHeartText}>❤️</Text>
+              </View>
+
+              {/* Download button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  downloadImage(outfit.image);
+                }}
+                style={styles.downloadButtonSmall}
+              >
+                <Text style={styles.downloadButtonSmallText}>⬇️</Text>
+              </TouchableOpacity>
+
+              {/* Outfit image */}
+              <Image
+                source={{ uri: outfit.image }}
+                style={styles.outfitCardImage}
+                resizeMode="cover"
+              />
+
+              {/* Outfit info */}
+              <View style={styles.outfitCardInfo}>
+                {/* Weather info */}
+                {outfit.weatherData && (
+                  <View style={styles.outfitCardWeather}>
+                    <Text style={styles.outfitCardWeatherText}>
+                      🌡️ {outfit.weatherData.temperature}°F
+                    </Text>
+                  </View>
+                )}
+
+                {/* Style DNA indicator */}
+                {outfit.styleDNA && (
+                  <View style={styles.outfitCardStyleDNA}>
+                    <Text style={styles.outfitCardStyleDNAText}>🧬</Text>
+                  </View>
+                )}
+
+                {/* Date */}
+                <Text style={styles.outfitCardDate}>
+                  {outfit.createdAt.toLocaleDateString()}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    )}
+
+    {/* All Generated Outfits Section */}
+    <View>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, color: '#333' }}>
+        🎨 All Generated Outfits ({allGeneratedOutfits.length})
+      </Text>
+      
+      {allGeneratedOutfits.length > 0 ? (
+        <View style={styles.allOutfitsGrid}>
+          {allGeneratedOutfits.map((outfit, index) => (
+            <TouchableOpacity
+              key={outfit.id}
+              onPress={() => {
+                setGeneratedOutfit(outfit.image);
+                resetOutfitTransform();
+                setOutfitModalVisible(true);
+              }}
+              style={[
+                styles.generatedOutfitCard,
+                outfit.isLoved && styles.generatedOutfitCardLoved
+              ]}
+            >
+              {/* Love toggle button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleOutfitLove(outfit.id);
+                }}
+                style={[
+                  styles.loveToggleButton,
+                  outfit.isLoved && styles.loveToggleButtonActive
+                ]}
+              >
+                <Text style={[
+                  styles.loveToggleButtonText,
+                  outfit.isLoved && styles.loveToggleButtonTextActive
+                ]}>
+                  {outfit.isLoved ? '❤️' : '🤍'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Download button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  downloadImage(outfit.image);
+                }}
+                style={styles.downloadButtonSmall}
+              >
+                <Text style={styles.downloadButtonSmallText}>⬇️</Text>
+              </TouchableOpacity>
+
+              {/* Outfit image */}
+              <Image
+                source={{ uri: outfit.image }}
+                style={styles.generatedOutfitCardImage}
+                resizeMode="cover"
+              />
+
+              {/* Outfit info */}
+              <View style={styles.generatedOutfitCardInfo}>
+                {/* Weather info */}
+                {outfit.weatherData && (
+                  <View style={styles.outfitCardWeather}>
+                    <Text style={styles.outfitCardWeatherText}>
+                      🌡️ {outfit.weatherData.temperature}°F
+                    </Text>
+                  </View>
+                )}
+
+                {/* Style DNA indicator */}
+                {outfit.styleDNA && (
+                  <View style={styles.outfitCardStyleDNA}>
+                    <Text style={styles.outfitCardStyleDNAText}>🧬</Text>
+                  </View>
+                )}
+
+                {/* Gender indicator */}
+                {outfit.gender && (
+                  <View style={styles.outfitCardGender}>
+                    <Text style={styles.outfitCardGenderText}>
+                      {outfit.gender === 'male' ? '👨' : 
+                       outfit.gender === 'female' ? '👩' : '🌈'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Date and items count */}
+                <Text style={styles.outfitCardDate}>
+                  {outfit.createdAt.toLocaleDateString()}
+                </Text>
+                <Text style={styles.outfitCardItems}>
+                  {outfit.selectedItems.length} items
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.noOutfitsContainer}>
+          <Text style={styles.noOutfitsIcon}>🎨</Text>
+          <Text style={styles.noOutfitsTitle}>No Generated Outfits Yet</Text>
+          <Text style={styles.noOutfitsSubtitle}>
+            Use the Outfit Builder to create your first AI-generated outfit!
+          </Text>
+          <TouchableOpacity
+            onPress={() => switchToPage('builder')}
+            style={styles.goToBuilderButton}
+          >
+            <Text style={styles.goToBuilderButtonText}>🎮 Go to Builder</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  </View>
+)}
+
+{/* Profile Page */}
+{showProfilePage && (
+  <View style={{ marginTop: 20, paddingHorizontal: 20 }}>
+    <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#333' }}>
+      🧬 Your Style Profile
+    </Text>
+    
+    {/* Profile Image Section */}
+    <View style={{ alignItems: 'center', marginBottom: 30 }}>
+      <TouchableOpacity
+        onPress={pickProfileImage}
+        style={styles.profileImageContainer}
+      >
+        {profileImage ? (
+          <Image 
+            source={{ uri: profileImage }} 
+            style={[styles.profileImageLarge, styleDNA && styles.profileImageLargeActive]} 
+          />
+        ) : (
+          <View style={styles.profileImagePlaceholderLarge}>
+            <Text style={styles.profileImagePlaceholderText}>📸</Text>
+            <Text style={styles.profileImagePlaceholderSubtext}>Tap to add photo</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      
+      {analyzingProfile && (
+        <View style={styles.analyzingProfileIndicator}>
+          <Text style={styles.analyzingProfileText}>🧬 Analyzing your style...</Text>
+        </View>
+      )}
+    </View>
+
+    {/* Gender Selection */}
+    <View style={styles.profileSection}>
+      <Text style={styles.profileSectionTitle}>Gender Identity</Text>
+      <TouchableOpacity
+        onPress={() => setShowGenderSelector(true)}
+        style={[
+          styles.genderSelectorButton,
+          !selectedGender && styles.genderSelectorButtonWarning
+        ]}
+      >
+        <Text style={styles.genderSelectorIcon}>
+          {selectedGender === 'male' ? '👨' : 
+           selectedGender === 'female' ? '👩' : 
+           selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
+        </Text>
+        <Text style={[
+          styles.genderSelectorText,
+          !selectedGender && styles.genderSelectorTextWarning
+        ]}>
+          {selectedGender ? selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1) : 'Select Gender'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Style DNA Status */}
+    {styleDNA && (
+      <View style={styles.profileSection}>
+        <Text style={styles.profileSectionTitle}>Style DNA Analysis</Text>
+        <View style={styles.styleDNAStatus}>
+          <Text style={styles.styleDNAStatusIcon}>✅</Text>
+          <View style={styles.styleDNAStatusInfo}>
+            <Text style={styles.styleDNAStatusTitle}>Style Profile Active</Text>
+            <Text style={styles.styleDNAStatusSubtitle}>
+              AI outfits are personalized to your style preferences
+            </Text>
+          </View>
+        </View>
+      </View>
+    )}
+
+    {/* Weather Integration */}
+    {weatherData && (
+      <View style={styles.profileSection}>
+        <Text style={styles.profileSectionTitle}>Weather Integration</Text>
+        <View style={styles.weatherStatus}>
+          <Text style={styles.weatherStatusIcon}>🌤️</Text>
+          <View style={styles.weatherStatusInfo}>
+            <Text style={styles.weatherStatusTitle}>
+              {weatherData.temperature}°F in {weatherData.city}
+            </Text>
+            <Text style={styles.weatherStatusSubtitle}>
+              {weatherData.description}
+            </Text>
+          </View>
+        </View>
+      </View>
+    )}
+
+    {/* Statistics */}
+    <View style={styles.profileSection}>
+      <Text style={styles.profileSectionTitle}>Your Statistics</Text>
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{savedItems.length}</Text>
+          <Text style={styles.statLabel}>Wardrobe Items</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{allGeneratedOutfits.length}</Text>
+          <Text style={styles.statLabel}>Generated Outfits</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{lovedOutfits.length}</Text>
+          <Text style={styles.statLabel}>Loved Outfits</Text>
+        </View>
+      </View>
+    </View>
+  </View>
+)}
       </ScrollView>
       </View>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNavigation}>
-        {/* Outfit Builder Toggle Button */}
+        {/* Outfit Builder Button */}
         <TouchableOpacity
-          onPress={() => {
-            setShowOutfitBuilder(!showOutfitBuilder);
-            if (showOutfitBuilder) {
-              // When hiding outfit builder, show wardrobe and loved items
-              setShowWardrobe(true);
-              setShowLovedItems(true);
-            } else {
-              // When showing outfit builder, hide wardrobe and loved items
-              setShowWardrobe(false);
-              setShowLovedItems(false);
-            }
-          }}
+          onPress={() => switchToPage('builder')}
           style={styles.bottomNavButton}
         >
           <Text style={[styles.bottomNavIcon, showOutfitBuilder && styles.bottomNavIconActive]}>
@@ -3024,18 +3284,9 @@ const WardrobeUploadScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* Combined Wardrobe & Loved Items Toggle Button */}
+        {/* Wardrobe Button */}
         <TouchableOpacity
-          onPress={() => {
-            const newWardrobeState = !showWardrobe;
-            const newLovedState = !showLovedItems;
-            setShowWardrobe(newWardrobeState);
-            setShowLovedItems(newLovedState);
-            if (newWardrobeState || newLovedState) {
-              // When showing wardrobe/loved items, hide outfit builder
-              setShowOutfitBuilder(false);
-            }
-          }}
+          onPress={() => switchToPage('wardrobe')}
           style={styles.bottomNavButton}
         >
           <Text style={[styles.bottomNavIcon, (showWardrobe || showLovedItems) && styles.bottomNavIconActive]}>
@@ -3054,43 +3305,30 @@ const WardrobeUploadScreen = () => {
           <Text style={styles.plusButtonIcon}>+</Text>
         </TouchableOpacity>
 
-        {/* Gender Selector Button */}
+        {/* Generated Outfits Button */}
         <TouchableOpacity
-          onPress={() => setShowGenderSelector(true)}
-          style={[
-            styles.bottomNavButton,
-            !selectedGender && styles.bottomNavButtonWarning
-          ]}
+          onPress={() => switchToPage('outfits')}
+          style={styles.bottomNavButton}
         >
-          <Text style={[
-            styles.bottomNavIcon, 
-            selectedGender ? styles.bottomNavIconActive : styles.bottomNavIconWarning
-          ]}>
-            {selectedGender === 'male' ? '👨' : 
-             selectedGender === 'female' ? '👩' : 
-             selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
+          <Text style={[styles.bottomNavIcon, showOutfitsPage && styles.bottomNavIconActive]}>
+            ✨
           </Text>
-          <Text style={[
-            styles.bottomNavLabel, 
-            selectedGender ? styles.bottomNavLabelActive : styles.bottomNavLabelWarning
-          ]}>
-            {selectedGender ? selectedGender : 'Gender'}
+          <Text style={[styles.bottomNavLabel, showOutfitsPage && styles.bottomNavLabelActive]}>
+            Outfits
           </Text>
         </TouchableOpacity>
 
-        {/* Style DNA Profile Button */}
+        {/* Profile Button */}
         <TouchableOpacity
-          onPress={pickProfileImage}
-          style={styles.profileButton}
+          onPress={() => switchToPage('profile')}
+          style={styles.bottomNavButton}
         >
-          {profileImage ? (
-            <Image 
-              source={{ uri: profileImage }} 
-              style={[styles.profileButtonImage, styleDNA && styles.profileButtonImageActive]} 
-            />
-          ) : (
-            <Text style={styles.profileButtonPlaceholder}>🧬</Text>
-          )}
+          <Text style={[styles.bottomNavIcon, showProfilePage && styles.bottomNavIconActive]}>
+            🧬
+          </Text>
+          <Text style={[styles.bottomNavLabel, showProfilePage && styles.bottomNavLabelActive]}>
+            Profile
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -4631,5 +4869,386 @@ const styles = StyleSheet.create({
   },
   bottomNavLabelWarning: {
     color: '#999',
+  },
+  
+  // Generated Outfits Page Styles
+  lovedOutfitCard: {
+    marginRight: 20,
+    width: 200,
+    backgroundColor: '#fff5f5',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ff6b6b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+  },
+  loveHeartIndicator: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ff6b6b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  loveHeartText: {
+    fontSize: 12,
+    color: 'white',
+  },
+  downloadButtonSmall: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  downloadButtonSmallText: {
+    fontSize: 10,
+    color: 'white',
+  },
+  outfitCardImage: {
+    width: 180,
+    height: 140,
+    borderRadius: 8,
+    marginBottom: 8,
+    marginTop: 20,
+  },
+  outfitCardInfo: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  outfitCardWeather: {
+    backgroundColor: '#E8F5E8',
+    padding: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  outfitCardWeatherText: {
+    fontSize: 10,
+    color: '#2E7D32',
+    fontWeight: 'bold',
+  },
+  outfitCardStyleDNA: {
+    backgroundColor: '#f0f8f0',
+    padding: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  outfitCardStyleDNAText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  outfitCardGender: {
+    backgroundColor: '#F3E5F5',
+    padding: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  outfitCardGenderText: {
+    fontSize: 10,
+    color: '#7B1FA2',
+    fontWeight: 'bold',
+  },
+  outfitCardDate: {
+    fontSize: 10,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  outfitCardItems: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 4,
+  },
+  allOutfitsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  generatedOutfitCard: {
+    width: '48%',
+    marginBottom: 15,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    position: 'relative',
+  },
+  generatedOutfitCardLoved: {
+    backgroundColor: '#fff5f5',
+    borderColor: '#ff6b6b',
+  },
+  generatedOutfitCardImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 6,
+    marginTop: 25,
+  },
+  generatedOutfitCardInfo: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  loveToggleButton: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  loveToggleButtonActive: {
+    backgroundColor: '#ff6b6b',
+  },
+  loveToggleButtonText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  loveToggleButtonTextActive: {
+    color: 'white',
+  },
+  noOutfitsContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  noOutfitsIcon: {
+    fontSize: 48,
+    marginBottom: 20,
+  },
+  noOutfitsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  noOutfitsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  goToBuilderButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  goToBuilderButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  genderSelectorButtonSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  genderSelectorIconSmall: {
+    fontSize: 18,
+    color: '#666',
+  },
+  genderSelectorIconActive: {
+    color: '#4CAF50',
+  },
+  genderSelectorIconWarning: {
+    color: '#ff6b6b',
+  },
+  
+  // Profile Page Styles
+  profileImageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 3,
+    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  profileImageLarge: {
+    width: 114,
+    height: 114,
+    borderRadius: 57,
+  },
+  profileImageLargeActive: {
+    borderWidth: 3,
+    borderColor: '#4CAF50',
+  },
+  profileImagePlaceholderLarge: {
+    alignItems: 'center',
+  },
+  profileImagePlaceholderText: {
+    fontSize: 32,
+    color: '#666',
+    marginBottom: 5,
+  },
+  profileImagePlaceholderSubtext: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+  },
+  analyzingProfileIndicator: {
+    marginTop: 15,
+    backgroundColor: '#E8F5E8',
+    padding: 8,
+    borderRadius: 8,
+  },
+  analyzingProfileText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  profileSection: {
+    marginBottom: 30,
+    paddingHorizontal: 10,
+  },
+  profileSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  genderSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  genderSelectorIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  genderSelectorText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  genderSelectorTextWarning: {
+    color: '#ff6b6b',
+  },
+  styleDNAStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#E8F5E8',
+    borderRadius: 12,
+  },
+  styleDNAStatusIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  styleDNAStatusInfo: {
+    flex: 1,
+  },
+  styleDNAStatusTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 2,
+  },
+  styleDNAStatusSubtitle: {
+    fontSize: 12,
+    color: '#2E7D32',
+  },
+  weatherStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+  },
+  weatherStatusIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  weatherStatusInfo: {
+    flex: 1,
+  },
+  weatherStatusTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1976D2',
+    marginBottom: 2,
+  },
+  weatherStatusSubtitle: {
+    fontSize: 12,
+    color: '#1976D2',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 5,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });
