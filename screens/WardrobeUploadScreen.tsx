@@ -495,7 +495,7 @@ const WardrobeUploadScreen = () => {
             selectedItems: equippedItems.map(item => item.image),
             gender: selectedGender || null,
             createdAt: new Date(),
-            isLoved: true, // Automatically love generated outfits
+            isLoved: false, // Don't automatically love generated outfits
           };
           
           setLovedOutfits(prev => {
@@ -1125,7 +1125,7 @@ const WardrobeUploadScreen = () => {
       selectedItems: equippedItems.map(item => item.image),
       gender: selectedGender || null,
       createdAt: new Date(),
-      isLoved: true, // Mark as loved when manually saved
+      isLoved: false, // Don't automatically love when saving
     };
     
     setLovedOutfits(prev => {
@@ -1134,7 +1134,7 @@ const WardrobeUploadScreen = () => {
       saveLovedOutfits(newOutfits);
       return newOutfits;
     });
-    alert("Outfit saved to your Loved collection! ❤️");
+    alert("Outfit saved to your collection! 👗");
   };
 
   // Function to manually save current outfit (for fallback cases)
@@ -3186,51 +3186,7 @@ const WardrobeUploadScreen = () => {
       </View>
     </View>
 
-    {/* Action Buttons */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 20 }}>
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('medium');
-          setShowProfilePage(false);
-          setShowOutfitBuilder(true);
-        }}
-        style={{
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          borderRadius: 25,
-          backgroundColor: '#007AFF',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
-        }}
-      >
-        <Text style={{ fontSize: 14, fontWeight: 'bold', color: 'white' }}>🎮 Back to Builder</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('medium');
-          setShowProfilePage(false);
-          setShowWardrobe(true);
-          setShowLovedItems(true);
-        }}
-        style={{
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          borderRadius: 25,
-          backgroundColor: '#007AFF',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
-        }}
-      >
-        <Text style={{ fontSize: 14, fontWeight: 'bold', color: 'white' }}>👔 View Wardrobe</Text>
-      </TouchableOpacity>
-    </View>
+ 
   </View>
 )}
 
