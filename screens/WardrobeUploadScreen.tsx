@@ -137,6 +137,31 @@ const WardrobeUploadScreen = () => {
   // State for wardrobe item view modal
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
+  
+  // State for category editing
+  const [editingCategory, setEditingCategory] = useState(false);
+  const [categoryDropdownVisible, setCategoryDropdownVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // State for inline item detail view
+  const [showingItemDetail, setShowingItemDetail] = useState(false);
+  const [detailViewItem, setDetailViewItem] = useState<any | null>(null);
+  
+  // States for inline editing in detail view
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingColor, setEditingColor] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState(false);
+  const [editingStyle, setEditingStyle] = useState(false);
+  const [editingFit, setEditingFit] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  
+  // Temporary values for editing
+  const [tempTitle, setTempTitle] = useState('');
+  const [tempColor, setTempColor] = useState('');
+  const [tempMaterial, setTempMaterial] = useState('');
+  const [tempStyle, setTempStyle] = useState('');
+  const [tempFit, setTempFit] = useState('');
+  const [tempTags, setTempTags] = useState<string[]>([]);
 
   // State for bottom navigation and wardrobe visibility
   const [showWardrobe, setShowWardrobe] = useState(false);
@@ -987,6 +1012,11 @@ const WardrobeUploadScreen = () => {
 
   // Function to automatically categorize clothing items
   const categorizeItem = (item: any): string => {
+    // Check for explicit category first (from manual selection)
+    if (item.category && AVAILABLE_CATEGORIES.includes(item.category)) {
+      return item.category;
+    }
+    
     const tags = item.tags || [];
     const title = (item.title || '').toLowerCase();
     const description = (item.description || '').toLowerCase();
@@ -1044,12 +1074,53 @@ const WardrobeUploadScreen = () => {
     return 'top';
   };
 
+  // Available categories for dropdown
+  const AVAILABLE_CATEGORIES = ['top', 'bottom', 'shoes', 'jacket', 'hat', 'accessories'];
+
   // Function to get items filtered by category
   const getItemsByCategory = (category: string) => {
     return savedItems.filter(item => {
       const itemCategory = categorizeItem(item);
       return itemCategory === category;
     });
+  };
+
+  // Function to update item category
+  const updateItemCategory = async (item: any, newCategory: string) => {
+    try {
+      console.log('Updating category from', categorizeItem(item), 'to', newCategory);
+      
+      // Update the item with new category by updating tags and adding explicit category field
+      const updatedItem = {
+        ...item,
+        category: newCategory, // Store explicit category
+        tags: [...(item.tags || []).filter((tag: string) => 
+          !AVAILABLE_CATEGORIES.includes(tag.toLowerCase())
+        ), newCategory]
+      };
+      
+      console.log('Updated item:', updatedItem);
+
+      // Update savedItems
+      const updatedItems = savedItems.map(savedItem => 
+        savedItem.image === item.image && savedItem.description === item.description 
+          ? updatedItem 
+          : savedItem
+      );
+      
+      setSavedItems(updatedItems);
+      setDetailViewItem(updatedItem);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      // Provide haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('Error updating category:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   // Function to edit wardrobe item
@@ -1455,11 +1526,52 @@ const WardrobeUploadScreen = () => {
     return displayNames[sortType] || sortType;
   };
 
-  // Function to open wardrobe item view modal
+  // Function to open wardrobe item detail view inline
   const openWardrobeItemView = (item: any) => {
-    setViewingWardrobeItem(item);
-    resetOutfitTransform(); // Reset zoom/pan for new item
-    setWardrobeItemModalVisible(true);
+    setDetailViewItem(item);
+    setShowingItemDetail(true);
+    // Hide wardrobe grid when showing detail
+    setShowWardrobe(false);
+  };
+
+  // Function to go back to wardrobe view
+  const goBackToWardrobe = () => {
+    setShowingItemDetail(false);
+    setDetailViewItem(null);
+    setShowWardrobe(true);
+    setCategoryDropdownVisible(false); // Close category dropdown if open
+  };
+
+  // Function to save field updates
+  const saveFieldUpdate = async (field: string, value: string | string[]) => {
+    if (!detailViewItem) return;
+    
+    try {
+      const updatedItem = {
+        ...detailViewItem,
+        [field]: value
+      };
+
+      // Update savedItems
+      const updatedItems = savedItems.map(savedItem => 
+        savedItem.image === detailViewItem.image && savedItem.description === detailViewItem.description 
+          ? updatedItem 
+          : savedItem
+      );
+      
+      setSavedItems(updatedItems);
+      setDetailViewItem(updatedItem);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      // Provide haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('Error saving field update:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   // Function to trigger haptic feedback
@@ -2531,183 +2643,6 @@ const WardrobeUploadScreen = () => {
         </Pressable>
       </Modal>
 
-      {/* Wardrobe Item View Modal with Pinch/Zoom */}
-      <Modal
-        visible={wardrobeItemModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setWardrobeItemModalVisible(false)}
-      >
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <View style={styles.outfitModalOverlay}>
-            <View style={styles.outfitModalContent}>
-              {/* Header */}
-              <View style={styles.outfitModalHeader}>
-                <Text style={styles.outfitModalTitle}>
-                  👔 {viewingWardrobeItem?.title || 'Wardrobe Item'}
-                </Text>
-                
-                <TouchableOpacity
-                  onPress={() => setWardrobeItemModalVisible(false)}
-                  style={styles.closeButton}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Zoomable Image Container */}
-              <View style={styles.imageContainer}>
-                {viewingWardrobeItem ? (
-                  <GestureHandlerRootView style={{ width: '100%', height: '100%' }}>
-                    <PanGestureHandler
-                      onGestureEvent={onPanGestureEvent}
-                      onHandlerStateChange={onPanHandlerStateChange}
-                    >
-                      <Animated.View style={{ width: '100%', height: '100%' }}>
-                        <PinchGestureHandler
-                          onGestureEvent={onPinchGestureEvent}
-                          onHandlerStateChange={onPinchHandlerStateChange}
-                        >
-                          <Animated.View
-                            style={[
-                              styles.zoomableImage,
-                              {
-                                transform: [
-                                  { scale: outfitScale },
-                                  { translateX: outfitTranslateX },
-                                  { translateY: outfitTranslateY }
-                                ]
-                              }
-                            ]}
-                          >
-                            <TouchableOpacity
-                              onPress={() => {
-                                // Single tap to close modal
-                                setWardrobeItemModalVisible(false);
-                              }}
-                              onLongPress={handleDoubleTapZoom}
-                              activeOpacity={1}
-                              style={styles.outfitImageTouchable}
-                            >
-                              <Image
-                                source={{ uri: viewingWardrobeItem.image }}
-                                style={styles.outfitImage}
-                                resizeMode="contain"
-                              />
-                            </TouchableOpacity>
-                          </Animated.View>
-                        </PinchGestureHandler>
-                      </Animated.View>
-                    </PanGestureHandler>
-                  </GestureHandlerRootView>
-                ) : (
-                  <View style={{ justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                    <Text style={{ color: '#666', fontSize: 16 }}>No item to display</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Scrollable Content */}
-              <ScrollView style={styles.wardrobeItemModalScroll} showsVerticalScrollIndicator={true}>
-                {/* Action Buttons Under Image */}
-                <View style={styles.wardrobeItemActionButtons}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setWardrobeItemModalVisible(false);
-                      editWardrobeItem(viewingWardrobeItem);
-                    }}
-                    style={styles.wardrobeItemActionButton}
-                  >
-                    <Text style={styles.wardrobeItemActionButtonText}>✏️ Edit Item</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => generateOutfitSuggestions(viewingWardrobeItem)}
-                    style={styles.wardrobeItemActionButton}
-                  >
-                    <Text style={styles.wardrobeItemActionButtonText}>🎨 Outfit Ideas</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Item Info */}
-                {viewingWardrobeItem && (
-                  <View style={styles.wardrobeItemInfoContainer}>
-                    <Text style={styles.wardrobeItemTitle}>
-                      {viewingWardrobeItem.title || 'Untitled Item'}
-                    </Text>
-                    
-                    <Text style={styles.wardrobeItemDescription}>
-                      {viewingWardrobeItem.description}
-                    </Text>
-                    
-                    <View style={styles.wardrobeItemDetails}>
-                      <Text style={styles.wardrobeItemDetail}>
-                        <Text style={styles.wardrobeItemDetailLabel}>Category:</Text> {categorizeItem(viewingWardrobeItem).toUpperCase()}
-                      </Text>
-                      <Text style={styles.wardrobeItemDetail}>
-                        <Text style={styles.wardrobeItemDetailLabel}>Color:</Text> {viewingWardrobeItem.color || 'Not specified'}
-                      </Text>
-                      <Text style={styles.wardrobeItemDetail}>
-                        <Text style={styles.wardrobeItemDetailLabel}>Material:</Text> {viewingWardrobeItem.material || 'Not specified'}
-                      </Text>
-                      <Text style={styles.wardrobeItemDetail}>
-                        <Text style={styles.wardrobeItemDetailLabel}>Style:</Text> {viewingWardrobeItem.style || 'Not specified'}
-                      </Text>
-                      <Text style={styles.wardrobeItemDetail}>
-                        <Text style={styles.wardrobeItemDetailLabel}>Fit:</Text> {viewingWardrobeItem.fit || 'Not specified'}
-                      </Text>
-                    </View>
-                    
-                    {viewingWardrobeItem.tags && viewingWardrobeItem.tags.length > 0 && (
-                      <View style={styles.wardrobeItemTags}>
-                        <Text style={styles.wardrobeItemTagsLabel}>Tags:</Text>
-                        <View style={styles.wardrobeItemTagsContainer}>
-                          {viewingWardrobeItem.tags.map((tag: string, index: number) => (
-                            <View key={index} style={styles.wardrobeItemTag}>
-                              <Text style={styles.wardrobeItemTagText}>{tag}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Controls */}
-                <View style={styles.outfitModalControls}>
-                  <TouchableOpacity
-                    onPress={() => handlePinchZoom(currentScale + 0.3)}
-                    style={styles.controlButton}
-                  >
-                    <Text style={styles.controlButtonText}>🔍 Zoom In</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={resetOutfitTransform}
-                    style={styles.controlButton}
-                  >
-                    <Text style={styles.controlButtonText}>🔄 Reset</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => handlePinchZoom(currentScale - 0.3)}
-                    style={styles.controlButton}
-                  >
-                    <Text style={styles.controlButtonText}>🔍 Zoom Out</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Instructions */}
-                <View style={styles.instructionsContainer}>
-                  <Text style={styles.instructionsText}>
-                    💡 Pinch to zoom • Drag to pan • Long press to quick zoom • Tap to close
-                  </Text>
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </GestureHandlerRootView>
-      </Modal>
 
       {/*  SCROLLABLE VIEW FOR WARDROBE ITEMS */}
 <ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
@@ -2997,6 +2932,323 @@ const WardrobeUploadScreen = () => {
           </View>
         </TouchableOpacity>
       ))}
+    </View>
+  </View>
+)}
+
+{/* Item Detail View */}
+{showingItemDetail && detailViewItem && (
+  <View style={styles.itemDetailContainer}>
+    {/* Header with back button */}
+    <View style={styles.itemDetailHeader}>
+      <TouchableOpacity
+        onPress={goBackToWardrobe}
+        style={styles.backButton}
+      >
+        <Text style={styles.backButtonText}>← Back to Wardrobe</Text>
+      </TouchableOpacity>
+      <Text style={styles.itemDetailTitle}>
+        {detailViewItem.title || 'Clothing Item'}
+      </Text>
+    </View>
+
+    {/* Item Image */}
+    <View style={styles.itemDetailImageContainer}>
+      <Image
+        source={{ uri: detailViewItem.image }}
+        style={styles.itemDetailImage}
+        resizeMode="contain"
+      />
+    </View>
+
+    {/* Item Information */}
+    <View style={styles.itemDetailInfo}>
+      {/* Editable Title */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Title:</Text>
+        {editingTitle ? (
+          <View style={styles.editFieldContainer}>
+            <TextInput
+              style={styles.editFieldInput}
+              value={tempTitle}
+              onChangeText={setTempTitle}
+              placeholder="Item title"
+              autoFocus
+              onBlur={async () => {
+                await saveFieldUpdate('title', tempTitle);
+                setEditingTitle(false);
+              }}
+              onSubmitEditing={async () => {
+                await saveFieldUpdate('title', tempTitle);
+                setEditingTitle(false);
+              }}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempTitle(detailViewItem.title || '');
+              setEditingTitle(true);
+            }}
+            style={styles.editableField}
+          >
+            <Text style={styles.itemDetailValue}>
+              {detailViewItem.title || 'Tap to add title'}
+            </Text>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      <Text style={styles.itemDetailDescription}>
+        {detailViewItem.description}
+      </Text>
+      
+      {/* Category with dropdown */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Category:</Text>
+        <TouchableOpacity
+          onPress={() => {
+            console.log('Category dropdown tapped in detail view!');
+            setSelectedCategory(categorizeItem(detailViewItem));
+            setCategoryDropdownVisible(true);
+          }}
+          style={styles.categoryDropdownButton}
+        >
+          <Text style={styles.categoryDropdownText}>
+            {categorizeItem(detailViewItem).toUpperCase()}
+          </Text>
+          <Text style={styles.categoryDropdownArrow}>▼</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Editable Color */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Color:</Text>
+        {editingColor ? (
+          <View style={styles.editFieldContainer}>
+            <TextInput
+              style={styles.editFieldInput}
+              value={tempColor}
+              onChangeText={setTempColor}
+              placeholder="Color"
+              autoFocus
+              onBlur={async () => {
+                await saveFieldUpdate('color', tempColor);
+                setEditingColor(false);
+              }}
+              onSubmitEditing={async () => {
+                await saveFieldUpdate('color', tempColor);
+                setEditingColor(false);
+              }}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempColor(detailViewItem.color || '');
+              setEditingColor(true);
+            }}
+            style={styles.editableField}
+          >
+            <Text style={styles.itemDetailValue}>
+              {detailViewItem.color || 'Tap to add color'}
+            </Text>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {/* Editable Material */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Material:</Text>
+        {editingMaterial ? (
+          <View style={styles.editFieldContainer}>
+            <TextInput
+              style={styles.editFieldInput}
+              value={tempMaterial}
+              onChangeText={setTempMaterial}
+              placeholder="Material"
+              autoFocus
+              onBlur={async () => {
+                await saveFieldUpdate('material', tempMaterial);
+                setEditingMaterial(false);
+              }}
+              onSubmitEditing={async () => {
+                await saveFieldUpdate('material', tempMaterial);
+                setEditingMaterial(false);
+              }}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempMaterial(detailViewItem.material || '');
+              setEditingMaterial(true);
+            }}
+            style={styles.editableField}
+          >
+            <Text style={styles.itemDetailValue}>
+              {detailViewItem.material || 'Tap to add material'}
+            </Text>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {/* Editable Style */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Style:</Text>
+        {editingStyle ? (
+          <View style={styles.editFieldContainer}>
+            <TextInput
+              style={styles.editFieldInput}
+              value={tempStyle}
+              onChangeText={setTempStyle}
+              placeholder="Style"
+              autoFocus
+              onBlur={async () => {
+                await saveFieldUpdate('style', tempStyle);
+                setEditingStyle(false);
+              }}
+              onSubmitEditing={async () => {
+                await saveFieldUpdate('style', tempStyle);
+                setEditingStyle(false);
+              }}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempStyle(detailViewItem.style || '');
+              setEditingStyle(true);
+            }}
+            style={styles.editableField}
+          >
+            <Text style={styles.itemDetailValue}>
+              {detailViewItem.style || 'Tap to add style'}
+            </Text>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {/* Editable Fit */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Fit:</Text>
+        {editingFit ? (
+          <View style={styles.editFieldContainer}>
+            <TextInput
+              style={styles.editFieldInput}
+              value={tempFit}
+              onChangeText={setTempFit}
+              placeholder="Fit"
+              autoFocus
+              onBlur={async () => {
+                await saveFieldUpdate('fit', tempFit);
+                setEditingFit(false);
+              }}
+              onSubmitEditing={async () => {
+                await saveFieldUpdate('fit', tempFit);
+                setEditingFit(false);
+              }}
+            />
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempFit(detailViewItem.fit || '');
+              setEditingFit(true);
+            }}
+            style={styles.editableField}
+          >
+            <Text style={styles.itemDetailValue}>
+              {detailViewItem.fit || 'Tap to add fit'}
+            </Text>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Editable Tags */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Tags:</Text>
+        {editingTags ? (
+          <View style={styles.editTagsContainer}>
+            <View style={styles.tagsEditContainer}>
+              {tempTags.map((tag: string, index: number) => (
+                <View key={index} style={styles.editableTag}>
+                  <Text style={styles.editableTagText}>{tag}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newTags = tempTags.filter((_, i) => i !== index);
+                      setTempTags(newTags);
+                    }}
+                    style={styles.removeTagButton}
+                  >
+                    <Text style={styles.removeTagText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+            <View style={styles.addTagContainer}>
+              <TextInput
+                style={styles.addTagInput}
+                value={newTagInput}
+                onChangeText={setNewTagInput}
+                placeholder="Add tag"
+                onSubmitEditing={() => {
+                  if (newTagInput.trim()) {
+                    setTempTags([...tempTags, newTagInput.trim()]);
+                    setNewTagInput('');
+                  }
+                }}
+              />
+              <TouchableOpacity
+                onPress={async () => {
+                  await saveFieldUpdate('tags', tempTags);
+                  setEditingTags(false);
+                  setNewTagInput('');
+                }}
+                style={styles.saveTagsButton}
+              >
+                <Text style={styles.saveTagsText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setTempTags(detailViewItem.tags || []);
+              setEditingTags(true);
+            }}
+            style={styles.editableField}
+          >
+            <View style={styles.itemDetailTagsContainer}>
+              {(detailViewItem.tags || []).length > 0 ? (
+                detailViewItem.tags.map((tag: string, index: number) => (
+                  <View key={index} style={styles.itemDetailTag}>
+                    <Text style={styles.itemDetailTagText}>{tag}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.itemDetailValue}>Tap to add tags</Text>
+              )}
+            </View>
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Action Buttons - Only Outfit Ideas now */}
+      <View style={styles.itemDetailActions}>
+        <TouchableOpacity
+          onPress={() => generateOutfitSuggestions(detailViewItem)}
+          style={[styles.itemDetailActionButton, { flex: 1 }]}
+        >
+          <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   </View>
 )}
@@ -3441,6 +3693,9 @@ const WardrobeUploadScreen = () => {
                 setShowLovedItems(false);
                 setShowProfilePage(false);
                 setShowOutfitsPage(false);
+                // Close item detail view
+                setShowingItemDetail(false);
+                setDetailViewItem(null);
               }
             }}
             style={styles.bottomNavButton}
@@ -3470,6 +3725,9 @@ const WardrobeUploadScreen = () => {
                 setShowOutfitBuilder(false);
                 setShowProfilePage(false);
                 setShowOutfitsPage(false);
+                // Close item detail view
+                setShowingItemDetail(false);
+                setDetailViewItem(null);
               }
             }}
             style={styles.bottomNavButton}
@@ -3504,6 +3762,9 @@ const WardrobeUploadScreen = () => {
               setShowWardrobe(false);
               setShowLovedItems(false);
               setShowProfilePage(false);
+              // Close item detail view
+              setShowingItemDetail(false);
+              setDetailViewItem(null);
             }
           }}
           style={styles.bottomNavButton}
@@ -3526,6 +3787,9 @@ const WardrobeUploadScreen = () => {
               setShowWardrobe(false);
               setShowLovedItems(false);
               setShowOutfitsPage(false);
+              // Close item detail view
+              setShowingItemDetail(false);
+              setDetailViewItem(null);
             }
           }}
           style={styles.profileButton}
@@ -3661,6 +3925,60 @@ const WardrobeUploadScreen = () => {
                 </Text>
               </View>
             )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Category Selection Modal */}
+      <Modal
+        visible={categoryDropdownVisible}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setCategoryDropdownVisible(false)}
+      >
+        <Pressable
+          style={styles.categoryModalOverlay}
+          onPress={() => setCategoryDropdownVisible(false)}
+        >
+          <Pressable style={styles.categoryModalContent} onPress={() => {}}>
+            <View style={styles.categoryModalHeader}>
+              <Text style={styles.categoryModalTitle}>Select Category</Text>
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                Debug: {categoryDropdownVisible ? 'Visible' : 'Hidden'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setCategoryDropdownVisible(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.categoryModalScroll}>
+              {AVAILABLE_CATEGORIES.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  onPress={async () => {
+                    await updateItemCategory(detailViewItem, category);
+                    setCategoryDropdownVisible(false);
+                  }}
+                  style={[
+                    styles.categoryOption,
+                    selectedCategory === category && styles.categoryOptionSelected
+                  ]}
+                >
+                  <Text style={[
+                    styles.categoryOptionText,
+                    selectedCategory === category && styles.categoryOptionTextSelected
+                  ]}>
+                    {category.toUpperCase()}
+                  </Text>
+                  {selectedCategory === category && (
+                    <Text style={styles.categoryCheckmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -5398,5 +5716,304 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: 'white',
+  },
+  // Category dropdown styles
+  categoryDropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginLeft: 8,
+    minWidth: 100,
+  },
+  categoryDropdownText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  categoryDropdownArrow: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  categoryModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  categoryModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    maxHeight: '80%',
+    minWidth: 280,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  categoryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  categoryModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  categoryModalScroll: {
+    maxHeight: 300,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  categoryOptionSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  categoryOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  categoryOptionTextSelected: {
+    color: 'white',
+  },
+  categoryCheckmark: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  // Item detail view styles
+  itemDetailContainer: {
+    marginTop: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  itemDetailHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    marginBottom: 15,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  itemDetailTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  itemDetailImageContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  itemDetailImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
+  },
+  itemDetailInfo: {
+    padding: 20,
+  },
+  itemDetailItemTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  itemDetailDescription: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  itemDetailField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    flexWrap: 'wrap',
+  },
+  itemDetailLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginRight: 8,
+    minWidth: 80,
+  },
+  itemDetailValue: {
+    fontSize: 16,
+    color: '#666',
+    flex: 1,
+  },
+  itemDetailTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  itemDetailTag: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  itemDetailTagText: {
+    fontSize: 12,
+    color: '#1976d2',
+    fontWeight: '500',
+  },
+  itemDetailActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  itemDetailActionButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemDetailActionButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Editable field styles
+  editableField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flex: 1,
+  },
+  editIcon: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  editFieldContainer: {
+    flex: 1,
+  },
+  editFieldInput: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    color: '#333',
+  },
+  // Tag editing styles
+  editTagsContainer: {
+    flex: 1,
+  },
+  tagsEditContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  editableTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  editableTagText: {
+    fontSize: 12,
+    color: '#1976d2',
+    fontWeight: '500',
+  },
+  removeTagButton: {
+    marginLeft: 4,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeTagText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  addTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addTagInput: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+    marginRight: 8,
+  },
+  saveTagsButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  saveTagsText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
