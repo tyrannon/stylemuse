@@ -2,7 +2,7 @@ import { View, Button, Image, StyleSheet, Text, TouchableOpacity, ScrollView, Sa
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { describeClothingItem } from '../utils/openai';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
 import * as Location from 'expo-location';
@@ -76,6 +76,9 @@ const WardrobeUploadScreen = () => {
 
   // Animated value for spin effect
   const [spinValue] = useState(new Animated.Value(0));
+  
+  // Ref for main scroll view to control scrolling
+  const mainScrollViewRef = useRef<ScrollView>(null);
 
   // State for profile image and style DNA
   // This can be used for future profile-related features
@@ -146,6 +149,10 @@ const WardrobeUploadScreen = () => {
   // State for inline item detail view
   const [showingItemDetail, setShowingItemDetail] = useState(false);
   const [detailViewItem, setDetailViewItem] = useState<any | null>(null);
+  
+  // State for inline outfit detail view
+  const [showingOutfitDetail, setShowingOutfitDetail] = useState(false);
+  const [detailViewOutfit, setDetailViewOutfit] = useState<any | null>(null);
   
   // States for inline editing in detail view
   const [editingTitle, setEditingTitle] = useState(false);
@@ -1532,6 +1539,10 @@ const WardrobeUploadScreen = () => {
     setShowingItemDetail(true);
     // Hide wardrobe grid when showing detail
     setShowWardrobe(false);
+    // Scroll to top to show the detail view
+    setTimeout(() => {
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   // Function to go back to wardrobe view
@@ -1540,6 +1551,25 @@ const WardrobeUploadScreen = () => {
     setDetailViewItem(null);
     setShowWardrobe(true);
     setCategoryDropdownVisible(false); // Close category dropdown if open
+  };
+
+  // Function to open outfit detail view inline
+  const openOutfitDetailView = (outfit: any) => {
+    setDetailViewOutfit(outfit);
+    setShowingOutfitDetail(true);
+    // Hide outfits grid when showing detail
+    setShowOutfitsPage(false);
+    // Scroll to top to show the detail view
+    setTimeout(() => {
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+  };
+
+  // Function to go back to outfits view
+  const goBackToOutfits = () => {
+    setShowingOutfitDetail(false);
+    setDetailViewOutfit(null);
+    setShowOutfitsPage(true);
   };
 
   // Function to save field updates
@@ -1640,7 +1670,12 @@ const WardrobeUploadScreen = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Main Content */}
       <View style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView 
+          ref={mainScrollViewRef}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
 
 {/* App Title */}
 <View style={{ marginBottom: 20, alignItems: 'center' }}>
@@ -2644,8 +2679,6 @@ const WardrobeUploadScreen = () => {
       </Modal>
 
 
-      {/*  SCROLLABLE VIEW FOR WARDROBE ITEMS */}
-<ScrollView style={{ flex: 1, paddingHorizontal: 20, marginTop: 20, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
         
 
 
@@ -3253,6 +3286,140 @@ const WardrobeUploadScreen = () => {
   </View>
 )}
 
+{/* Outfit Detail View */}
+{showingOutfitDetail && detailViewOutfit && (
+  <View style={styles.itemDetailContainer}>
+    {/* Header with back button */}
+    <View style={styles.itemDetailHeader}>
+      <TouchableOpacity
+        onPress={goBackToOutfits}
+        style={styles.backButton}
+      >
+        <Text style={styles.backButtonText}>← Back to Outfits</Text>
+      </TouchableOpacity>
+      <Text style={styles.itemDetailTitle}>
+        Generated Outfit
+      </Text>
+    </View>
+
+    {/* Outfit Image */}
+    <View style={styles.itemDetailImageContainer}>
+      <Image
+        source={{ uri: detailViewOutfit.image }}
+        style={styles.itemDetailImage}
+        resizeMode="contain"
+      />
+    </View>
+
+    {/* Outfit Information */}
+    <View style={styles.itemDetailInfo}>
+      {/* Creation Date */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Created:</Text>
+        <Text style={styles.itemDetailValue}>
+          {detailViewOutfit.createdAt.toLocaleDateString()}
+        </Text>
+      </View>
+
+      {/* Weather Info */}
+      {detailViewOutfit.weatherData && (
+        <View style={styles.itemDetailField}>
+          <Text style={styles.itemDetailLabel}>Weather:</Text>
+          <Text style={styles.itemDetailValue}>
+            🌡️ {detailViewOutfit.weatherData.temperature}°F
+          </Text>
+        </View>
+      )}
+
+      {/* Style DNA */}
+      {detailViewOutfit.styleDNA && (
+        <View style={styles.itemDetailField}>
+          <Text style={styles.itemDetailLabel}>Style:</Text>
+          <Text style={styles.itemDetailValue}>
+            🧬 Personalized to your Style DNA
+          </Text>
+        </View>
+      )}
+
+      {/* Gender */}
+      <View style={styles.itemDetailField}>
+        <Text style={styles.itemDetailLabel}>Style:</Text>
+        <Text style={styles.itemDetailValue}>
+          {detailViewOutfit.gender === 'male' ? '👨 Masculine' : 
+           detailViewOutfit.gender === 'female' ? '👩 Feminine' : 
+           detailViewOutfit.gender === 'nonbinary' ? '🧑 Non-binary' : 
+           '👤 Unisex'}
+        </Text>
+      </View>
+
+      {/* Items Used Section */}
+      <View style={styles.outfitItemsSection}>
+        <Text style={styles.outfitItemsSectionTitle}>
+          👔 Items Used ({detailViewOutfit.selectedItems.length})
+        </Text>
+        
+        <View style={styles.outfitItemsGrid}>
+          {detailViewOutfit.selectedItems.map((itemUri: string, index: number) => {
+            // Find the actual item data from savedItems
+            const itemData = savedItems.find(item => item.image === itemUri);
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => {
+                  if (itemData) {
+                    // Go to item detail view
+                    goBackToOutfits(); // Close outfit detail first
+                    openWardrobeItemView(itemData); // Open item detail
+                  }
+                }}
+                style={styles.outfitItemCard}
+              >
+                <Image
+                  source={{ uri: itemUri }}
+                  style={styles.outfitItemImage}
+                  resizeMode="cover"
+                />
+                {itemData && (
+                  <View style={styles.outfitItemInfo}>
+                    <Text style={styles.outfitItemTitle}>
+                      {itemData.title || 'Untitled'}
+                    </Text>
+                    <Text style={styles.outfitItemCategory}>
+                      {categorizeItem(itemData).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={styles.itemDetailActions}>
+        <TouchableOpacity
+          onPress={() => toggleOutfitLove(detailViewOutfit.id)}
+          style={[
+            styles.itemDetailActionButton,
+            detailViewOutfit.isLoved && { backgroundColor: '#ff6b6b' }
+          ]}
+        >
+          <Text style={styles.itemDetailActionButtonText}>
+            {detailViewOutfit.isLoved ? '❤️ Loved' : '🤍 Love This'}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => downloadImage(detailViewOutfit.image)}
+          style={styles.itemDetailActionButton}
+        >
+          <Text style={styles.itemDetailActionButtonText}>⬇️ Download</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
+
 {/* Profile Page */}
 {showProfilePage && (
   <View style={{ marginTop: 20 }}>
@@ -3465,7 +3632,7 @@ const WardrobeUploadScreen = () => {
               {lovedOutfits.filter(outfit => outfit.isLoved).map((outfit, index) => (
                 <TouchableOpacity
                   key={outfit.id}
-                  onPress={() => openLovedOutfitModal(outfit, index)}
+                  onPress={() => openOutfitDetailView(outfit)}
                   style={{
                     marginRight: 20,
                     width: 200,
@@ -3579,7 +3746,7 @@ const WardrobeUploadScreen = () => {
             {getSortedOutfits().map((outfit, index) => (
               <TouchableOpacity
                 key={outfit.id}
-                onPress={() => openLovedOutfitModal(outfit, index)}
+                onPress={() => openOutfitDetailView(outfit)}
                 style={[
                   styles.outfitCard,
                   outfit.isLoved && styles.lovedOutfitCard
@@ -3672,7 +3839,7 @@ const WardrobeUploadScreen = () => {
   </View>
 )}
 
-      </ScrollView>
+        </ScrollView>
       </View>
 
       {/* Bottom Navigation Bar */}
@@ -3696,6 +3863,9 @@ const WardrobeUploadScreen = () => {
                 // Close item detail view
                 setShowingItemDetail(false);
                 setDetailViewItem(null);
+                // Close outfit detail view
+                setShowingOutfitDetail(false);
+                setDetailViewOutfit(null);
               }
             }}
             style={styles.bottomNavButton}
@@ -3728,6 +3898,12 @@ const WardrobeUploadScreen = () => {
                 // Close item detail view
                 setShowingItemDetail(false);
                 setDetailViewItem(null);
+                // Close outfit detail view
+                setShowingOutfitDetail(false);
+                setDetailViewOutfit(null);
+              } else if (showWardrobe && !showingItemDetail) {
+                // If already on wardrobe page and not viewing item detail, scroll to top
+                mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
               }
             }}
             style={styles.bottomNavButton}
@@ -3756,7 +3932,10 @@ const WardrobeUploadScreen = () => {
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            if (!showOutfitsPage) {
+            // If outfit detail is open, just go back to outfits
+            if (showingOutfitDetail) {
+              goBackToOutfits();
+            } else if (!showOutfitsPage) {
               setShowOutfitsPage(true);
               setShowOutfitBuilder(false);
               setShowWardrobe(false);
@@ -3765,6 +3944,12 @@ const WardrobeUploadScreen = () => {
               // Close item detail view
               setShowingItemDetail(false);
               setDetailViewItem(null);
+              // Close outfit detail view
+              setShowingOutfitDetail(false);
+              setDetailViewOutfit(null);
+            } else if (showOutfitsPage) {
+              // If already on outfits page, scroll to top
+              mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
             }
           }}
           style={styles.bottomNavButton}
@@ -6015,5 +6200,57 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Outfit detail view styles
+  outfitItemsSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  outfitItemsSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  outfitItemsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  outfitItemCard: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  outfitItemImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  outfitItemInfo: {
+    alignItems: 'center',
+  },
+  outfitItemTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  outfitItemCategory: {
+    fontSize: 10,
+    color: '#666',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
 });
