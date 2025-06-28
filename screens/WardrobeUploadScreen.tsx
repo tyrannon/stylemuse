@@ -1137,25 +1137,6 @@ const WardrobeUploadScreen = () => {
     alert("Outfit saved to your collection! 👗");
   };
 
-  // Function to manually save current outfit (for fallback cases)
-  const manuallySaveCurrentOutfit = async () => {
-    if (!generatedOutfit) return;
-    
-    // If it's still a URL, download it first
-    if (generatedOutfit.startsWith('http')) {
-      try {
-        const localImageUri = await downloadAndSaveOutfit(generatedOutfit);
-        setGeneratedOutfit(localImageUri);
-        saveOutfitToLoved();
-      } catch (error) {
-        console.error('Failed to download outfit for manual save:', error);
-        alert('Failed to save outfit. Please try again.');
-      }
-    } else {
-      // Already a local URI, just save
-      saveOutfitToLoved();
-    }
-  };
 
   // Function to remove outfit from loved collection
   const removeLovedOutfit = (outfitId: string) => {
@@ -1851,10 +1832,15 @@ const WardrobeUploadScreen = () => {
               {/* Action Buttons */}
               <View style={styles.outfitModalActions}>
                 <TouchableOpacity
-                  onPress={manuallySaveCurrentOutfit}
+                  onPress={() => {
+                    setOutfitModalVisible(false);
+                    setGeneratedOutfit(null);
+                    setSelectedItemsForOutfit([]);
+                    setIsSelectionMode(true);
+                  }}
                   style={styles.actionButton}
                 >
-                  <Text style={styles.actionButtonText}>❤️ Love It!</Text>
+                  <Text style={styles.actionButtonText}>🔄 Generate Another</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -1862,11 +1848,10 @@ const WardrobeUploadScreen = () => {
                     setOutfitModalVisible(false);
                     setGeneratedOutfit(null);
                     setSelectedItemsForOutfit([]);
-                    setIsSelectionMode(true);
                   }}
-                  style={[styles.actionButton, styles.generateNewButton]}
+                  style={[styles.actionButton, styles.keepOutfitButton]}
                 >
-                  <Text style={styles.actionButtonText}>🔄 Close and Select New</Text>
+                  <Text style={styles.actionButtonText}>✅ Keep This Outfit</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -3752,6 +3737,9 @@ const styles = StyleSheet.create({
   },
   generateNewButton: {
     backgroundColor: '#ff6b6b',
+  },
+  keepOutfitButton: {
+    backgroundColor: '#4CAF50',
   },
   instructionsContainer: {
     backgroundColor: '#E8F5E8',
