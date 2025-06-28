@@ -1,4 +1,5 @@
 import { View, Button, Image, StyleSheet, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions } from 'react-native';
+import { SafeImage } from '../utils/SafeImage';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { describeClothingItem } from '../utils/openai';
@@ -10,6 +11,16 @@ import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State }
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useWardrobeData, WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
+import { useNavigationState } from '../hooks/useNavigationState';
+import { BottomNavigation } from './components/shared/BottomNavigation';
+import { ItemDetailView } from './components/ItemDetailView';
+import { OutfitDetailView } from './components/OutfitDetailView';
+import { CategoryDropdown } from './components/CategoryDropdown';
+import { BuilderPage } from './BuilderPage';
+import { WardrobePage } from './WardrobePage';
+import { OutfitsPage } from './OutfitsPage';
+import { ProfilePage } from './ProfilePage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -23,56 +34,104 @@ const STORAGE_KEYS = {
 };
 
 const WardrobeUploadScreen = () => {
+  // Use our custom hooks for data and navigation state
+  const wardrobeData = useWardrobeData();
+  const navigationState = useNavigationState();
+  
+  // Extract data and functions from hooks
+  const {
+    savedItems,
+    setSavedItems,
+    lovedOutfits,
+    setLovedOutfits,
+    profileImage,
+    setProfileImage,
+    styleDNA,
+    setStyleDNA,
+    selectedGender,
+    setSelectedGender,
+    AVAILABLE_CATEGORIES,
+    categorizeItem,
+    updateItemCategory,
+    saveFieldUpdate,
+    toggleOutfitLove,
+    markOutfitAsWorn,
+    getSmartOutfitSuggestions,
+    getOutfitWearStats,
+  } = wardrobeData;
+  
+  const {
+    // Page states
+    showOutfitBuilder,
+    showWardrobe,
+    showOutfitsPage,
+    showProfilePage,
+    showingItemDetail,
+    showingOutfitDetail,
+    detailViewItem,
+    detailViewOutfit,
+    
+    // Navigation functions
+    navigateToBuilder,
+    navigateToWardrobe,
+    navigateToOutfits,
+    navigateToProfile,
+    goBackToWardrobe,
+    goBackToOutfits,
+    openWardrobeItemView,
+    openOutfitDetailView,
+    
+    // Editing states
+    editingTitle,
+    setEditingTitle,
+    editingColor,
+    setEditingColor,
+    editingMaterial,
+    setEditingMaterial,
+    editingStyle,
+    setEditingStyle,
+    editingFit,
+    setEditingFit,
+    editingTags,
+    setEditingTags,
+    
+    // Temp values
+    tempTitle,
+    setTempTitle,
+    tempColor,
+    setTempColor,
+    tempMaterial,
+    setTempMaterial,
+    tempStyle,
+    setTempStyle,
+    tempFit,
+    setTempFit,
+    tempTags,
+    setTempTags,
+    newTagInput,
+    setNewTagInput,
+    
+    // Category dropdown
+    showCategoryDropdown,
+    setShowCategoryDropdown,
+    categoryDropdownVisible,
+    setCategoryDropdownVisible,
+    selectedCategory,
+    setSelectedCategory,
+  } = navigationState;
+
   // State Variables
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [savedItems, setSavedItems] = useState<
-  { 
-    image: string; 
-    title?: string; 
-    description: string; 
-    tags?: string[];
-    color?: string;
-    material?: string;
-    style?: string;
-    fit?: string;
-  }[]
->([]);
   const [title, setTitle] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
-  const [selectedItem, setSelectedItem] = useState<{
-    image: string;
-    title?: string;
-    description: string;
-    tags?: string[];
-    color?: string;
-    material?: string;
-    style?: string;
-    fit?: string;
-  } | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editTitle, setEditTitle] = useState<string>("");
-  const [editTags, setEditTags] = useState<string[]>([]);
-  const [newTagInput, setNewTagInput] = useState<string>("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedItemsForOutfit, setSelectedItemsForOutfit] = useState<string[]>([]);
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
-
-  // State for loved outfits
-  const [lovedOutfits, setLovedOutfits] = useState<{
-    id: string;
-    image: string;
-    weatherData?: any;
-    styleDNA?: any;
-    selectedItems: string[];
-    gender: string | null;
-    createdAt: Date;
-    isLoved?: boolean;
-  }[]>([]);
 
   // Animated value for spin effect
   const [spinValue] = useState(new Animated.Value(0));
@@ -80,10 +139,7 @@ const WardrobeUploadScreen = () => {
   // Ref for main scroll view to control scrolling
   const mainScrollViewRef = useRef<ScrollView>(null);
 
-  // State for profile image and style DNA
-  // This can be used for future profile-related features
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [styleDNA, setStyleDNA] = useState<any | null>(null);
+  // State for profile and style DNA analysis
   const [analyzingProfile, setAnalyzingProfile] = useState(false);
 
   // State for weather data
@@ -97,9 +153,12 @@ const WardrobeUploadScreen = () => {
   const [outfitTranslateX] = useState(new Animated.Value(0));
   const [outfitTranslateY] = useState(new Animated.Value(0));
   const [currentScale, setCurrentScale] = useState(1);
+  
+  // Animation values for shake effects
+  const [builderShakeValue] = useState(new Animated.Value(0));
+  const [wardrobeShakeValue] = useState(new Animated.Value(0));
 
-  // State for gender selection
-  const [selectedGender, setSelectedGender] = useState<'male' | 'female' | 'nonbinary' | null>(null);
+  // selectedGender is now provided by useWardrobeData hook
 
   // State for gear slot system
   const [gearSlots, setGearSlots] = useState<{
@@ -141,48 +200,16 @@ const WardrobeUploadScreen = () => {
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
   
-  // State for category editing
-  const [editingCategory, setEditingCategory] = useState(false);
-  const [categoryDropdownVisible, setCategoryDropdownVisible] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
+  // Category editing states are now provided by useNavigationState hook
   
-  // State for inline item detail view
-  const [showingItemDetail, setShowingItemDetail] = useState(false);
-  const [detailViewItem, setDetailViewItem] = useState<any | null>(null);
-  
-  // State for inline outfit detail view
-  const [showingOutfitDetail, setShowingOutfitDetail] = useState(false);
-  const [detailViewOutfit, setDetailViewOutfit] = useState<any | null>(null);
-  
-  // States for inline editing in detail view
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [editingColor, setEditingColor] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState(false);
-  const [editingStyle, setEditingStyle] = useState(false);
-  const [editingFit, setEditingFit] = useState(false);
-  const [editingTags, setEditingTags] = useState(false);
-  
-  // Temporary values for editing
-  const [tempTitle, setTempTitle] = useState('');
-  const [tempColor, setTempColor] = useState('');
-  const [tempMaterial, setTempMaterial] = useState('');
-  const [tempStyle, setTempStyle] = useState('');
-  const [tempFit, setTempFit] = useState('');
-  const [tempTags, setTempTags] = useState<string[]>([]);
+  // Detail view states and editing states are now provided by useNavigationState hook
 
-  // State for bottom navigation and wardrobe visibility
-  const [showWardrobe, setShowWardrobe] = useState(false);
-  const [showLovedItems, setShowLovedItems] = useState(false);
-  const [showOutfitBuilder, setShowOutfitBuilder] = useState(true);
-  const [showProfilePage, setShowProfilePage] = useState(false);
-  const [showOutfitsPage, setShowOutfitsPage] = useState(false);
+  // Navigation states are now provided by useNavigationState hook
 
   // State for gender selector modal
   const [showGenderSelector, setShowGenderSelector] = useState(false);
 
-  // Animated values for button shake effects
-  const [builderShakeValue] = useState(new Animated.Value(0));
-  const [wardrobeShakeValue] = useState(new Animated.Value(0));
+  // Animated values are already declared above
 
   // Storage functions
   const saveWardrobeItems = async (items: any[]) => {
@@ -406,20 +433,6 @@ const WardrobeUploadScreen = () => {
 
   // Functions Section
 
-  // Function to handle item deletion
-  const handleDeleteItem = () => {
-    if (!selectedItem) return;
-
-    setSavedItems(prev => {
-      const newItems = prev.filter(item => !(item.image === selectedItem.image && item.description === selectedItem.description));
-      // Save to storage
-      saveWardrobeItems(newItems);
-      return newItems;
-    });
-
-    setModalVisible(false);
-    setSelectedItem(null);
-  };
 
   // Function to handle item selection for outfit generation
   const handleItemSelection = (imageUri: string) => {
@@ -528,6 +541,10 @@ const WardrobeUploadScreen = () => {
             gender: selectedGender || null,
             createdAt: new Date(),
             isLoved: false, // Don't automatically love generated outfits
+            // Wear tracking fields
+            wearHistory: [],
+            timesWorn: 0,
+            suggestedForReWear: false,
           };
           
           setLovedOutfits(prev => {
@@ -1017,72 +1034,9 @@ const WardrobeUploadScreen = () => {
     return equippedItems;
   };
 
-  // Function to automatically categorize clothing items
-  const categorizeItem = (item: any): string => {
-    // Check for explicit category first (from manual selection)
-    if (item.category && AVAILABLE_CATEGORIES.includes(item.category)) {
-      return item.category;
-    }
-    
-    const tags = item.tags || [];
-    const title = (item.title || '').toLowerCase();
-    const description = (item.description || '').toLowerCase();
-    const style = (item.style || '').toLowerCase();
-    
-    // Check for top items
-    if (tags.some(tag => ['top', 't-shirt', 'shirt', 'blouse', 'tank', 'crop', 'sweater'].includes(tag.toLowerCase())) ||
-        title.includes('shirt') || title.includes('top') || title.includes('blouse') || title.includes('t-shirt') ||
-        description.includes('shirt') || description.includes('top') || description.includes('blouse') ||
-        style.includes('shirt') || style.includes('top') || style.includes('blouse')) {
-      return 'top';
-    }
-    
-    // Check for bottom items
-    if (tags.some(tag => ['bottom', 'pants', 'jeans', 'shorts', 'skirt', 'trousers'].includes(tag.toLowerCase())) ||
-        title.includes('pants') || title.includes('jeans') || title.includes('shorts') || title.includes('skirt') ||
-        description.includes('pants') || description.includes('jeans') || description.includes('shorts') ||
-        style.includes('pants') || style.includes('jeans') || style.includes('shorts') || style.includes('skirt')) {
-      return 'bottom';
-    }
-    
-    // Check for shoes
-    if (tags.some(tag => ['shoes', 'boots', 'sandals', 'sneakers', 'footwear'].includes(tag.toLowerCase())) ||
-        title.includes('shoes') || title.includes('boots') || title.includes('sandals') || title.includes('sneakers') ||
-        description.includes('shoes') || description.includes('boots') || description.includes('sandals') ||
-        style.includes('shoes') || style.includes('boots') || style.includes('sandals')) {
-      return 'shoes';
-    }
-    
-    // Check for jacket/outerwear
-    if (tags.some(tag => ['jacket', 'coat', 'blazer', 'cardigan', 'outerwear'].includes(tag.toLowerCase())) ||
-        title.includes('jacket') || title.includes('coat') || title.includes('blazer') || title.includes('cardigan') ||
-        description.includes('jacket') || description.includes('coat') || description.includes('blazer') ||
-        style.includes('jacket') || style.includes('coat') || style.includes('blazer')) {
-      return 'jacket';
-    }
-    
-    // Check for hat/headwear
-    if (tags.some(tag => ['hat', 'cap', 'beanie', 'headwear'].includes(tag.toLowerCase())) ||
-        title.includes('hat') || title.includes('cap') || title.includes('beanie') ||
-        description.includes('hat') || description.includes('cap') || description.includes('beanie') ||
-        style.includes('hat') || style.includes('cap') || style.includes('beanie')) {
-      return 'hat';
-    }
-    
-    // Check for accessories
-    if (tags.some(tag => ['accessories', 'jewelry', 'bag', 'scarf', 'belt', 'watch'].includes(tag.toLowerCase())) ||
-        title.includes('accessories') || title.includes('jewelry') || title.includes('bag') || title.includes('scarf') ||
-        description.includes('accessories') || description.includes('jewelry') || description.includes('bag') ||
-        style.includes('accessories') || style.includes('jewelry') || style.includes('bag')) {
-      return 'accessories';
-    }
-    
-    // Default to top if no clear category found
-    return 'top';
-  };
+  // categorizeItem function is now provided by useWardrobeData hook
 
-  // Available categories for dropdown
-  const AVAILABLE_CATEGORIES = ['top', 'bottom', 'shoes', 'jacket', 'hat', 'accessories'];
+  // AVAILABLE_CATEGORIES is now provided by useWardrobeData hook
 
   // Function to get items filtered by category
   const getItemsByCategory = (category: string) => {
@@ -1092,43 +1046,7 @@ const WardrobeUploadScreen = () => {
     });
   };
 
-  // Function to update item category
-  const updateItemCategory = async (item: any, newCategory: string) => {
-    try {
-      console.log('Updating category from', categorizeItem(item), 'to', newCategory);
-      
-      // Update the item with new category by updating tags and adding explicit category field
-      const updatedItem = {
-        ...item,
-        category: newCategory, // Store explicit category
-        tags: [...(item.tags || []).filter((tag: string) => 
-          !AVAILABLE_CATEGORIES.includes(tag.toLowerCase())
-        ), newCategory]
-      };
-      
-      console.log('Updated item:', updatedItem);
-
-      // Update savedItems
-      const updatedItems = savedItems.map(savedItem => 
-        savedItem.image === item.image && savedItem.description === item.description 
-          ? updatedItem 
-          : savedItem
-      );
-      
-      setSavedItems(updatedItems);
-      setDetailViewItem(updatedItem);
-      
-      // Save to AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
-      
-      // Provide haptic feedback
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-    } catch (error) {
-      console.error('Error updating category:', error);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  };
+  // updateItemCategory function is now provided by useWardrobeData hook
 
   // Function to edit wardrobe item
   const editWardrobeItem = (item: any) => {
@@ -1204,6 +1122,10 @@ const WardrobeUploadScreen = () => {
       gender: selectedGender || null,
       createdAt: new Date(),
       isLoved: false, // Don't automatically love when saving
+      // Wear tracking fields
+      wearHistory: [],
+      timesWorn: 0,
+      suggestedForReWear: false,
     };
     
     setLovedOutfits(prev => {
@@ -1533,76 +1455,12 @@ const WardrobeUploadScreen = () => {
     return displayNames[sortType] || sortType;
   };
 
-  // Function to open wardrobe item detail view inline
-  const openWardrobeItemView = (item: any) => {
-    setDetailViewItem(item);
-    setShowingItemDetail(true);
-    // Hide wardrobe grid when showing detail
-    setShowWardrobe(false);
-    // Scroll to top to show the detail view
-    setTimeout(() => {
-      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    }, 100);
-  };
+  // openWardrobeItemView and goBackToWardrobe functions are now provided by useNavigationState hook
 
-  // Function to go back to wardrobe view
-  const goBackToWardrobe = () => {
-    setShowingItemDetail(false);
-    setDetailViewItem(null);
-    setShowWardrobe(true);
-    setCategoryDropdownVisible(false); // Close category dropdown if open
-  };
-
-  // Function to open outfit detail view inline
-  const openOutfitDetailView = (outfit: any) => {
-    setDetailViewOutfit(outfit);
-    setShowingOutfitDetail(true);
-    // Hide outfits grid when showing detail
-    setShowOutfitsPage(false);
-    // Scroll to top to show the detail view
-    setTimeout(() => {
-      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    }, 100);
-  };
-
-  // Function to go back to outfits view
-  const goBackToOutfits = () => {
-    setShowingOutfitDetail(false);
-    setDetailViewOutfit(null);
-    setShowOutfitsPage(true);
-  };
+  // openOutfitDetailView and goBackToOutfits functions are now provided by useNavigationState hook
 
   // Function to save field updates
-  const saveFieldUpdate = async (field: string, value: string | string[]) => {
-    if (!detailViewItem) return;
-    
-    try {
-      const updatedItem = {
-        ...detailViewItem,
-        [field]: value
-      };
-
-      // Update savedItems
-      const updatedItems = savedItems.map(savedItem => 
-        savedItem.image === detailViewItem.image && savedItem.description === detailViewItem.description 
-          ? updatedItem 
-          : savedItem
-      );
-      
-      setSavedItems(updatedItems);
-      setDetailViewItem(updatedItem);
-      
-      // Save to AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
-      
-      // Provide haptic feedback
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-    } catch (error) {
-      console.error('Error saving field update:', error);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  };
+  // saveFieldUpdate function is now provided by useWardrobeData hook
 
   // Function to trigger haptic feedback
   const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -1611,6 +1469,25 @@ const WardrobeUploadScreen = () => {
     } catch (error) {
       console.log('Haptic feedback not available:', error);
     }
+  };
+
+  // Function to suggest smart outfit suggestions
+  const handleSmartOutfitSuggestions = () => {
+    triggerHaptic('medium');
+    const suggestions = getSmartOutfitSuggestions(5);
+    
+    if (suggestions.length === 0) {
+      alert('🤔 No smart suggestions available yet! Create and wear some outfits to get personalized recommendations.');
+      return;
+    }
+    
+    // Navigate to outfits page to show suggestions
+    navigateToOutfits();
+    
+    setTimeout(() => {
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      alert(`🧠 Found ${suggestions.length} smart outfit suggestions for you! Check out the suggestions section in the Outfits tab.`);
+    }, 500);
   };
 
   // Function to shake animation
@@ -1640,18 +1517,7 @@ const WardrobeUploadScreen = () => {
   };
 
   // Function to toggle outfit love status
-  const toggleOutfitLove = (outfitId: string) => {
-    setLovedOutfits(prev => {
-      const newOutfits = prev.map(outfit => 
-        outfit.id === outfitId 
-          ? { ...outfit, isLoved: !outfit.isLoved }
-          : outfit
-      );
-      // Save to storage
-      saveLovedOutfits(newOutfits);
-      return newOutfits;
-    });
-  };
+  // toggleOutfitLove function is now provided by useWardrobeData hook
 
   // Function to get sorted outfits (loved first, then by date)
   const getSortedOutfits = () => {
@@ -1836,117 +1702,6 @@ const WardrobeUploadScreen = () => {
 
 
 
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable
-          onPress={() => setModalVisible(false)}
-          style={styles.modalOverlay}
-        >
-          <Pressable style={styles.modalContent}>
-            {selectedItem && (
-              <>
-                <Button title="Delete Item" color="#ff5c5c" onPress={() => handleDeleteItem()} />
-
-                <Image
-                  source={{ uri: selectedItem.image }}
-                  style={{ width: '100%', height: 250, borderRadius: 10 }}
-                  resizeMode="cover"
-                />
-
-                <Button
-                  title="Save Changes"
-                  onPress={() => {
-                    if (!selectedItem) return;
-                    const updated = savedItems.map((item) =>
-                      item.image === selectedItem.image
-                        ? {
-                            ...item,
-                            title: editTitle,
-                            tags: editTags,
-                          }
-                        : item
-                    );
-                    setSavedItems(updated);
-                    setModalVisible(false);
-                  }}
-                />
-
-                <Text style={{ fontWeight: 'bold', fontSize: 14, marginTop: 12 }}>Edit Title:</Text>
-                <TextInput
-                  value={editTitle}
-                  onChangeText={setEditTitle}
-                  style={{
-                    borderColor: '#ccc',
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    padding: 6,
-                    marginTop: 6,
-                    marginBottom: 12,
-                    width: '100%',
-                  }}
-                />
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                  <TextInput
-                    placeholder="Add new tag..."
-                    value={newTagInput}
-                    onChangeText={setNewTagInput}
-                    style={{
-                      flex: 1,
-                      borderColor: '#ccc',
-                      borderWidth: 1,
-                      borderRadius: 6,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      marginRight: 6,
-                    }}
-                  />
-                  <Button
-                    title="Add"
-                    onPress={() => {
-                      if (newTagInput.trim() !== "") {
-                        setEditTags([...editTags, newTagInput.trim()]);
-                        setNewTagInput("");
-                      }
-                    }}
-                  />
-                </View>
-
-                <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Edit Tags:</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 8 }}>
-                  {editTags.map((tag, index) => (
-                    <Pressable
-                      key={index}
-                      onLongPress={() => {
-                        const updated = [...editTags];
-                        updated.splice(index, 1);
-                        setEditTags(updated);
-                      }}
-                      style={{
-                        backgroundColor: '#eee',
-                        borderRadius: 16,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        margin: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 12 }}>{tag}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <Text style={{ marginTop: 10 }}>{selectedItem.description}</Text>
-
-                <Button title="Close" onPress={() => setModalVisible(false)} />
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Outfit Modal with Pinch-to-Zoom */}
       <Modal
@@ -2018,8 +1773,8 @@ const WardrobeUploadScreen = () => {
                               activeOpacity={1}
                               style={styles.outfitImageTouchable}
                             >
-                              <Image
-                                source={{ uri: generatedOutfit }}
+                              <SafeImage
+                                uri={generatedOutfit}
                                 style={styles.outfitImage}
                                 resizeMode="contain"
                                 onError={(error) => console.log('Image error:', error)}
@@ -2145,8 +1900,8 @@ const WardrobeUploadScreen = () => {
                   onPress={() => assignItemToSlot(selectedSlot!, item)}
                   style={styles.slotSelectionItem}
                 >
-                  <Image
-                    source={{ uri: item.image }}
+                  <SafeImage
+                    uri={item.image}
                     style={styles.slotSelectionItemImage}
                     resizeMode="cover"
                   />
@@ -2716,7 +2471,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.top.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.top.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.top.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('top')}
               style={styles.clearSlotButton}
@@ -2738,7 +2493,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.bottom.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.bottom.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.bottom.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('bottom')}
               style={styles.clearSlotButton}
@@ -2760,7 +2515,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.shoes.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.shoes.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.shoes.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('shoes')}
               style={styles.clearSlotButton}
@@ -2785,7 +2540,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.jacket.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.jacket.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.jacket.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('jacket')}
               style={styles.clearSlotButton}
@@ -2807,7 +2562,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.hat.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.hat.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.hat.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('hat')}
               style={styles.clearSlotButton}
@@ -2829,7 +2584,7 @@ const WardrobeUploadScreen = () => {
       >
         {gearSlots.accessories.itemImage ? (
           <>
-            <Image source={{ uri: gearSlots.accessories.itemImage }} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.accessories.itemImage} style={styles.gearSlotImage} />
             <TouchableOpacity
               onPress={() => clearGearSlot('accessories')}
               style={styles.clearSlotButton}
@@ -2847,8 +2602,24 @@ const WardrobeUploadScreen = () => {
     </View>
   </View>
 
-  {/* Generate Outfit Button */}
+  {/* Smart Outfit Suggestions Button */}
   <View style={{ marginTop: 20, alignItems: 'center' }}>
+    <TouchableOpacity
+      onPress={handleSmartOutfitSuggestions}
+      disabled={savedItems.length < 1}
+      style={[
+        styles.smartSuggestionButton,
+        savedItems.length < 1 && styles.generateOutfitButtonDisabled
+      ]}
+    >
+      <Text style={styles.smartSuggestionButtonText}>
+        {savedItems.length < 1 ? '🚫 Need wardrobe items' : '🧠 Get Smart Suggestions'}
+      </Text>
+    </TouchableOpacity>
+  </View>
+
+  {/* Generate Outfit Button */}
+  <View style={{ marginTop: 10, alignItems: 'center' }}>
     <TouchableOpacity
       onPress={handleGenerateOutfit}
       disabled={generatingOutfit || getEquippedItems().length < 1}
@@ -2925,8 +2696,8 @@ const WardrobeUploadScreen = () => {
           style={styles.wardrobeInventoryItem}
           activeOpacity={0.7}
         >
-          <Image
-            source={{ uri: item.image }}
+          <SafeImage
+            uri={item.image}
             style={styles.wardrobeInventoryItemImage}
             resizeMode="cover"
           />
@@ -3008,11 +2779,11 @@ const WardrobeUploadScreen = () => {
               placeholder="Item title"
               autoFocus
               onBlur={async () => {
-                await saveFieldUpdate('title', tempTitle);
+                await saveFieldUpdate(detailViewItem, 'title', tempTitle);
                 setEditingTitle(false);
               }}
               onSubmitEditing={async () => {
-                await saveFieldUpdate('title', tempTitle);
+                await saveFieldUpdate(detailViewItem, 'title', tempTitle);
                 setEditingTitle(false);
               }}
             />
@@ -3067,11 +2838,11 @@ const WardrobeUploadScreen = () => {
               placeholder="Color"
               autoFocus
               onBlur={async () => {
-                await saveFieldUpdate('color', tempColor);
+                await saveFieldUpdate(detailViewItem, 'color', tempColor);
                 setEditingColor(false);
               }}
               onSubmitEditing={async () => {
-                await saveFieldUpdate('color', tempColor);
+                await saveFieldUpdate(detailViewItem, 'color', tempColor);
                 setEditingColor(false);
               }}
             />
@@ -3104,11 +2875,11 @@ const WardrobeUploadScreen = () => {
               placeholder="Material"
               autoFocus
               onBlur={async () => {
-                await saveFieldUpdate('material', tempMaterial);
+                await saveFieldUpdate(detailViewItem, 'material', tempMaterial);
                 setEditingMaterial(false);
               }}
               onSubmitEditing={async () => {
-                await saveFieldUpdate('material', tempMaterial);
+                await saveFieldUpdate(detailViewItem, 'material', tempMaterial);
                 setEditingMaterial(false);
               }}
             />
@@ -3141,11 +2912,11 @@ const WardrobeUploadScreen = () => {
               placeholder="Style"
               autoFocus
               onBlur={async () => {
-                await saveFieldUpdate('style', tempStyle);
+                await saveFieldUpdate(detailViewItem, 'style', tempStyle);
                 setEditingStyle(false);
               }}
               onSubmitEditing={async () => {
-                await saveFieldUpdate('style', tempStyle);
+                await saveFieldUpdate(detailViewItem, 'style', tempStyle);
                 setEditingStyle(false);
               }}
             />
@@ -3178,11 +2949,11 @@ const WardrobeUploadScreen = () => {
               placeholder="Fit"
               autoFocus
               onBlur={async () => {
-                await saveFieldUpdate('fit', tempFit);
+                await saveFieldUpdate(detailViewItem, 'fit', tempFit);
                 setEditingFit(false);
               }}
               onSubmitEditing={async () => {
-                await saveFieldUpdate('fit', tempFit);
+                await saveFieldUpdate(detailViewItem, 'fit', tempFit);
                 setEditingFit(false);
               }}
             />
@@ -3239,7 +3010,7 @@ const WardrobeUploadScreen = () => {
               />
               <TouchableOpacity
                 onPress={async () => {
-                  await saveFieldUpdate('tags', tempTags);
+                  await saveFieldUpdate(detailViewItem, 'tags', tempTags);
                   setEditingTags(false);
                   setNewTagInput('');
                 }}
@@ -3288,136 +3059,19 @@ const WardrobeUploadScreen = () => {
 
 {/* Outfit Detail View */}
 {showingOutfitDetail && detailViewOutfit && (
-  <View style={styles.itemDetailContainer}>
-    {/* Header with back button */}
-    <View style={styles.itemDetailHeader}>
-      <TouchableOpacity
-        onPress={goBackToOutfits}
-        style={styles.backButton}
-      >
-        <Text style={styles.backButtonText}>← Back to Outfits</Text>
-      </TouchableOpacity>
-      <Text style={styles.itemDetailTitle}>
-        Generated Outfit
-      </Text>
-    </View>
-
-    {/* Outfit Image */}
-    <View style={styles.itemDetailImageContainer}>
-      <Image
-        source={{ uri: detailViewOutfit.image }}
-        style={styles.itemDetailImage}
-        resizeMode="contain"
-      />
-    </View>
-
-    {/* Outfit Information */}
-    <View style={styles.itemDetailInfo}>
-      {/* Creation Date */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Created:</Text>
-        <Text style={styles.itemDetailValue}>
-          {detailViewOutfit.createdAt.toLocaleDateString()}
-        </Text>
-      </View>
-
-      {/* Weather Info */}
-      {detailViewOutfit.weatherData && (
-        <View style={styles.itemDetailField}>
-          <Text style={styles.itemDetailLabel}>Weather:</Text>
-          <Text style={styles.itemDetailValue}>
-            🌡️ {detailViewOutfit.weatherData.temperature}°F
-          </Text>
-        </View>
-      )}
-
-      {/* Style DNA */}
-      {detailViewOutfit.styleDNA && (
-        <View style={styles.itemDetailField}>
-          <Text style={styles.itemDetailLabel}>Style:</Text>
-          <Text style={styles.itemDetailValue}>
-            🧬 Personalized to your Style DNA
-          </Text>
-        </View>
-      )}
-
-      {/* Gender */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Style:</Text>
-        <Text style={styles.itemDetailValue}>
-          {detailViewOutfit.gender === 'male' ? '👨 Masculine' : 
-           detailViewOutfit.gender === 'female' ? '👩 Feminine' : 
-           detailViewOutfit.gender === 'nonbinary' ? '🧑 Non-binary' : 
-           '👤 Unisex'}
-        </Text>
-      </View>
-
-      {/* Items Used Section */}
-      <View style={styles.outfitItemsSection}>
-        <Text style={styles.outfitItemsSectionTitle}>
-          👔 Items Used ({detailViewOutfit.selectedItems.length})
-        </Text>
-        
-        <View style={styles.outfitItemsGrid}>
-          {detailViewOutfit.selectedItems.map((itemUri: string, index: number) => {
-            // Find the actual item data from savedItems
-            const itemData = savedItems.find(item => item.image === itemUri);
-            return (
-              <TouchableOpacity
-                key={index}
-                onPress={() => {
-                  if (itemData) {
-                    // Go to item detail view
-                    goBackToOutfits(); // Close outfit detail first
-                    openWardrobeItemView(itemData); // Open item detail
-                  }
-                }}
-                style={styles.outfitItemCard}
-              >
-                <Image
-                  source={{ uri: itemUri }}
-                  style={styles.outfitItemImage}
-                  resizeMode="cover"
-                />
-                {itemData && (
-                  <View style={styles.outfitItemInfo}>
-                    <Text style={styles.outfitItemTitle}>
-                      {itemData.title || 'Untitled'}
-                    </Text>
-                    <Text style={styles.outfitItemCategory}>
-                      {categorizeItem(itemData).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.itemDetailActions}>
-        <TouchableOpacity
-          onPress={() => toggleOutfitLove(detailViewOutfit.id)}
-          style={[
-            styles.itemDetailActionButton,
-            detailViewOutfit.isLoved && { backgroundColor: '#ff6b6b' }
-          ]}
-        >
-          <Text style={styles.itemDetailActionButtonText}>
-            {detailViewOutfit.isLoved ? '❤️ Loved' : '🤍 Love This'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={() => downloadImage(detailViewOutfit.image)}
-          style={styles.itemDetailActionButton}
-        >
-          <Text style={styles.itemDetailActionButtonText}>⬇️ Download</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
+  <OutfitDetailView
+    outfit={detailViewOutfit}
+    savedItems={savedItems}
+    onBack={goBackToOutfits}
+    onToggleLove={toggleOutfitLove}
+    onDownloadImage={downloadImage}
+    onItemTap={(item) => {
+      goBackToOutfits(); // Close outfit detail first
+      openWardrobeItemView(item); // Open item detail
+    }}
+    onMarkAsWorn={markOutfitAsWorn}
+    categorizeItem={categorizeItem}
+  />
 )}
 
 {/* Profile Page */}
@@ -3434,8 +3088,8 @@ const WardrobeUploadScreen = () => {
         style={{ position: 'relative' }}
       >
         {profileImage ? (
-          <Image 
-            source={{ uri: profileImage }} 
+          <SafeImage 
+            uri={profileImage} 
             style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }} 
           />
         ) : (
@@ -3611,232 +3265,17 @@ const WardrobeUploadScreen = () => {
 
 {/* Outfits Page */}
 {showOutfitsPage && (
-  <View style={{ marginTop: 20 }}>
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-      👗 Generated Outfits ({lovedOutfits.length})
-    </Text>
-    
-    {lovedOutfits.length > 0 ? (
-      <View style={{ paddingHorizontal: 20 }}>
-        {/* Loved Outfits Section */}
-        {lovedOutfits.filter(outfit => outfit.isLoved).length > 0 && (
-          <View style={{ marginBottom: 30 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#ff6b6b' }}>
-              ❤️ Loved Outfits ({lovedOutfits.filter(outfit => outfit.isLoved).length})
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 10 }}
-            >
-              {lovedOutfits.filter(outfit => outfit.isLoved).map((outfit, index) => (
-                <TouchableOpacity
-                  key={outfit.id}
-                  onPress={() => openOutfitDetailView(outfit)}
-                  style={{
-                    marginRight: 20,
-                    width: 200,
-                    backgroundColor: '#fff5f5',
-                    borderRadius: 12,
-                    padding: 10,
-                    alignItems: 'center',
-                    borderWidth: 2,
-                    borderColor: '#ff6b6b',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                >
-                  {/* Love/Unlove button */}
-                  <TouchableOpacity
-                    onPress={() => toggleOutfitLove(outfit.id)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      right: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#ff6b6b',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>❤️</Text>
-                  </TouchableOpacity>
-
-                  {/* Download button */}
-                  <TouchableOpacity
-                    onPress={() => downloadImage(outfit.image)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      left: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#4CAF50',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
-                  </TouchableOpacity>
-
-                  {/* Outfit image */}
-                  <Image
-                    source={{ uri: outfit.image }}
-                    style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
-                    resizeMode="cover"
-                  />
-
-                  {/* Weather info if available */}
-                  {outfit.weatherData && (
-                    <View style={{
-                      backgroundColor: '#E8F5E8',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: 'bold' }}>
-                        🌡️ {outfit.weatherData.temperature}°F
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Style DNA indicator */}
-                  {outfit.styleDNA && (
-                    <View style={{
-                      backgroundColor: '#f0f8f0',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: 'bold' }}>
-                        🧬 Personalized
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Date */}
-                  <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
-                    {outfit.createdAt.toLocaleDateString()}
-                  </Text>
-
-                  {/* Items used */}
-                  <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
-                    {outfit.selectedItems.length} items used
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* All Outfits Section */}
-        <View>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' }}>
-            📸 All Generated Outfits
-          </Text>
-          <View style={styles.outfitsGrid}>
-            {getSortedOutfits().map((outfit, index) => (
-              <TouchableOpacity
-                key={outfit.id}
-                onPress={() => openOutfitDetailView(outfit)}
-                style={[
-                  styles.outfitCard,
-                  outfit.isLoved && styles.lovedOutfitCard
-                ]}
-                activeOpacity={0.7}
-              >
-                {/* Love/Unlove button */}
-                <TouchableOpacity
-                  onPress={() => toggleOutfitLove(outfit.id)}
-                  style={[
-                    styles.loveButton,
-                    outfit.isLoved && styles.lovedButton
-                  ]}
-                >
-                  <Text style={styles.loveButtonText}>
-                    {outfit.isLoved ? '❤️' : '🤍'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Download button */}
-                <TouchableOpacity
-                  onPress={() => downloadImage(outfit.image)}
-                  style={styles.downloadOutfitButton}
-                >
-                  <Text style={styles.downloadOutfitButtonText}>⬇️</Text>
-                </TouchableOpacity>
-
-                {/* Outfit image */}
-                <Image
-                  source={{ uri: outfit.image }}
-                  style={styles.outfitCardImage}
-                  resizeMode="cover"
-                />
-
-                {/* Outfit info */}
-                <View style={styles.outfitCardInfo}>
-                  {/* Weather info if available */}
-                  {outfit.weatherData && (
-                    <View style={styles.outfitWeatherBadge}>
-                      <Text style={styles.outfitWeatherText}>
-                        🌡️ {outfit.weatherData.temperature}°F
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Style DNA indicator */}
-                  {outfit.styleDNA && (
-                    <View style={styles.outfitDNABadge}>
-                      <Text style={styles.outfitDNAText}>
-                        🧬
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Date */}
-                  <Text style={styles.outfitDateText}>
-                    {outfit.createdAt.toLocaleDateString()}
-                  </Text>
-
-                  {/* Items used */}
-                  <Text style={styles.outfitItemsText}>
-                    {outfit.selectedItems.length} items
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-    ) : (
-      <View style={{ alignItems: 'center', padding: 40 }}>
-        <Text style={{ fontSize: 40, marginBottom: 20 }}>👗</Text>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#333' }}>
-          No Generated Outfits Yet
-        </Text>
-        <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-          Generate your first outfit using the Outfit Builder!
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            setShowOutfitsPage(false);
-            setShowOutfitBuilder(true);
-          }}
-          style={styles.generateFirstOutfitButton}
-        >
-          <Text style={styles.generateFirstOutfitButtonText}>🎮 Go to Outfit Builder</Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  </View>
+  <OutfitsPage
+    lovedOutfits={lovedOutfits}
+    getSortedOutfits={getSortedOutfits}
+    getSmartOutfitSuggestions={getSmartOutfitSuggestions}
+    getOutfitWearStats={getOutfitWearStats}
+    openOutfitDetailView={openOutfitDetailView}
+    toggleOutfitLove={toggleOutfitLove}
+    downloadImage={downloadImage}
+    markOutfitAsWorn={markOutfitAsWorn}
+    navigateToBuilder={navigateToBuilder}
+  />
 )}
 
         </ScrollView>
@@ -3855,17 +3294,7 @@ const WardrobeUploadScreen = () => {
               triggerHaptic('light');
               shakeButton(builderShakeValue);
               if (!showOutfitBuilder) {
-                setShowOutfitBuilder(true);
-                setShowWardrobe(false);
-                setShowLovedItems(false);
-                setShowProfilePage(false);
-                setShowOutfitsPage(false);
-                // Close item detail view
-                setShowingItemDetail(false);
-                setDetailViewItem(null);
-                // Close outfit detail view
-                setShowingOutfitDetail(false);
-                setDetailViewOutfit(null);
+                navigateToBuilder();
               }
             }}
             style={styles.bottomNavButton}
@@ -3890,17 +3319,7 @@ const WardrobeUploadScreen = () => {
               triggerHaptic('light');
               shakeButton(wardrobeShakeValue);
               if (!showWardrobe) {
-                setShowWardrobe(true);
-                setShowLovedItems(false);
-                setShowOutfitBuilder(false);
-                setShowProfilePage(false);
-                setShowOutfitsPage(false);
-                // Close item detail view
-                setShowingItemDetail(false);
-                setDetailViewItem(null);
-                // Close outfit detail view
-                setShowingOutfitDetail(false);
-                setDetailViewOutfit(null);
+                navigateToWardrobe();
               } else if (showWardrobe && !showingItemDetail) {
                 // If already on wardrobe page and not viewing item detail, scroll to top
                 mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -3936,17 +3355,7 @@ const WardrobeUploadScreen = () => {
             if (showingOutfitDetail) {
               goBackToOutfits();
             } else if (!showOutfitsPage) {
-              setShowOutfitsPage(true);
-              setShowOutfitBuilder(false);
-              setShowWardrobe(false);
-              setShowLovedItems(false);
-              setShowProfilePage(false);
-              // Close item detail view
-              setShowingItemDetail(false);
-              setDetailViewItem(null);
-              // Close outfit detail view
-              setShowingOutfitDetail(false);
-              setDetailViewOutfit(null);
+              navigateToOutfits();
             } else if (showOutfitsPage) {
               // If already on outfits page, scroll to top
               mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -3967,21 +3376,14 @@ const WardrobeUploadScreen = () => {
           onPress={() => {
             triggerHaptic('light');
             if (!showProfilePage) {
-              setShowProfilePage(true);
-              setShowOutfitBuilder(false);
-              setShowWardrobe(false);
-              setShowLovedItems(false);
-              setShowOutfitsPage(false);
-              // Close item detail view
-              setShowingItemDetail(false);
-              setDetailViewItem(null);
+              navigateToProfile();
             }
           }}
           style={styles.profileButton}
         >
           {profileImage ? (
-            <Image 
-              source={{ uri: profileImage }} 
+            <SafeImage 
+              uri={profileImage} 
               style={[styles.profileButtonImage, styleDNA && styles.profileButtonImageActive]} 
             />
           ) : (
@@ -4473,6 +3875,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
+  },
+  smartSuggestionButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#8e24aa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  smartSuggestionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   generateOutfitButton: {
@@ -6163,32 +5582,10 @@ const styles = StyleSheet.create({
     color: '#1976d2',
     fontWeight: '500',
   },
-  removeTagButton: {
-    marginLeft: 4,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   removeTagText: {
     fontSize: 14,
     color: '#666',
     fontWeight: 'bold',
-  },
-  addTagContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addTagInput: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 14,
-    marginRight: 8,
   },
   saveTagsButton: {
     backgroundColor: '#007AFF',

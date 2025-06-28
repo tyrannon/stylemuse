@@ -1,24 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
 import { LovedOutfit } from '../hooks/useWardrobeData';
+import { SmartOutfitSuggestions } from './components/SmartOutfitSuggestions';
+import { OutfitAnalytics } from './components/OutfitAnalytics';
+import { MarkAsWornModal } from './components/MarkAsWornModal';
+import { SafeImage } from '../utils/SafeImage';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
   getSortedOutfits: () => LovedOutfit[];
+  getSmartOutfitSuggestions: (limit?: number) => LovedOutfit[];
+  getOutfitWearStats: () => any;
   openOutfitDetailView: (outfit: LovedOutfit) => void;
   toggleOutfitLove: (outfitId: string) => void;
   downloadImage: (imageUri: string) => void;
+  markOutfitAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
   navigateToBuilder: () => void;
 }
 
 export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   lovedOutfits,
   getSortedOutfits,
+  getSmartOutfitSuggestions,
+  getOutfitWearStats,
   openOutfitDetailView,
   toggleOutfitLove,
   downloadImage,
+  markOutfitAsWorn,
   navigateToBuilder,
 }) => {
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [markAsWornModalVisible, setMarkAsWornModalVisible] = useState(false);
+  const [selectedOutfitForWearing, setSelectedOutfitForWearing] = useState<string | null>(null);
   if (lovedOutfits.length === 0) {
     return (
       <View style={{ marginTop: 20 }}>
@@ -45,11 +59,61 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
     );
   }
 
+  const handleQuickMarkAsWorn = (outfitId: string) => {
+    setSelectedOutfitForWearing(outfitId);
+    setMarkAsWornModalVisible(true);
+  };
+
+  const smartSuggestions = getSmartOutfitSuggestions(10);
+  const outfitStats = getOutfitWearStats();
+
+  if (showAnalytics) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={styles.tabHeader}>
+          <TouchableOpacity
+            onPress={() => setShowAnalytics(false)}
+            style={[styles.tabButton, !showAnalytics && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, !showAnalytics && styles.activeTabText]}>👗 Outfits</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowAnalytics(true)}
+            style={[styles.tabButton, showAnalytics && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, showAnalytics && styles.activeTabText]}>📊 Analytics</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <OutfitAnalytics
+          stats={outfitStats}
+          onOutfitPress={openOutfitDetailView}
+        />
+      </View>
+    );
+  }
+
   return (
-    <View style={{ marginTop: 20 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-        👗 Generated Outfits ({lovedOutfits.length})
-      </Text>
+    <ScrollView style={{ flex: 1 }}>
+      <View style={styles.tabHeader}>
+        <TouchableOpacity
+          onPress={() => setShowAnalytics(false)}
+          style={[styles.tabButton, !showAnalytics && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, !showAnalytics && styles.activeTabText]}>👗 Outfits</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowAnalytics(true)}
+          style={[styles.tabButton, showAnalytics && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, showAnalytics && styles.activeTabText]}>📊 Analytics</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={{ marginTop: 20 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
+          👗 Generated Outfits ({lovedOutfits.length})
+        </Text>
       
       <View style={{ paddingHorizontal: 20 }}>
         {/* Loved Outfits Section */}
@@ -122,8 +186,8 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   </TouchableOpacity>
 
                   {/* Outfit image */}
-                  <Image
-                    source={{ uri: outfit.image }}
+                  <SafeImage
+                    uri={outfit.image}
                     style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
                     resizeMode="cover"
                   />
@@ -209,8 +273,8 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                 </TouchableOpacity>
 
                 {/* Outfit image */}
-                <Image
-                  source={{ uri: outfit.image }}
+                <SafeImage
+                  uri={outfit.image}
                   style={styles.outfitCardImage}
                   resizeMode="cover"
                 />
@@ -250,11 +314,66 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
           </View>
         </View>
       </View>
-    </View>
+      
+        {/* Smart Suggestions Section */}
+        {smartSuggestions.length > 0 && showSuggestions && (
+          <SmartOutfitSuggestions
+            suggestions={smartSuggestions}
+            onOutfitPress={openOutfitDetailView}
+            onMarkAsWorn={handleQuickMarkAsWorn}
+          />
+        )}
+      </View>
+      
+      {/* Mark as Worn Modal */}
+      <MarkAsWornModal
+        visible={markAsWornModalVisible}
+        onClose={() => {
+          setMarkAsWornModalVisible(false);
+          setSelectedOutfitForWearing(null);
+        }}
+        onMarkAsWorn={(rating, event, location) => {
+          if (selectedOutfitForWearing) {
+            markOutfitAsWorn(selectedOutfitForWearing, rating, event, location);
+          }
+        }}
+        outfitId={selectedOutfitForWearing || ''}
+      />
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  tabHeader: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: 'white',
+  },
   generateFirstOutfitButton: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 20,

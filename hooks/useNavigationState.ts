@@ -18,6 +18,10 @@ export const useNavigationState = () => {
   const [showGenderSelector, setShowGenderSelector] = useState(false);
   const [categoryDropdownVisible, setCategoryDropdownVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  
+  // Input states
+  const [newTagInput, setNewTagInput] = useState('');
   
   // Editing states for inline editing
   const [editingTitle, setEditingTitle] = useState(false);
@@ -105,6 +109,10 @@ export const useNavigationState = () => {
     setShowOutfitsPage(true);
   };
 
+  // Alias functions for compatibility
+  const openWardrobeItemView = openItemDetail;
+  const openOutfitDetailView = openOutfitDetail;
+
   return {
     // Page visibility
     showOutfitBuilder,
@@ -135,6 +143,12 @@ export const useNavigationState = () => {
     setCategoryDropdownVisible,
     selectedCategory,
     setSelectedCategory,
+    showCategoryDropdown,
+    setShowCategoryDropdown,
+    
+    // Input states
+    newTagInput,
+    setNewTagInput,
     
     // Editing states
     editingTitle,
@@ -174,5 +188,9 @@ export const useNavigationState = () => {
     openOutfitDetail,
     goBackToWardrobe,
     goBackToOutfits,
+    
+    // Alias functions for compatibility
+    openWardrobeItemView,
+    openOutfitDetailView,
   };
 };

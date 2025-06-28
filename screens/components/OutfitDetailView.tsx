@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Image, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LovedOutfit, WardrobeItem } from '../../hooks/useWardrobeData';
+import { MarkAsWornModal } from './MarkAsWornModal';
+import { SafeImage } from '../../utils/SafeImage';
+
+// Helper function to safely format dates
+const formatDate = (date: any): string => {
+  try {
+    if (!date) return 'Never';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return dateObj.toLocaleDateString();
+  } catch (error) {
+    console.warn('Invalid date in outfit detail:', error);
+    return 'Invalid date';
+  }
+};
 
 interface OutfitDetailViewProps {
   outfit: LovedOutfit;
@@ -9,6 +23,7 @@ interface OutfitDetailViewProps {
   onToggleLove: (outfitId: string) => void;
   onDownloadImage: (imageUri: string) => void;
   onItemTap: (item: WardrobeItem) => void;
+  onMarkAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
   categorizeItem: (item: WardrobeItem) => string;
 }
 
@@ -19,8 +34,10 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
   onToggleLove,
   onDownloadImage,
   onItemTap,
+  onMarkAsWorn,
   categorizeItem,
 }) => {
+  const [showMarkAsWornModal, setShowMarkAsWornModal] = useState(false);
   return (
     <View style={styles.itemDetailContainer}>
       {/* Header with back button */}
@@ -35,8 +52,8 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
 
       {/* Outfit Image */}
       <View style={styles.itemDetailImageContainer}>
-        <Image
-          source={{ uri: outfit.image }}
+        <SafeImage
+          uri={outfit.image}
           style={styles.itemDetailImage}
           resizeMode="contain"
         />
@@ -48,7 +65,7 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
         <View style={styles.itemDetailField}>
           <Text style={styles.itemDetailLabel}>Created:</Text>
           <Text style={styles.itemDetailValue}>
-            {outfit.createdAt.toLocaleDateString()}
+            {formatDate(outfit.createdAt)}
           </Text>
         </View>
 
@@ -83,6 +100,17 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
           </Text>
         </View>
 
+        {/* Wear History Section */}
+        {outfit.timesWorn > 0 && (
+          <View style={styles.itemDetailField}>
+            <Text style={styles.itemDetailLabel}>Worn:</Text>
+            <Text style={styles.itemDetailValue}>
+              {outfit.timesWorn} time{outfit.timesWorn !== 1 ? 's' : ''}
+              {outfit.lastWorn && ` • Last: ${formatDate(outfit.lastWorn)}`}
+            </Text>
+          </View>
+        )}
+
         {/* Items Used Section */}
         <View style={styles.outfitItemsSection}>
           <Text style={styles.outfitItemsSectionTitle}>
@@ -105,8 +133,8 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
                   }}
                   style={styles.outfitItemCard}
                 >
-                  <Image
-                    source={{ uri: itemUri }}
+                  <SafeImage
+                    uri={itemUri}
                     style={styles.outfitItemImage}
                     resizeMode="cover"
                   />
@@ -141,12 +169,29 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
           </TouchableOpacity>
           
           <TouchableOpacity
+            onPress={() => setShowMarkAsWornModal(true)}
+            style={[styles.itemDetailActionButton, styles.markAsWornButton]}
+          >
+            <Text style={styles.itemDetailActionButtonText}>👔 Mark as Worn</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
             onPress={() => onDownloadImage(outfit.image)}
             style={styles.itemDetailActionButton}
           >
             <Text style={styles.itemDetailActionButtonText}>⬇️ Download</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Mark as Worn Modal */}
+        <MarkAsWornModal
+          visible={showMarkAsWornModal}
+          onClose={() => setShowMarkAsWornModal(false)}
+          onMarkAsWorn={(rating, event, location) => {
+            onMarkAsWorn(outfit.id, rating, event, location);
+          }}
+          outfitId={outfit.id}
+        />
       </View>
     </View>
   );
@@ -221,23 +266,31 @@ const styles = StyleSheet.create({
   itemDetailActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    flexWrap: 'wrap',
     marginTop: 30,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    gap: 8,
   },
   itemDetailActionButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: '30%',
+    justifyContent: 'center',
+  },
+  markAsWornButton: {
+    backgroundColor: '#4CAF50',
   },
   itemDetailActionButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
   // Outfit detail view styles
   outfitItemsSection: {

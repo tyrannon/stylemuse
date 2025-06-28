@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { WardrobeItem } from '../../hooks/useWardrobeData';
+import { SafeImage } from '../../utils/SafeImage';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -89,8 +90,8 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
 
       {/* Item Image */}
       <View style={styles.itemDetailImageContainer}>
-        <Image
-          source={{ uri: item.image }}
+        <SafeImage
+          uri={item.image}
           style={styles.itemDetailImage}
           resizeMode="contain"
         />

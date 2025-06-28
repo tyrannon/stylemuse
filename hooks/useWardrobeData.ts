@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   STYLE_DNA: 'stylemuse_style_dna',
   SELECTED_GENDER: 'stylemuse_selected_gender',
   PROFILE_IMAGE: 'stylemuse_profile_image',
+  OUTFIT_WEAR_HISTORY: 'stylemuse_outfit_wear_history',
 };
 
 // Type definitions
@@ -24,6 +25,13 @@ export interface WardrobeItem {
   category?: string;
 }
 
+export interface WearRecord {
+  wornAt: Date;
+  location?: string;
+  event?: string;
+  rating?: number; // 1-5 stars for how much they liked wearing it
+}
+
 export interface LovedOutfit {
   id: string;
   image: string;
@@ -33,6 +41,12 @@ export interface LovedOutfit {
   gender: string | null;
   createdAt: Date;
   isLoved?: boolean;
+  // New wear tracking fields
+  wearHistory: WearRecord[];
+  lastWorn?: Date;
+  timesWorn: number;
+  suggestedForReWear?: boolean;
+  nextSuggestedDate?: Date;
 }
 
 export const useWardrobeData = () => {
@@ -69,7 +83,20 @@ export const useWardrobeData = () => {
       if (outfits) {
         const parsedOutfits = JSON.parse(outfits).map((outfit: any) => ({
           ...outfit,
-          createdAt: new Date(outfit.createdAt)
+          createdAt: outfit.createdAt instanceof Date ? outfit.createdAt : new Date(outfit.createdAt),
+          // Initialize wear tracking fields for existing outfits (migration)
+          wearHistory: outfit.wearHistory ? outfit.wearHistory.map((record: any) => ({
+            ...record,
+            wornAt: record.wornAt instanceof Date ? record.wornAt : new Date(record.wornAt)
+          })) : [],
+          lastWorn: outfit.lastWorn ? (
+            outfit.lastWorn instanceof Date ? outfit.lastWorn : new Date(outfit.lastWorn)
+          ) : undefined,
+          timesWorn: typeof outfit.timesWorn === 'number' ? outfit.timesWorn : 0,
+          suggestedForReWear: outfit.suggestedForReWear || false,
+          nextSuggestedDate: outfit.nextSuggestedDate ? (
+            outfit.nextSuggestedDate instanceof Date ? outfit.nextSuggestedDate : new Date(outfit.nextSuggestedDate)
+          ) : undefined,
         }));
         setLovedOutfits(parsedOutfits);
       }
@@ -233,6 +260,224 @@ export const useWardrobeData = () => {
     });
   };
 
+  // OUTFIT MEMORY & RE-SUGGESTION FUNCTIONS
+  
+  // Function to mark an outfit as worn
+  const markOutfitAsWorn = async (outfitId: string, rating?: number, event?: string, location?: string) => {
+    try {
+      const wearRecord: WearRecord = {
+        wornAt: new Date(),
+        rating,
+        event,
+        location,
+      };
+
+      const updatedOutfits = lovedOutfits.map(outfit => {
+        if (outfit.id === outfitId) {
+          // Ensure wear tracking fields exist (for migration of old outfits)
+          const currentWearHistory = Array.isArray(outfit.wearHistory) ? outfit.wearHistory : [];
+          const currentTimesWorn = typeof outfit.timesWorn === 'number' ? outfit.timesWorn : 0;
+          
+          const updatedOutfit = {
+            ...outfit,
+            wearHistory: [...currentWearHistory, wearRecord],
+            lastWorn: wearRecord.wornAt,
+            timesWorn: currentTimesWorn + 1,
+            nextSuggestedDate: calculateNextSuggestionDate(currentTimesWorn + 1, wearRecord.wornAt),
+          };
+          return updatedOutfit;
+        }
+        return outfit;
+      });
+      
+      setLovedOutfits(updatedOutfits);
+      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      return updatedOutfits.find(o => o.id === outfitId);
+    } catch (error) {
+      console.error('Error marking outfit as worn:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  };
+  
+  // Calculate when an outfit should be suggested again
+  const calculateNextSuggestionDate = (timesWorn: number, lastWornDate: Date): Date => {
+    const now = new Date(lastWornDate);
+    let daysToAdd = 7; // Default 1 week
+    
+    // Adjust suggestion frequency based on how often it's been worn
+    if (timesWorn === 1) {
+      daysToAdd = 14; // 2 weeks for first re-wear
+    } else if (timesWorn <= 3) {
+      daysToAdd = 10; // 10 days for lightly worn items
+    } else if (timesWorn <= 6) {
+      daysToAdd = 7; // 1 week for moderately worn items
+    } else {
+      daysToAdd = 14; // 2 weeks for heavily worn items
+    }
+    
+    now.setDate(now.getDate() + daysToAdd);
+    return now;
+  };
+  
+  // Get outfits that are ready to be re-suggested
+  const getOutfitsReadyForReSuggestion = (): LovedOutfit[] => {
+    const now = new Date();
+    return lovedOutfits.filter(outfit => {
+      // Defensive check for wear tracking fields
+      const timesWorn = typeof outfit.timesWorn === 'number' ? outfit.timesWorn : 0;
+      
+      // Only suggest outfits that have been worn at least once
+      if (timesWorn === 0) return false;
+      
+      // Check if enough time has passed since last suggestion date
+      if (outfit.nextSuggestedDate) {
+        try {
+          const nextDate = outfit.nextSuggestedDate instanceof Date ? outfit.nextSuggestedDate : new Date(outfit.nextSuggestedDate);
+          if (now >= nextDate) {
+            return true;
+          }
+        } catch (error) {
+          console.warn('Invalid nextSuggestedDate for outfit:', outfit.id, error);
+        }
+      }
+      
+      // Fallback: suggest if it's been more than 2 weeks since last worn
+      if (outfit.lastWorn) {
+        try {
+          const lastWornDate = outfit.lastWorn instanceof Date ? outfit.lastWorn : new Date(outfit.lastWorn);
+          const daysSinceWorn = (now.getTime() - lastWornDate.getTime()) / (1000 * 60 * 60 * 24);
+          return daysSinceWorn >= 14;
+        } catch (error) {
+          console.warn('Invalid lastWorn date for outfit:', outfit.id, error);
+          return false;
+        }
+      }
+      
+      return false;
+    });
+  };
+  
+  // Get smart outfit suggestions (avoiding recently worn similar items)
+  const getSmartOutfitSuggestions = (limit: number = 5): LovedOutfit[] => {
+    const readyForReSuggestion = getOutfitsReadyForReSuggestion();
+    const neverWorn = lovedOutfits.filter(outfit => {
+      const timesWorn = typeof outfit.timesWorn === 'number' ? outfit.timesWorn : 0;
+      return timesWorn === 0;
+    });
+    
+    // Combine and prioritize: never worn first, then ready for re-suggestion
+    const suggestions = [...neverWorn, ...readyForReSuggestion]
+      .filter((outfit, index, self) => 
+        index === self.findIndex(o => o.id === outfit.id) // Remove duplicates
+      )
+      .sort((a, b) => {
+        // Get safe values for comparison
+        const aTimesWorn = typeof a.timesWorn === 'number' ? a.timesWorn : 0;
+        const bTimesWorn = typeof b.timesWorn === 'number' ? b.timesWorn : 0;
+        
+        // Prioritize never worn
+        if (aTimesWorn === 0 && bTimesWorn > 0) return -1;
+        if (bTimesWorn === 0 && aTimesWorn > 0) return 1;
+        
+        // For re-suggestions, prioritize less worn items
+        if (aTimesWorn !== bTimesWorn) {
+          return aTimesWorn - bTimesWorn;
+        }
+        
+        // Finally, prioritize older creation dates
+        try {
+          const aCreated = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+          const bCreated = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+          return aCreated.getTime() - bCreated.getTime();
+        } catch (error) {
+          console.warn('Invalid createdAt dates in outfit comparison');
+          return 0;
+        }
+      })
+      .slice(0, limit);
+      
+    return suggestions;
+  };
+  
+  // Check if outfit items are similar to recently worn outfits
+  const isOutfitSimilarToRecentlyWorn = (outfitItems: string[], daysBack: number = 7): boolean => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    
+    const recentlyWornOutfits = lovedOutfits.filter(outfit => {
+      if (!outfit.lastWorn) return false;
+      try {
+        const lastWornDate = outfit.lastWorn instanceof Date ? outfit.lastWorn : new Date(outfit.lastWorn);
+        return lastWornDate >= cutoffDate;
+      } catch (error) {
+        console.warn('Invalid lastWorn date in similarity check:', outfit.id);
+        return false;
+      }
+    });
+    
+    for (const recentOutfit of recentlyWornOutfits) {
+      const sharedItems = outfitItems.filter(item => 
+        recentOutfit.selectedItems.includes(item)
+      );
+      
+      // Consider similar if more than 50% of items are shared
+      const similarityRatio = sharedItems.length / Math.max(outfitItems.length, recentOutfit.selectedItems.length);
+      if (similarityRatio > 0.5) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  // Get outfit wear statistics
+  const getOutfitWearStats = () => {
+    const totalOutfits = lovedOutfits.length;
+    const wornOutfits = lovedOutfits.filter(o => {
+      const timesWorn = typeof o.timesWorn === 'number' ? o.timesWorn : 0;
+      return timesWorn > 0;
+    }).length;
+    const neverWornOutfits = totalOutfits - wornOutfits;
+    const totalWears = lovedOutfits.reduce((sum, o) => {
+      const timesWorn = typeof o.timesWorn === 'number' ? o.timesWorn : 0;
+      return sum + timesWorn;
+    }, 0);
+    const averageWearsPerOutfit = totalOutfits > 0 ? totalWears / totalOutfits : 0;
+    
+    // Find most worn outfit
+    const mostWornOutfit = lovedOutfits.length > 0 ? lovedOutfits.reduce((prev, current) => {
+      const prevWorn = typeof prev.timesWorn === 'number' ? prev.timesWorn : 0;
+      const currentWorn = typeof current.timesWorn === 'number' ? current.timesWorn : 0;
+      return (prevWorn > currentWorn) ? prev : current;
+    }, lovedOutfits[0]) : null;
+    
+    const favoriteOutfits = lovedOutfits
+      .filter(o => {
+        const timesWorn = typeof o.timesWorn === 'number' ? o.timesWorn : 0;
+        return timesWorn > 0;
+      })
+      .sort((a, b) => {
+        const aWorn = typeof a.timesWorn === 'number' ? a.timesWorn : 0;
+        const bWorn = typeof b.timesWorn === 'number' ? b.timesWorn : 0;
+        return bWorn - aWorn;
+      })
+      .slice(0, 3);
+    
+    return {
+      totalOutfits,
+      wornOutfits,
+      neverWornOutfits,
+      totalWears,
+      averageWearsPerOutfit: Math.round(averageWearsPerOutfit * 10) / 10,
+      mostWornOutfit: mostWornOutfit && (typeof mostWornOutfit.timesWorn === 'number' ? mostWornOutfit.timesWorn : 0) > 0 ? mostWornOutfit : null,
+      favoriteOutfits,
+      readyForReSuggestion: getOutfitsReadyForReSuggestion().length,
+    };
+  };
+
   return {
     // State
     savedItems,
@@ -258,5 +503,13 @@ export const useWardrobeData = () => {
     toggleOutfitLove,
     getUniqueCategories,
     getItemsByCategory,
+    
+    // Outfit Memory & Re-Suggestion Functions
+    markOutfitAsWorn,
+    calculateNextSuggestionDate,
+    getOutfitsReadyForReSuggestion,
+    getSmartOutfitSuggestions,
+    isOutfitSimilarToRecentlyWorn,
+    getOutfitWearStats,
   };
 };
