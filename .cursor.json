@@ -1,0 +1,35 @@
+{
+  "projectTips": [
+    "This project is a React Native app for an AI-powered virtual closet (StyleMuse).",
+    "Main features: wardrobe upload, AI item description, outfit builder, smart outfit suggestions, laundry tracking, profile with style DNA, sorting/filtering, and weather-based outfit generation.",
+    "Styles are now extracted to screens/styles/WardrobeUploadScreen.styles.ts for easier editing.",
+    "To keep files manageable, extract large UI sections and repeated logic into components in screens/components/ and hooks/.",
+    "Utility functions (e.g., for sorting, filtering, AI calls) should go in utils/ or hooks/.",
+    "When adding new features, consider modularity and reusability: create new components/hooks instead of growing the main screen files.",
+    "For new AI features (e.g., more advanced outfit suggestions, trend analysis), add to utils/openai.ts and keep API logic separate from UI.",
+    "Performance tip: avoid unnecessary re-renders by memoizing selectors and using React.memo for pure components.",
+    "If you add more screens, follow the pattern of keeping navigation state in hooks/useNavigationState.ts.",
+    "For future: consider adding cloud sync, user accounts, or sharing features."
+  ],
+  "fileSuggestions": {
+    "screens/WardrobeUploadScreen.tsx": [
+      "This file is now much smaller after extracting styles. Continue extracting modals and repeated UI into components.",
+      "If you add more wardrobe features (e.g., batch editing, advanced filters), consider a dedicated WardrobeManager component."
+    ],
+    "screens/styles/WardrobeUploadScreen.styles.ts": [
+      "All styles for WardrobeUploadScreen are here. Keep style changes in this file for maintainability."
+    ],
+    "utils/openai.ts": [
+      "All OpenAI/AI-related API calls should be implemented here. Keep prompt engineering and API logic out of UI files."
+    ],
+    "hooks/useWardrobeData.ts": [
+      "Wardrobe state and logic live here. Add new wardrobe-related state or helpers here, not in the main screen file."
+    ],
+    "hooks/useNavigationState.ts": [
+      "Navigation and UI state for multi-page flows. Add new navigation helpers here if you add more screens."
+    ]
+  }
+  },
+  "claudePromptGuide": {
+    "systemMessage": "You are assisting with development on StyleMuse, an AI-powered virtual closet React Native app. Follow these project rules and architecture tips:\n\n1. All OpenAI prompt engineering and API logic belongs in utils/openai.ts.\n2. UI should stay clean and modular — extract reusable components to screens/components/.\n3. Use styles from screens/styles/ — avoid inline styling.\n4. State and logic for wardrobe features should go in hooks/useWardrobeData.ts.\n5. New screens should follow navigation patterns from hooks/useNavigationState.ts.\n6. Memoize where appropriate and optimize for performance.\n7. Consider future scalability: structure features to support cloud sync, user profiles, and shared wardrobes.\n\nWhen asked for changes, refactors, or explanations, follow these principles to guide your output."
+  }

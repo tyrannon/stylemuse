@@ -1,35 +1,71 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { WardrobeItem } from '../hooks/useWardrobeData';
+import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
+import { LaundryAnalytics } from './components/LaundryAnalytics';
 
 interface WardrobePageProps {
   savedItems: WardrobeItem[];
   showSortFilterModal: boolean;
   setShowSortFilterModal: (show: boolean) => void;
   filterCategory: string;
+  filterLaundryStatus: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
   getSortedAndFilteredItems: () => WardrobeItem[];
   getCategoryDisplayName: (category: string) => string;
+  getLaundryStatusDisplayName: (status: string) => string;
   getSortDisplayName: (sortType: string) => string;
   openWardrobeItemView: (item: WardrobeItem) => void;
   categorizeItem: (item: WardrobeItem) => string;
   generateOutfitSuggestions: (item: WardrobeItem) => void;
+  // Laundry analytics
+  showLaundryAnalytics: boolean;
+  setShowLaundryAnalytics: (show: boolean) => void;
+  getLaundryStats: () => any;
+  getSmartWashSuggestions: () => any;
+  getItemsByLaundryStatus: (status: LaundryStatus) => WardrobeItem[];
 }
+
+// Helper function to get laundry status display info
+const getLaundryStatusDisplay = (status: LaundryStatus | undefined) => {
+  switch (status || 'clean') {
+    case 'clean':
+      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
+    case 'dirty':
+      return { emoji: '🧺', text: 'Dirty', color: '#FF5722' };
+    case 'in-laundry':
+      return { emoji: '🌊', text: 'Washing', color: '#2196F3' };
+    case 'drying':
+      return { emoji: '💨', text: 'Drying', color: '#FF9800' };
+    case 'needs-ironing':
+      return { emoji: '👔', text: 'Iron', color: '#9C27B0' };
+    case 'out-of-rotation':
+      return { emoji: '📦', text: 'Stored', color: '#607D8B' };
+    default:
+      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
+  }
+};
 
 export const WardrobePage: React.FC<WardrobePageProps> = ({
   savedItems,
   showSortFilterModal,
   setShowSortFilterModal,
   filterCategory,
+  filterLaundryStatus,
   sortBy,
   sortOrder,
   getSortedAndFilteredItems,
   getCategoryDisplayName,
+  getLaundryStatusDisplayName,
   getSortDisplayName,
   openWardrobeItemView,
   categorizeItem,
   generateOutfitSuggestions,
+  showLaundryAnalytics,
+  setShowLaundryAnalytics,
+  getLaundryStats,
+  getSmartWashSuggestions,
+  getItemsByLaundryStatus,
 }) => {
   if (savedItems.length === 0) {
     return (
@@ -44,9 +80,56 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
     );
   }
 
+  // Show analytics view if enabled
+  if (showLaundryAnalytics) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={styles.tabHeader}>
+          <TouchableOpacity
+            onPress={() => setShowLaundryAnalytics(false)}
+            style={[styles.tabButton, !showLaundryAnalytics && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, !showLaundryAnalytics && styles.activeTabText]}>👔 Wardrobe</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowLaundryAnalytics(true)}
+            style={[styles.tabButton, showLaundryAnalytics && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, showLaundryAnalytics && styles.activeTabText]}>🧺 Analytics</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <LaundryAnalytics
+          stats={getLaundryStats()}
+          suggestions={getSmartWashSuggestions()}
+          savedItems={savedItems}
+          onItemPress={openWardrobeItemView}
+          getItemsByLaundryStatus={getItemsByLaundryStatus}
+        />
+      </View>
+    );
+  }
+
   return (
-    <View style={{ marginTop: 40 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
+    <View style={{ flex: 1 }}>
+      {/* Tab Header */}
+      <View style={styles.tabHeader}>
+        <TouchableOpacity
+          onPress={() => setShowLaundryAnalytics(false)}
+          style={[styles.tabButton, !showLaundryAnalytics && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, !showLaundryAnalytics && styles.activeTabText]}>👔 Wardrobe</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowLaundryAnalytics(true)}
+          style={[styles.tabButton, showLaundryAnalytics && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, showLaundryAnalytics && styles.activeTabText]}>🧺 Analytics</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ marginTop: 20 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
           👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
         </Text>
@@ -55,15 +138,15 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           onPress={() => setShowSortFilterModal(true)}
           style={styles.sortFilterButton}
         >
-          <Text style={styles.sortFilterButtonText}>🔍 Sort & Filter</Text>
+          <Text style={styles.sortFilterButtonText}>🔍 Filter</Text>
         </TouchableOpacity>
       </View>
       
       {/* Current filter display */}
-      {(filterCategory !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
+      {(filterCategory !== 'all' || filterLaundryStatus !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
         <View style={styles.currentFilterContainer}>
           <Text style={styles.currentFilterText}>
-            📊 {getCategoryDisplayName(filterCategory)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
+            📊 {getCategoryDisplayName(filterCategory)} • {getLaundryStatusDisplayName(filterLaundryStatus)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
           </Text>
         </View>
       )}
@@ -83,7 +166,10 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
             />
             
             <View style={styles.wardrobeInventoryItemInfo}>
-              <Text style={styles.wardrobeInventoryItemTitle}>
+              <Text 
+                style={styles.wardrobeInventoryItemTitle}
+                numberOfLines={2}
+              >
                 {item.title || 'Untitled Item'}
               </Text>
               
@@ -101,6 +187,17 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                 </Text>
               </View>
               
+              {/* Laundry Status Indicator */}
+              {(() => {
+                const statusDisplay = getLaundryStatusDisplay(item.laundryStatus);
+                return (
+                  <View style={[styles.laundryStatusBadge, { backgroundColor: statusDisplay.color }]}>
+                    <Text style={styles.laundryStatusEmoji}>{statusDisplay.emoji}</Text>
+                    <Text style={styles.laundryStatusText}>{statusDisplay.text}</Text>
+                  </View>
+                );
+              })()}
+              
               {/* Outfit Suggestions Button */}
               <TouchableOpacity
                 onPress={() => generateOutfitSuggestions(item)}
@@ -116,6 +213,7 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
             </View>
           </TouchableOpacity>
         ))}
+      </View>
       </View>
     </View>
   );
@@ -203,7 +301,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 6,
-    numberOfLines: 2,
   },
   wardrobeInventoryItemTags: {
     flexDirection: 'row',
@@ -236,6 +333,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2e7d32',
   },
+  laundryStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  laundryStatusEmoji: {
+    fontSize: 10,
+    marginRight: 4,
+  },
+  laundryStatusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
+  },
   outfitSuggestionsButton: {
     backgroundColor: '#ff6b6b',
     paddingHorizontal: 8,
@@ -256,5 +371,37 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     fontStyle: 'italic',
+  },
+  // Tab Styles
+  tabHeader: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: 'white',
   },
 });

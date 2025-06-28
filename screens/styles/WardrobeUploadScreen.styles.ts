@@ -2076,4 +2076,75 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  // Laundry Management Styles
+  laundrySection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  laundrySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  laundrySectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  currentLaundryStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  currentLaundryStatusEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  currentLaundryStatusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  laundryControls: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+  },
+  laundryControlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    opacity: 0.7,
+  },
+  laundryControlEmoji: {
+    fontSize: 12,
+    marginRight: 6,
+  },
+  laundryControlText: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+  },
+  laundryHistory: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  laundryHistoryText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
 });

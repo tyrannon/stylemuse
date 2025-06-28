@@ -11,7 +11,7 @@ import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State }
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useWardrobeData, WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
+import { useWardrobeData, WardrobeItem, LovedOutfit, LaundryStatus } from '../hooks/useWardrobeData';
 import { useNavigationState } from '../hooks/useNavigationState';
 import { BottomNavigation } from './components/shared/BottomNavigation';
 import { ItemDetailView } from './components/ItemDetailView';
@@ -32,6 +32,26 @@ const STORAGE_KEYS = {
   STYLE_DNA: 'stylemuse_style_dna',
   SELECTED_GENDER: 'stylemuse_selected_gender',
   PROFILE_IMAGE: 'stylemuse_profile_image',
+};
+
+// Helper function to get laundry status display info
+const getLaundryStatusDisplay = (status: LaundryStatus | undefined) => {
+  switch (status || 'clean') {
+    case 'clean':
+      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
+    case 'dirty':
+      return { emoji: '🧺', text: 'Dirty', color: '#FF5722' };
+    case 'in-laundry':
+      return { emoji: '🌊', text: 'Washing', color: '#2196F3' };
+    case 'drying':
+      return { emoji: '💨', text: 'Drying', color: '#FF9800' };
+    case 'needs-ironing':
+      return { emoji: '👔', text: 'Iron', color: '#9C27B0' };
+    case 'out-of-rotation':
+      return { emoji: '📦', text: 'Stored', color: '#607D8B' };
+    default:
+      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
+  }
 };
 
 const WardrobeUploadScreen = () => {
@@ -59,6 +79,10 @@ const WardrobeUploadScreen = () => {
     markOutfitAsWorn,
     getSmartOutfitSuggestions,
     getOutfitWearStats,
+    updateLaundryStatus,
+    getItemsByLaundryStatus,
+    getLaundryStats,
+    getSmartWashSuggestions,
   } = wardrobeData;
   
   const {
@@ -70,6 +94,7 @@ const WardrobeUploadScreen = () => {
     showingItemDetail,
     showingOutfitDetail,
     detailViewItem,
+    setDetailViewItem,
     detailViewOutfit,
     
     // Navigation functions
@@ -195,7 +220,9 @@ const WardrobeUploadScreen = () => {
   const [sortBy, setSortBy] = useState<'recent' | 'category' | 'name'>('recent');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterLaundryStatus, setFilterLaundryStatus] = useState<string>('all');
   const [showSortFilterModal, setShowSortFilterModal] = useState(false);
+  const [showLaundryAnalytics, setShowLaundryAnalytics] = useState(false);
 
   // State for wardrobe item view modal
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
@@ -1383,6 +1410,11 @@ const WardrobeUploadScreen = () => {
       filteredItems = filteredItems.filter(item => categorizeItem(item) === filterCategory);
     }
     
+    // Apply laundry status filter
+    if (filterLaundryStatus !== 'all') {
+      filteredItems = filteredItems.filter(item => (item.laundryStatus || 'clean') === filterLaundryStatus);
+    }
+    
     // Apply sorting
     filteredItems.sort((a, b) => {
       let comparison = 0;
@@ -1413,6 +1445,12 @@ const WardrobeUploadScreen = () => {
     return ['all', ...Array.from(new Set(categories))];
   };
 
+  // Function to get unique laundry statuses from wardrobe
+  const getUniqueLaundryStatuses = () => {
+    const statuses = savedItems.map(item => item.laundryStatus || 'clean');
+    return ['all', ...Array.from(new Set(statuses))];
+  };
+
   // Function to get category display name
   const getCategoryDisplayName = (category: string) => {
     const displayNames: { [key: string]: string } = {
@@ -1425,6 +1463,20 @@ const WardrobeUploadScreen = () => {
       'accessories': 'Accessories'
     };
     return displayNames[category] || category;
+  };
+
+  // Function to get laundry status display name
+  const getLaundryStatusDisplayName = (status: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Status',
+      'clean': '✨ Clean',
+      'dirty': '🧺 Dirty',
+      'in-laundry': '🌊 Washing',
+      'drying': '💨 Drying',
+      'needs-ironing': '👔 Needs Iron',
+      'out-of-rotation': '📦 Stored'
+    };
+    return displayNames[status] || status;
   };
 
   // Function to get sort display name
@@ -2379,6 +2431,30 @@ const WardrobeUploadScreen = () => {
                 </View>
               </View>
 
+              {/* Filter by Laundry Status */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Laundry Status:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueLaundryStatuses().map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      onPress={() => setFilterLaundryStatus(status)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterLaundryStatus === status && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterLaundryStatus === status && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getLaundryStatusDisplayName(status)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {/* Results Preview */}
               <View style={styles.resultsPreviewSection}>
                 <Text style={styles.sortSectionTitle}>Results:</Text>
@@ -2387,8 +2463,10 @@ const WardrobeUploadScreen = () => {
                     Showing {getSortedAndFilteredItems().length} of {savedItems.length} items
                   </Text>
                   <Text style={styles.resultsPreviewSubtext}>
-                    {filterCategory !== 'all' && `Filtered by: ${getCategoryDisplayName(filterCategory)}`}
-                    {filterCategory !== 'all' && sortBy !== 'recent' && ' • '}
+                    {filterCategory !== 'all' && `Category: ${getCategoryDisplayName(filterCategory)}`}
+                    {filterLaundryStatus !== 'all' && (filterCategory !== 'all' ? ' • ' : '')}
+                    {filterLaundryStatus !== 'all' && `Status: ${getLaundryStatusDisplayName(filterLaundryStatus)}`}
+                    {(filterCategory !== 'all' || filterLaundryStatus !== 'all') && sortBy !== 'recent' && ' • '}
                     {sortBy !== 'recent' && `Sorted by: ${getSortDisplayName(sortBy)} (${sortOrder === 'asc' ? '↑' : '↓'})`}
                   </Text>
                 </View>
@@ -2402,6 +2480,7 @@ const WardrobeUploadScreen = () => {
                   setSortBy('recent');
                   setSortOrder('desc');
                   setFilterCategory('all');
+                  setFilterLaundryStatus('all');
                 }}
                 style={styles.resetButton}
               >
@@ -2649,81 +2728,29 @@ const WardrobeUploadScreen = () => {
 
 {/* Loved Outfits Section - Moved to dedicated Outfits page */}
 
-{/* Wardrobe Inventory Section */}
-{savedItems.length > 0 && showWardrobe && (
-  <View style={{ marginTop: 40 }}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
-        👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
-      </Text>
-      
-      <TouchableOpacity
-        onPress={() => setShowSortFilterModal(true)}
-        style={styles.sortFilterButton}
-      >
-        <Text style={styles.sortFilterButtonText}>🔍 Sort & Filter</Text>
-      </TouchableOpacity>
-    </View>
-    
-    {/* Current filter display */}
-    {(filterCategory !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
-      <View style={styles.currentFilterContainer}>
-        <Text style={styles.currentFilterText}>
-          📊 {getCategoryDisplayName(filterCategory)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
-        </Text>
-      </View>
-    )}
-    
-    <View style={styles.wardrobeInventoryGrid}>
-      {getSortedAndFilteredItems().map((item, index) => (
-        <TouchableOpacity
-          key={index}
-          onPress={() => openWardrobeItemView(item)}
-          style={styles.wardrobeInventoryItem}
-          activeOpacity={0.7}
-        >
-          <SafeImage
-            uri={item.image}
-            style={styles.wardrobeInventoryItemImage}
-            resizeMode="cover"
-          />
-          
-          <View style={styles.wardrobeInventoryItemInfo}>
-            <Text style={styles.wardrobeInventoryItemTitle}>
-              {item.title || 'Untitled Item'}
-            </Text>
-            
-            <View style={styles.wardrobeInventoryItemTags}>
-              {item.tags?.slice(0, 3).map((tag, tagIndex) => (
-                <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
-                  <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-            
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>
-                {categorizeItem(item).toUpperCase()}
-              </Text>
-            </View>
-            
-            {/* Outfit Suggestions Button */}
-            <TouchableOpacity
-              onPress={() => generateOutfitSuggestions(item)}
-              style={styles.outfitSuggestionsButton}
-            >
-              <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
-            </TouchableOpacity>
-            
-            {/* Edit indicator */}
-            <View style={styles.editIndicator}>
-              <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </View>
+{/* Wardrobe Section */}
+{showWardrobe && (
+  <WardrobePage
+    savedItems={savedItems}
+    showSortFilterModal={showSortFilterModal}
+    setShowSortFilterModal={setShowSortFilterModal}
+    filterCategory={filterCategory}
+    filterLaundryStatus={filterLaundryStatus}
+    sortBy={sortBy}
+    sortOrder={sortOrder}
+    getSortedAndFilteredItems={getSortedAndFilteredItems}
+    getCategoryDisplayName={getCategoryDisplayName}
+    getLaundryStatusDisplayName={getLaundryStatusDisplayName}
+    getSortDisplayName={getSortDisplayName}
+    openWardrobeItemView={openWardrobeItemView}
+    categorizeItem={categorizeItem}
+    generateOutfitSuggestions={generateOutfitSuggestions}
+    showLaundryAnalytics={showLaundryAnalytics}
+    setShowLaundryAnalytics={setShowLaundryAnalytics}
+    getLaundryStats={getLaundryStats}
+    getSmartWashSuggestions={getSmartWashSuggestions}
+    getItemsByLaundryStatus={getItemsByLaundryStatus}
+  />
 )}
 
 {/* Item Detail View */}
@@ -3038,6 +3065,72 @@ const WardrobeUploadScreen = () => {
         >
           <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Laundry Management Section */}
+      <View style={styles.laundrySection}>
+        <View style={styles.laundrySectionHeader}>
+          <Text style={styles.laundrySectionTitle}>🧺 Laundry Status</Text>
+          {(() => {
+            const statusDisplay = getLaundryStatusDisplay(detailViewItem.laundryStatus);
+            return (
+              <View style={[styles.currentLaundryStatus, { backgroundColor: statusDisplay.color }]}>
+                <Text style={styles.currentLaundryStatusEmoji}>{statusDisplay.emoji}</Text>
+                <Text style={styles.currentLaundryStatusText}>{statusDisplay.text}</Text>
+              </View>
+            );
+          })()}
+        </View>
+        
+        <View style={styles.laundryControls}>
+          {['clean', 'dirty', 'in-laundry', 'drying', 'needs-ironing', 'out-of-rotation'].map((status) => {
+            const statusDisplay = getLaundryStatusDisplay(status as LaundryStatus);
+            const isActive = (detailViewItem.laundryStatus || 'clean') === status;
+            
+            return (
+              <TouchableOpacity
+                key={status}
+                onPress={async () => {
+                  try {
+                    await updateLaundryStatus(detailViewItem, status as LaundryStatus);
+                    // Update the detail view item to reflect the change
+                    const updatedItem = { ...detailViewItem, laundryStatus: status as LaundryStatus };
+                    setDetailViewItem(updatedItem);
+                  } catch (error) {
+                    console.error('Error updating laundry status:', error);
+                  }
+                }}
+                style={[
+                  styles.laundryControlButton,
+                  isActive && { backgroundColor: statusDisplay.color, opacity: 1 }
+                ]}
+              >
+                <Text style={[
+                  styles.laundryControlEmoji,
+                  isActive && { fontSize: 16 }
+                ]}>
+                  {statusDisplay.emoji}
+                </Text>
+                <Text style={[
+                  styles.laundryControlText,
+                  isActive && { color: 'white', fontWeight: 'bold' }
+                ]}>
+                  {statusDisplay.text}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        
+        {/* Laundry History */}
+        {detailViewItem.timesWashed && detailViewItem.timesWashed > 0 && (
+          <View style={styles.laundryHistory}>
+            <Text style={styles.laundryHistoryText}>
+              Washed {detailViewItem.timesWashed} time{detailViewItem.timesWashed !== 1 ? 's' : ''}
+              {detailViewItem.lastWashed && ` • Last: ${new Date(detailViewItem.lastWashed).toLocaleDateString()}`}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   </View>

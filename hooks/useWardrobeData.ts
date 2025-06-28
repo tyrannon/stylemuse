@@ -13,6 +13,17 @@ const STORAGE_KEYS = {
 };
 
 // Type definitions
+export type LaundryStatus = 'clean' | 'dirty' | 'in-laundry' | 'drying' | 'needs-ironing' | 'out-of-rotation';
+
+export interface LaundryRecord {
+  status: LaundryStatus;
+  changedAt: Date;
+  previousStatus?: LaundryStatus;
+  washType?: 'regular' | 'delicate' | 'hand-wash' | 'dry-clean';
+  dryingMethod?: 'air-dry' | 'tumble-dry' | 'hang-dry';
+  notes?: string;
+}
+
 export interface WardrobeItem {
   image: string;
   title?: string;
@@ -23,6 +34,13 @@ export interface WardrobeItem {
   style?: string;
   fit?: string;
   category?: string;
+  // Laundry tracking fields
+  laundryStatus?: LaundryStatus;
+  laundryHistory?: LaundryRecord[];
+  lastWashed?: Date;
+  timesWashed?: number;
+  washFrequency?: number; // days between typical washes
+  needsSpecialCare?: boolean;
 }
 
 export interface WearRecord {
@@ -292,9 +310,16 @@ export const useWardrobeData = () => {
       
       setLovedOutfits(updatedOutfits);
       await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      
+      // Automatically mark outfit items as dirty
+      const wornOutfit = updatedOutfits.find(o => o.id === outfitId);
+      if (wornOutfit) {
+        await markOutfitItemsAsDirty(wornOutfit.selectedItems);
+      }
+      
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      return updatedOutfits.find(o => o.id === outfitId);
+      return wornOutfit;
     } catch (error) {
       console.error('Error marking outfit as worn:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -478,6 +503,157 @@ export const useWardrobeData = () => {
     };
   };
 
+  // LAUNDRY MANAGEMENT FUNCTIONS
+  
+  // Function to update item laundry status
+  const updateLaundryStatus = async (item: WardrobeItem, newStatus: LaundryStatus, washType?: string, dryingMethod?: string, notes?: string) => {
+    try {
+      const laundryRecord: LaundryRecord = {
+        status: newStatus,
+        changedAt: new Date(),
+        previousStatus: item.laundryStatus,
+        washType: washType as any,
+        dryingMethod: dryingMethod as any,
+        notes,
+      };
+
+      const currentHistory = Array.isArray(item.laundryHistory) ? item.laundryHistory : [];
+      const currentTimesWashed = typeof item.timesWashed === 'number' ? item.timesWashed : 0;
+      
+      const updatedItem = {
+        ...item,
+        laundryStatus: newStatus,
+        laundryHistory: [...currentHistory, laundryRecord],
+        lastWashed: newStatus === 'clean' && item.laundryStatus !== 'clean' ? new Date() : item.lastWashed,
+        timesWashed: newStatus === 'clean' && item.laundryStatus !== 'clean' ? currentTimesWashed + 1 : currentTimesWashed,
+      };
+
+      const updatedItems = savedItems.map(savedItem => 
+        savedItem.image === item.image && savedItem.description === item.description 
+          ? updatedItem 
+          : savedItem
+      );
+      
+      setSavedItems(updatedItems);
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      return updatedItem;
+    } catch (error) {
+      console.error('Error updating laundry status:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  };
+
+  // Function to automatically mark items as dirty when outfit is worn
+  const markOutfitItemsAsDirty = async (outfitItems: string[]) => {
+    try {
+      const itemsToUpdate = savedItems.filter(item => 
+        outfitItems.includes(item.image) && item.laundryStatus !== 'dirty'
+      );
+
+      if (itemsToUpdate.length === 0) return;
+
+      const updatedItems = savedItems.map(savedItem => {
+        if (outfitItems.includes(savedItem.image) && savedItem.laundryStatus !== 'dirty') {
+          const laundryRecord: LaundryRecord = {
+            status: 'dirty',
+            changedAt: new Date(),
+            previousStatus: savedItem.laundryStatus || 'clean',
+            notes: 'Auto-marked dirty from outfit wear',
+          };
+
+          return {
+            ...savedItem,
+            laundryStatus: 'dirty' as LaundryStatus,
+            laundryHistory: [...(savedItem.laundryHistory || []), laundryRecord],
+          };
+        }
+        return savedItem;
+      });
+
+      setSavedItems(updatedItems);
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+    } catch (error) {
+      console.error('Error marking outfit items as dirty:', error);
+    }
+  };
+
+  // Function to get items by laundry status
+  const getItemsByLaundryStatus = (status: LaundryStatus) => {
+    return savedItems.filter(item => (item.laundryStatus || 'clean') === status);
+  };
+
+  // Function to get laundry analytics
+  const getLaundryStats = () => {
+    const totalItems = savedItems.length;
+    const cleanItems = getItemsByLaundryStatus('clean').length;
+    const dirtyItems = getItemsByLaundryStatus('dirty').length;
+    const inLaundryItems = getItemsByLaundryStatus('in-laundry').length;
+    const dryingItems = getItemsByLaundryStatus('drying').length;
+    const needsIroningItems = getItemsByLaundryStatus('needs-ironing').length;
+    
+    const totalWashes = savedItems.reduce((sum, item) => {
+      const timesWashed = typeof item.timesWashed === 'number' ? item.timesWashed : 0;
+      return sum + timesWashed;
+    }, 0);
+    
+    const averageWashFrequency = totalItems > 0 ? totalWashes / totalItems : 0;
+    
+    // Find items that need washing soon (based on frequency)
+    const needsWashingSoon = savedItems.filter(item => {
+      if (item.laundryStatus !== 'clean' || !item.lastWashed || !item.washFrequency) return false;
+      
+      try {
+        const lastWashed = item.lastWashed instanceof Date ? item.lastWashed : new Date(item.lastWashed);
+        const daysSinceWash = (new Date().getTime() - lastWashed.getTime()) / (1000 * 60 * 60 * 24);
+        return daysSinceWash >= (item.washFrequency * 0.8); // 80% of wash frequency
+      } catch (error) {
+        return false;
+      }
+    });
+
+    return {
+      totalItems,
+      cleanItems,
+      dirtyItems,
+      inLaundryItems,
+      dryingItems,
+      needsIroningItems,
+      totalWashes,
+      averageWashFrequency: Math.round(averageWashFrequency * 10) / 10,
+      needsWashingSoon: needsWashingSoon.length,
+      cleanPercentage: totalItems > 0 ? Math.round((cleanItems / totalItems) * 100) : 0,
+    };
+  };
+
+  // Function to get smart wash suggestions
+  const getSmartWashSuggestions = () => {
+    const dirtyItems = getItemsByLaundryStatus('dirty');
+    
+    // Group by wash type recommendations
+    const delicateItems = dirtyItems.filter(item => 
+      item.needsSpecialCare || 
+      item.material?.toLowerCase().includes('silk') ||
+      item.material?.toLowerCase().includes('wool') ||
+      item.material?.toLowerCase().includes('cashmere')
+    );
+    
+    const regularItems = dirtyItems.filter(item => !delicateItems.includes(item));
+    
+    return {
+      regularLoad: regularItems.length,
+      delicateLoad: delicateItems.length,
+      canDoFullLoad: dirtyItems.length >= 8,
+      suggestions: [
+        ...(regularItems.length >= 6 ? ['You have enough items for a regular wash load!'] : []),
+        ...(delicateItems.length >= 4 ? ['Consider doing a delicate wash cycle.'] : []),
+        ...(dirtyItems.length >= 12 ? ['You have enough for multiple loads - consider sorting by color.'] : []),
+      ],
+    };
+  };
+
   return {
     // State
     savedItems,
@@ -511,5 +687,12 @@ export const useWardrobeData = () => {
     getSmartOutfitSuggestions,
     isOutfitSimilarToRecentlyWorn,
     getOutfitWearStats,
+    
+    // Laundry Management Functions
+    updateLaundryStatus,
+    markOutfitItemsAsDirty,
+    getItemsByLaundryStatus,
+    getLaundryStats,
+    getSmartWashSuggestions,
   };
 };
