@@ -438,3 +438,337 @@ Style: Contemporary fashion photography showcasing excellent outfit coordination
     throw error;
   }
 }
+
+// Style Advice AI Functions
+
+/**
+ * Generate optimized search query for finding similar items online
+ */
+export async function generateItemSearchQuery(wardrobeItem: any): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn("⚠️ OpenAI API key not found for search query generation");
+    // Return fallback search query
+    return {
+      primaryTerms: [wardrobeItem.title || 'clothing item'],
+      alternativeTerms: wardrobeItem.tags || [],
+      category: wardrobeItem.category || 'Fashion',
+      keyAttributes: [wardrobeItem.color, wardrobeItem.material, wardrobeItem.style].filter(Boolean),
+      attributesToAvoid: [],
+    };
+  }
+
+  const prompt = `
+Analyze this clothing item and generate optimal search terms for finding similar items online:
+
+Item: ${wardrobeItem.title}
+Description: ${wardrobeItem.description}  
+Color: ${wardrobeItem.color}
+Material: ${wardrobeItem.material}
+Style: ${wardrobeItem.style}
+Category: ${wardrobeItem.category}
+Tags: ${wardrobeItem.tags?.join(', ')}
+
+Generate a JSON response with:
+1. primaryTerms: Array of 2-4 main search words (most important)
+2. alternativeTerms: Array of alternative/variation terms
+3. category: Product category for marketplace filtering
+4. keyAttributes: Important attributes to match (color, material, style)
+5. attributesToAvoid: Attributes to exclude from search
+
+Focus on terms that would help find similar items on shopping websites like Amazon.
+Prioritize style, fit, and material over brand names.
+
+Example response:
+{
+  "primaryTerms": ["cotton", "casual", "shirt"],
+  "alternativeTerms": ["blouse", "top", "tee"],
+  "category": "Fashion",
+  "keyAttributes": ["cotton", "blue", "casual"],
+  "attributesToAvoid": ["formal", "silk"]
+}
+`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 300,
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Search Query Error:", res.status, errorText);
+      throw new Error("OpenAI search query generation failed");
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error("No response from OpenAI");
+    }
+
+    // Parse JSON response
+    try {
+      const searchQuery = JSON.parse(responseText);
+      console.log("✅ Generated search query:", searchQuery);
+      return searchQuery;
+    } catch (parseError) {
+      console.error("❌ Failed to parse search query JSON:", parseError);
+      // Return fallback
+      return {
+        primaryTerms: [wardrobeItem.title || 'clothing item'],
+        alternativeTerms: wardrobeItem.tags || [],
+        category: wardrobeItem.category || 'Fashion',
+        keyAttributes: [wardrobeItem.color, wardrobeItem.material, wardrobeItem.style].filter(Boolean),
+        attributesToAvoid: [],
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ generateItemSearchQuery Error:", error);
+    // Return fallback search query
+    return {
+      primaryTerms: [wardrobeItem.title || 'clothing item'],
+      alternativeTerms: wardrobeItem.tags || [],
+      category: wardrobeItem.category || 'Fashion',
+      keyAttributes: [wardrobeItem.color, wardrobeItem.material, wardrobeItem.style].filter(Boolean),
+      attributesToAvoid: [],
+    };
+  }
+}
+
+/**
+ * Analyze outfit completion needs
+ */
+export async function analyzeOutfitCompletion(outfitItems: any[], occasion?: string, season?: string): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn("⚠️ OpenAI API key not found for outfit completion analysis");
+    return {
+      missingSlots: [],
+      suggestions: [],
+      completionConfidence: 0,
+      reasoning: "AI analysis unavailable"
+    };
+  }
+
+  const itemDescriptions = outfitItems.map(item => 
+    `${item.title} (${item.category}) - ${item.color} ${item.material} ${item.style}`
+  ).join(', ');
+
+  const prompt = `
+Analyze this outfit and identify what's missing to make it complete:
+
+Current items: ${itemDescriptions}
+Occasion: ${occasion || 'general/casual'}
+Season: ${season || 'current'}
+
+Identify:
+1. missingSlots: Array of missing essential pieces (e.g., ["shoes", "jacket"])
+2. suggestions: Array of specific item suggestions for each missing slot
+3. completionConfidence: Score 0-100 for how complete the current outfit is
+4. reasoning: Brief explanation of what's missing and why
+
+Respond in JSON format:
+{
+  "missingSlots": ["shoes", "jacket"],
+  "suggestions": [
+    {
+      "slot": "shoes",
+      "recommendation": "white sneakers or loafers",
+      "reasoning": "casual footwear to match the relaxed style"
+    }
+  ],
+  "completionConfidence": 75,
+  "reasoning": "Outfit is mostly complete but needs appropriate footwear"
+}
+`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    temperature: 0.4,
+    max_tokens: 400,
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Outfit Completion Error:", res.status, errorText);
+      throw new Error("OpenAI outfit completion analysis failed");
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error("No response from OpenAI");
+    }
+
+    try {
+      const analysis = JSON.parse(responseText);
+      console.log("✅ Outfit completion analysis:", analysis);
+      return analysis;
+    } catch (parseError) {
+      console.error("❌ Failed to parse outfit completion JSON:", parseError);
+      return {
+        missingSlots: [],
+        suggestions: [],
+        completionConfidence: 50,
+        reasoning: "Analysis available but parsing failed"
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ analyzeOutfitCompletion Error:", error);
+    return {
+      missingSlots: [],
+      suggestions: [],
+      completionConfidence: 0,
+      reasoning: "Analysis failed"
+    };
+  }
+}
+
+/**
+ * Evaluate style compatibility between items
+ */
+export async function evaluateStyleCompatibility(wardrobeItem: any, onlineItem: any): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn("⚠️ OpenAI API key not found for style compatibility evaluation");
+    return {
+      overall: 50,
+      colorHarmony: 50,
+      styleConsistency: 50,
+      occasionAppropriate: 50,
+      seasonalCompatibility: 50,
+      reasoning: "AI evaluation unavailable"
+    };
+  }
+
+  const prompt = `
+Evaluate the style compatibility between these two items:
+
+Existing wardrobe item: 
+- Title: ${wardrobeItem.title}
+- Description: ${wardrobeItem.description}
+- Color: ${wardrobeItem.color}
+- Material: ${wardrobeItem.material}
+- Style: ${wardrobeItem.style}
+- Category: ${wardrobeItem.category}
+
+Potential new item:
+- Title: ${onlineItem.title}
+- Description: ${onlineItem.description}
+- Category: ${onlineItem.category}
+
+Score compatibility (0-100) based on:
+1. colorHarmony: How well the colors work together
+2. styleConsistency: How well the styles match
+3. occasionAppropriate: Suitable for same occasions
+4. seasonalCompatibility: Work for same seasons
+5. overall: Overall compatibility score
+
+Respond in JSON format:
+{
+  "overall": 85,
+  "colorHarmony": 90,
+  "styleConsistency": 80,
+  "occasionAppropriate": 85,
+  "seasonalCompatibility": 85,
+  "reasoning": "Both items share a casual aesthetic with complementary colors"
+}
+`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 300,
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Style Compatibility Error:", res.status, errorText);
+      throw new Error("OpenAI style compatibility evaluation failed");
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error("No response from OpenAI");
+    }
+
+    try {
+      const compatibility = JSON.parse(responseText);
+      console.log("✅ Style compatibility scores:", compatibility);
+      return compatibility;
+    } catch (parseError) {
+      console.error("❌ Failed to parse compatibility JSON:", parseError);
+      return {
+        overall: 50,
+        colorHarmony: 50,
+        styleConsistency: 50,
+        occasionAppropriate: 50,
+        seasonalCompatibility: 50,
+        reasoning: "Evaluation available but parsing failed"
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ evaluateStyleCompatibility Error:", error);
+    return {
+      overall: 50,
+      colorHarmony: 50,
+      styleConsistency: 50,
+      occasionAppropriate: 50,
+      seasonalCompatibility: 50,
+      reasoning: "Evaluation failed"
+    };
+  }
+}

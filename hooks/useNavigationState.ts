@@ -7,6 +7,7 @@ export const useNavigationState = () => {
   const [showLovedItems, setShowLovedItems] = useState(false);
   const [showOutfitsPage, setShowOutfitsPage] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
+  const [showStyleAdvice, setShowStyleAdvice] = useState(false);
   
   // Detail view states
   const [showingItemDetail, setShowingItemDetail] = useState(false);
@@ -46,6 +47,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
+    setShowStyleAdvice(false);
     closeAllDetails();
   };
 
@@ -55,6 +57,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
+    setShowStyleAdvice(false);
     closeAllDetails();
   };
 
@@ -64,6 +67,7 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowProfilePage(false);
+    setShowStyleAdvice(false);
     closeAllDetails();
   };
 
@@ -73,6 +77,17 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowOutfitsPage(false);
+    setShowStyleAdvice(false);
+    closeAllDetails();
+  };
+
+  const navigateToStyleAdvice = () => {
+    setShowStyleAdvice(true);
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowOutfitsPage(false);
+    setShowProfilePage(false);
     closeAllDetails();
   };
 
@@ -125,6 +140,8 @@ export const useNavigationState = () => {
     setShowOutfitsPage,
     showProfilePage,
     setShowProfilePage,
+    showStyleAdvice,
+    setShowStyleAdvice,
     
     // Detail views
     showingItemDetail,
@@ -183,6 +200,7 @@ export const useNavigationState = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
+    navigateToStyleAdvice,
     closeAllDetails,
     openItemDetail,
     openOutfitDetail,

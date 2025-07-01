@@ -21,6 +21,7 @@ import { BuilderPage } from './BuilderPage';
 import { WardrobePage } from './WardrobePage';
 import { OutfitsPage } from './OutfitsPage';
 import { ProfilePage } from './ProfilePage';
+import { StyleAdviceTab } from './StyleAdviceTab';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { styles } from './styles/WardrobeUploadScreen.styles';
@@ -93,6 +94,7 @@ const WardrobeUploadScreen = () => {
     showWardrobe,
     showOutfitsPage,
     showProfilePage,
+    showStyleAdvice,
     showingItemDetail,
     showingOutfitDetail,
     detailViewItem,
@@ -104,6 +106,7 @@ const WardrobeUploadScreen = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
+    navigateToStyleAdvice,
     goBackToWardrobe,
     goBackToOutfits,
     openWardrobeItemView,
@@ -3458,6 +3461,10 @@ const WardrobeUploadScreen = () => {
   />
 )}
 
+{showStyleAdvice && (
+  <StyleAdviceTab />
+)}
+
         </ScrollView>
       </View>
 
@@ -3467,12 +3474,14 @@ const WardrobeUploadScreen = () => {
         showWardrobe={showWardrobe}
         showOutfitsPage={showOutfitsPage}
         showProfilePage={showProfilePage}
+        showStyleAdvice={showStyleAdvice}
         showingItemDetail={showingItemDetail}
         showingOutfitDetail={showingOutfitDetail}
         navigateToBuilder={navigateToBuilder}
         navigateToWardrobe={navigateToWardrobe}
         navigateToOutfits={navigateToOutfits}
         navigateToProfile={navigateToProfile}
+        navigateToStyleAdvice={navigateToStyleAdvice}
         goBackToOutfits={goBackToOutfits}
         pickMultipleImages={pickMultipleImages}
         openCamera={openCamera}
