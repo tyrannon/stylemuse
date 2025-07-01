@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Linking, Alert } from 'react-native';
 import { SafeImage } from '../../../utils/SafeImage';
 import * as Haptics from 'expo-haptics';
-import { WebBrowser } from 'expo-web-browser';
+import * as WebBrowser from 'expo-web-browser';
 import { StyleRecommendation } from '../../../types/StyleAdvice';
 
 interface OnlineItemCardProps {
@@ -25,16 +25,12 @@ export const OnlineItemCard: React.FC<OnlineItemCardProps> = ({
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
-      // Open external link using WebBrowser for better UX
-      const result = await WebBrowser.openBrowserAsync(onlineItem.affiliateUrl || onlineItem.productUrl, {
-        toolbarColor: '#007AFF',
-        showTitle: true,
-        enableBarCollapsing: true,
-      });
+      // Use Linking to open in native browser app instead of in-app browser
+      await Linking.openURL(onlineItem.affiliateUrl || onlineItem.productUrl);
     } catch (error) {
       console.error('Error opening browser:', error);
-      // Fallback to Linking
-      Linking.openURL(onlineItem.affiliateUrl || onlineItem.productUrl);
+      // Show user-friendly error
+      Alert.alert('Unable to open link', 'Please try again later.');
     }
   };
 

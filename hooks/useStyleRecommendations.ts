@@ -177,15 +177,15 @@ export const useStyleRecommendations = (): UseStyleRecommendationsReturn => {
   const analyzeWardrobeForRecommendations = useCallback(async (wardrobe: WardrobeItem[]): Promise<StyleRecommendation[]> => {
     const allRecommendations: StyleRecommendation[] = [];
 
-    // Limit to 5 most recent items to avoid overwhelming the API
-    const recentItems = wardrobe.slice(0, 5);
+    // Limit to 3 most recent items to avoid overwhelming the API and reduce JSON parsing errors
+    const recentItems = wardrobe.slice(0, 3);
 
     for (const wardrobeItem of recentItems) {
       try {
         const onlineItems = await getItemRecommendations(wardrobeItem);
         
-        // Convert to recommendations with scoring
-        const itemRecommendations = onlineItems.slice(0, 3).map((onlineItem, index): StyleRecommendation => {
+        // Convert to recommendations with scoring (limit to 2 per item)
+        const itemRecommendations = onlineItems.slice(0, 2).map((onlineItem, index): StyleRecommendation => {
           const similarityScore = calculateSimilarityScore(wardrobeItem, onlineItem);
           const reasoning = generateReasoning(wardrobeItem, onlineItem, similarityScore);
           
@@ -211,7 +211,7 @@ export const useStyleRecommendations = (): UseStyleRecommendationsReturn => {
     // Sort by similarity score and limit results
     return allRecommendations
       .sort((a, b) => b.similarityScore - a.similarityScore)
-      .slice(0, 12); // Limit to 12 recommendations
+      .slice(0, 6); // Limit to 6 recommendations to reduce API load
   }, [getItemRecommendations]);
 
   // Refresh recommendations

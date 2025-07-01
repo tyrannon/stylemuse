@@ -457,36 +457,29 @@ export async function generateItemSearchQuery(wardrobeItem: any): Promise<any> {
     };
   }
 
-  const prompt = `
-Analyze this clothing item and generate optimal search terms for finding similar items online:
+  const prompt = `You are a fashion search expert. Analyze this clothing item and generate optimal search terms for finding similar items online.
 
-Item: ${wardrobeItem.title}
-Description: ${wardrobeItem.description}  
-Color: ${wardrobeItem.color}
-Material: ${wardrobeItem.material}
-Style: ${wardrobeItem.style}
-Category: ${wardrobeItem.category}
-Tags: ${wardrobeItem.tags?.join(', ')}
+Item Details:
+- Title: ${wardrobeItem.title || 'Unknown'}
+- Description: ${wardrobeItem.description || 'No description'}
+- Color: ${wardrobeItem.color || 'Unknown'}
+- Material: ${wardrobeItem.material || 'Unknown'}
+- Style: ${wardrobeItem.style || 'Unknown'}
+- Category: ${wardrobeItem.category || 'Fashion'}
+- Tags: ${wardrobeItem.tags?.join(', ') || 'None'}
 
-Generate a JSON response with:
-1. primaryTerms: Array of 2-4 main search words (most important)
-2. alternativeTerms: Array of alternative/variation terms
-3. category: Product category for marketplace filtering
-4. keyAttributes: Important attributes to match (color, material, style)
-5. attributesToAvoid: Attributes to exclude from search
+IMPORTANT: Respond with ONLY valid JSON, no explanations or additional text.
 
-Focus on terms that would help find similar items on shopping websites like Amazon.
-Prioritize style, fit, and material over brand names.
-
-Example response:
+Required JSON format:
 {
-  "primaryTerms": ["cotton", "casual", "shirt"],
-  "alternativeTerms": ["blouse", "top", "tee"],
+  "primaryTerms": ["term1", "term2", "term3"],
+  "alternativeTerms": ["alt1", "alt2"],
   "category": "Fashion",
-  "keyAttributes": ["cotton", "blue", "casual"],
-  "attributesToAvoid": ["formal", "silk"]
+  "keyAttributes": ["attr1", "attr2"],
+  "attributesToAvoid": ["avoid1", "avoid2"]
 }
-`;
+
+All arrays must contain strings. Focus on searchable terms for online shopping.`;
 
   const payload = {
     model: "gpt-4o",
@@ -523,16 +516,39 @@ Example response:
       throw new Error("No response from OpenAI");
     }
 
-    // Parse JSON response
+    // Clean and parse JSON response
     try {
-      const searchQuery = JSON.parse(responseText);
+      // Clean the response text
+      let cleanedResponse = responseText.trim();
+      
+      // Remove any markdown code blocks
+      cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      
+      // Remove any leading/trailing text that isn't JSON
+      const jsonStart = cleanedResponse.indexOf('{');
+      const jsonEnd = cleanedResponse.lastIndexOf('}');
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
+      }
+      
+      const searchQuery = JSON.parse(cleanedResponse);
+      
+      // Validate the structure
+      if (!searchQuery.primaryTerms || !Array.isArray(searchQuery.primaryTerms)) {
+        throw new Error('Invalid primaryTerms structure');
+      }
+      
       console.log("✅ Generated search query:", searchQuery);
       return searchQuery;
+      
     } catch (parseError) {
       console.error("❌ Failed to parse search query JSON:", parseError);
-      // Return fallback
+      console.log("Raw response:", responseText);
+      
+      // Return fallback with better defaults
       return {
-        primaryTerms: [wardrobeItem.title || 'clothing item'],
+        primaryTerms: [wardrobeItem.title || 'clothing item'].filter(Boolean),
         alternativeTerms: wardrobeItem.tags || [],
         category: wardrobeItem.category || 'Fashion',
         keyAttributes: [wardrobeItem.color, wardrobeItem.material, wardrobeItem.style].filter(Boolean),

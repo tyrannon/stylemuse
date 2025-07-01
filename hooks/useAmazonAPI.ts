@@ -134,39 +134,39 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
-    // Mock product data based on search query
+    // Mock product data - use search-based URLs that will work
     const mockProducts: AmazonProduct[] = [
       {
-        asin: 'B07XYZ1234',
+        asin: 'SEARCH1',
         title: `${params.Keywords} - Stylish Cotton Blend`,
         imageUrl: 'https://via.placeholder.com/300x400/007AFF/FFFFFF?text=Mock+Product+1',
         price: 29.99 + Math.random() * 70,
         currency: 'USD',
         rating: 4.0 + Math.random() * 1,
         reviewCount: Math.floor(Math.random() * 1000) + 50,
-        detailPageURL: 'https://amazon.com/dp/B07XYZ1234',
+        detailPageURL: `https://amazon.com/s?k=${encodeURIComponent(params.Keywords + ' clothing')}`,
         features: ['Premium quality material', 'Comfortable fit', 'Machine washable'],
       },
       {
-        asin: 'B08ABC5678',
+        asin: 'SEARCH2',
         title: `Premium ${params.Keywords} - Designer Style`,
         imageUrl: 'https://via.placeholder.com/300x400/FF6B6B/FFFFFF?text=Mock+Product+2',
         price: 45.99 + Math.random() * 50,
         currency: 'USD',
         rating: 4.2 + Math.random() * 0.8,
         reviewCount: Math.floor(Math.random() * 500) + 100,
-        detailPageURL: 'https://amazon.com/dp/B08ABC5678',
+        detailPageURL: `https://amazon.com/s?k=${encodeURIComponent(params.Keywords + ' premium')}`,
         features: ['Designer inspired', 'High-quality fabric', 'Versatile styling'],
       },
       {
-        asin: 'B09DEF9012',
+        asin: 'SEARCH3',
         title: `Classic ${params.Keywords} - Essential Collection`,
         imageUrl: 'https://via.placeholder.com/300x400/4ECDC4/FFFFFF?text=Mock+Product+3',
         price: 19.99 + Math.random() * 30,
         currency: 'USD',
         rating: 3.8 + Math.random() * 1.2,
         reviewCount: Math.floor(Math.random() * 800) + 25,
-        detailPageURL: 'https://amazon.com/dp/B09DEF9012',
+        detailPageURL: `https://amazon.com/s?k=${encodeURIComponent(params.Keywords + ' basic')}`,
         features: ['Affordable price', 'Basic styling', 'Good for everyday wear'],
       },
     ];

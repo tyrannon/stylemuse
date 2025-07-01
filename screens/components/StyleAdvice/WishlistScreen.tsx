@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { SafeImage } from '../../../utils/SafeImage';
 import { WishlistItem } from '../../../types/StyleAdvice';
 import * as Haptics from 'expo-haptics';
-import { WebBrowser } from 'expo-web-browser';
+import * as WebBrowser from 'expo-web-browser';
 
 export const WishlistScreen: React.FC = () => {
   // Mock wishlist data for Phase 1
@@ -34,13 +34,11 @@ export const WishlistScreen: React.FC = () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
-      await WebBrowser.openBrowserAsync(item.onlineItem.affiliateUrl || item.onlineItem.productUrl, {
-        toolbarColor: '#007AFF',
-        showTitle: true,
-        enableBarCollapsing: true,
-      });
+      // Use Linking to open in native browser app instead of in-app browser
+      await Linking.openURL(item.onlineItem.affiliateUrl || item.onlineItem.productUrl);
     } catch (error) {
       console.error('Error opening browser:', error);
+      Alert.alert('Unable to open link', 'Please try again later.');
     }
   };
 
