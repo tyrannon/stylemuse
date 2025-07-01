@@ -1,4 +1,4 @@
-import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions } from 'react-native';
+import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert } from 'react-native';
 import { SafeImage } from '../utils/SafeImage';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
@@ -21,6 +21,8 @@ import { BuilderPage } from './BuilderPage';
 import { WardrobePage } from './WardrobePage';
 import { OutfitsPage } from './OutfitsPage';
 import { ProfilePage } from './ProfilePage';
+import { CameraScreen } from './CameraScreen';
+import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { styles } from './styles/WardrobeUploadScreen.styles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -223,6 +225,12 @@ const WardrobeUploadScreen = () => {
   const [filterLaundryStatus, setFilterLaundryStatus] = useState<string>('all');
   const [showSortFilterModal, setShowSortFilterModal] = useState(false);
   const [showLaundryAnalytics, setShowLaundryAnalytics] = useState(false);
+
+  // State for camera integration
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [showCameraScreen, setShowCameraScreen] = useState(false);
+  const [showPhotoEditing, setShowPhotoEditing] = useState(false);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
 
   // State for wardrobe item view modal
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
@@ -475,8 +483,10 @@ const WardrobeUploadScreen = () => {
     }
   };
 
-  // Function to pick multiple images for bulk upload
+  // SIMPLE DIRECT APPROACH - No modal, just call library picker directly
   const pickMultipleImages = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       alert('Permission to access media library is required!');
@@ -502,19 +512,110 @@ const WardrobeUploadScreen = () => {
         setBulkProgress({ current: i + 1, total: result.assets.length });
         
         try {
-          // Fix: Pass the isBulkUpload parameter as true
           await handleAutoDescribeAndSave(asset.uri, true);
-          // Small delay between API calls
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
           console.error(`Failed to process image ${i + 1}:`, error);
-          // Continue with next image even if one fails
         }
       }
       
       setBulkUploading(false);
       setBulkProgress({ current: 0, total: 0 });
       alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
+    }
+  };
+
+  // SIMPLE DIRECT CAMERA APPROACH - No modal, just open camera directly
+  const openCamera = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCameraScreen(true);
+  };
+
+  // Function to handle camera capture
+  const handleCameraCapture = async () => {
+    setShowPhotoSourceModal(false);
+    
+    // Small delay to let modal close completely before launching camera
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    setShowCameraScreen(true);
+  };
+
+  // Function to handle photo taken from camera
+  const handlePhotoTaken = (photoUri: string) => {
+    setShowCameraScreen(false);
+    setCapturedPhotoUri(photoUri);
+    setShowPhotoEditing(true);
+  };
+
+  // Function to handle photo editing save
+  const handlePhotoEditingSave = async (editedPhotoUri: string) => {
+    setShowPhotoEditing(false);
+    setCapturedPhotoUri(null);
+    
+    // Process the edited photo through AI analysis
+    await handleAutoDescribeAndSave(editedPhotoUri, false);
+  };
+
+  // Function to handle photo editing cancel/retake
+  const handlePhotoEditingRetake = () => {
+    setShowPhotoEditing(false);
+    setShowCameraScreen(true);
+  };
+
+  // Function to handle direct camera photo (skip editing for now)
+  const handleCameraPhotoDirect = async (photoUri: string) => {
+    setShowCameraScreen(false);
+    setCapturedPhotoUri(null);
+    
+    // Process directly through AI analysis (skip editing screen for now to avoid complexity)
+    await handleAutoDescribeAndSave(photoUri, false);
+  };
+
+  // Function to pick images from library with "Add Another" flow for multiple items
+  const pickMultipleImagesFromLibrary = async () => {
+    setShowPhotoSourceModal(false);
+    
+    // Small delay to let modal close completely before launching ImagePicker
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Permission to access media library is required!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      try {
+        await handleAutoDescribeAndSave(asset.uri, false);
+        
+        // Offer to add another image
+        setTimeout(() => {
+          Alert.alert(
+            'Success! 🎉',
+            'Successfully added 1 item to your wardrobe!',
+            [
+              { text: 'Done', style: 'default' },
+              { 
+                text: 'Add Another', 
+                style: 'default',
+                onPress: () => pickMultipleImagesFromLibrary()
+              }
+            ]
+          );
+        }, 500);
+        
+      } catch (error) {
+        console.error(`Failed to process image:`, error);
+        alert(`Failed to process image: ${error.message}`);
+      }
     }
   };
 
@@ -3360,116 +3461,26 @@ const WardrobeUploadScreen = () => {
         </ScrollView>
       </View>
 
-      {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNavigation}>
-        {/* Outfit Builder Toggle Button */}
-        <Animated.View style={{
-          transform: [{
-            translateX: builderShakeValue
-          }]
-        }}>
-          <TouchableOpacity
-            onPress={() => {
-              triggerHaptic('light');
-              shakeButton(builderShakeValue);
-              if (!showOutfitBuilder) {
-                navigateToBuilder();
-              }
-            }}
-            style={styles.bottomNavButton}
-          >
-            <Text style={[styles.bottomNavIcon, showOutfitBuilder && styles.bottomNavIconActive]}>
-              🎮
-            </Text>
-            <Text style={[styles.bottomNavLabel, showOutfitBuilder && styles.bottomNavLabelActive]}>
-              Builder
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Wardrobe Toggle Button */}
-        <Animated.View style={{
-          transform: [{
-            translateX: wardrobeShakeValue
-          }]
-        }}>
-          <TouchableOpacity
-            onPress={() => {
-              triggerHaptic('light');
-              shakeButton(wardrobeShakeValue);
-              if (!showWardrobe) {
-                navigateToWardrobe();
-              } else if (showWardrobe && !showingItemDetail) {
-                // If already on wardrobe page and not viewing item detail, scroll to top
-                mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-              }
-            }}
-            style={styles.bottomNavButton}
-          >
-            <Text style={[styles.bottomNavIcon, showWardrobe && styles.bottomNavIconActive]}>
-              👔
-            </Text>
-            <Text style={[styles.bottomNavLabel, showWardrobe && styles.bottomNavLabelActive]}>
-              Wardrobe
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Plus Button (Center) */}
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('medium');
-            pickMultipleImages();
-          }}
-          style={styles.plusButton}
-        >
-          <Text style={styles.plusButtonIcon}>+</Text>
-        </TouchableOpacity>
-
-        {/* Outfits Page Button */}
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('light');
-            // If outfit detail is open, just go back to outfits
-            if (showingOutfitDetail) {
-              goBackToOutfits();
-            } else if (!showOutfitsPage) {
-              navigateToOutfits();
-            } else if (showOutfitsPage) {
-              // If already on outfits page, scroll to top
-              mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-            }
-          }}
-          style={styles.bottomNavButton}
-        >
-          <Text style={[styles.bottomNavIcon, showOutfitsPage && styles.bottomNavIconActive]}>
-            👗
-          </Text>
-          <Text style={[styles.bottomNavLabel, showOutfitsPage && styles.bottomNavLabelActive]}>
-            Outfits
-          </Text>
-        </TouchableOpacity>
-
-        {/* Style DNA Profile Button */}
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('light');
-            if (!showProfilePage) {
-              navigateToProfile();
-            }
-          }}
-          style={styles.profileButton}
-        >
-          {profileImage ? (
-            <SafeImage 
-              uri={profileImage} 
-              style={[styles.profileButtonImage, styleDNA && styles.profileButtonImageActive]} 
-            />
-          ) : (
-            <Text style={styles.profileButtonPlaceholder}>🧬</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Navigation */}
+      <BottomNavigation
+        showOutfitBuilder={showOutfitBuilder}
+        showWardrobe={showWardrobe}
+        showOutfitsPage={showOutfitsPage}
+        showProfilePage={showProfilePage}
+        showingItemDetail={showingItemDetail}
+        showingOutfitDetail={showingOutfitDetail}
+        navigateToBuilder={navigateToBuilder}
+        navigateToWardrobe={navigateToWardrobe}
+        navigateToOutfits={navigateToOutfits}
+        navigateToProfile={navigateToProfile}
+        goBackToOutfits={goBackToOutfits}
+        pickMultipleImages={pickMultipleImages}
+        openCamera={openCamera}
+        triggerHaptic={triggerHaptic}
+        mainScrollViewRef={mainScrollViewRef}
+        builderShakeValue={builderShakeValue}
+        wardrobeShakeValue={wardrobeShakeValue}
+      />
       {/* End of Profile Page */}
 
  
@@ -3648,6 +3659,77 @@ const WardrobeUploadScreen = () => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Photo Source Selection Modal */}
+      <Modal
+        visible={showPhotoSourceModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPhotoSourceModal(false)}
+      >
+        <Pressable
+          style={styles.photoSourceModalOverlay}
+          onPress={() => setShowPhotoSourceModal(false)}
+        >
+          <Pressable style={styles.photoSourceModalContent} onPress={() => {}}>
+            <Text style={styles.photoSourceModalTitle}>Add Photos</Text>
+            <Text style={styles.photoSourceModalSubtitle}>Choose how you want to add photos to your wardrobe</Text>
+            
+            <TouchableOpacity
+              style={styles.photoSourceOption}
+              onPress={handleCameraCapture}
+            >
+              <Text style={styles.photoSourceOptionIcon}>📸</Text>
+              <View style={styles.photoSourceOptionText}>
+                <Text style={styles.photoSourceOptionTitle}>Camera</Text>
+                <Text style={styles.photoSourceOptionSubtitle}>Take a single photo</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.photoSourceOption}
+              onPress={pickMultipleImagesFromLibrary}
+            >
+              <Text style={styles.photoSourceOptionIcon}>📚</Text>
+              <View style={styles.photoSourceOptionText}>
+                <Text style={styles.photoSourceOptionTitle}>Photo Library</Text>
+                <Text style={styles.photoSourceOptionSubtitle}>Add photos one by one with "Add Another" option</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.photoSourceCancelButton}
+              onPress={() => setShowPhotoSourceModal(false)}
+            >
+              <Text style={styles.photoSourceCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Camera Screen */}
+      {showCameraScreen && (
+        <View style={styles.fullScreenOverlay}>
+          <CameraScreen
+            onPhotoTaken={handleCameraPhotoDirect}
+            onCancel={() => setShowCameraScreen(false)}
+            mode="wardrobe"
+            showGrid={true}
+          />
+        </View>
+      )}
+
+      {/* Photo Editing Screen */}
+      {showPhotoEditing && capturedPhotoUri && (
+        <View style={styles.fullScreenOverlay}>
+          <PhotoEditingScreen
+            photoUri={capturedPhotoUri}
+            onSave={handlePhotoEditingSave}
+            onRetake={handlePhotoEditingRetake}
+            mode="wardrobe"
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 };

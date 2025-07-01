@@ -1,20 +1,24 @@
 {
   "projectTips": [
     "This project is a React Native app for an AI-powered virtual closet (StyleMuse).",
-    "Main features: wardrobe upload, AI item description, outfit builder, smart outfit suggestions, laundry tracking, profile with style DNA, sorting/filtering, and weather-based outfit generation.",
+    "Main features: wardrobe upload, AI item description, outfit builder, smart outfit suggestions, laundry tracking, profile with style DNA, sorting/filtering, weather-based outfit generation, and in-app camera with photo editing.",
     "Styles are now extracted to screens/styles/WardrobeUploadScreen.styles.ts for easier editing.",
     "To keep files manageable, extract large UI sections and repeated logic into components in screens/components/ and hooks/.",
     "Utility functions (e.g., for sorting, filtering, AI calls) should go in utils/ or hooks/.",
     "When adding new features, consider modularity and reusability: create new components/hooks instead of growing the main screen files.",
     "For new AI features (e.g., more advanced outfit suggestions, trend analysis), add to utils/openai.ts and keep API logic separate from UI.",
+    "Camera feature: use CameraScreen for photo capture, PhotoEditingScreen for editing, and integrate with existing AI analysis workflow.",
     "Performance tip: avoid unnecessary re-renders by memoizing selectors and using React.memo for pure components.",
     "If you add more screens, follow the pattern of keeping navigation state in hooks/useNavigationState.ts.",
-    "For future: consider adding cloud sync, user accounts, or sharing features."
+    "For future: consider adding cloud sync, user accounts, or sharing features.",
+    "🚨 CRITICAL: ImagePicker MUST be called directly without modals! Modals interfere with ImagePicker in Expo Go. Always call ImagePicker.launchImageLibraryAsync() directly from button press handlers, never through modal overlays.",
+    "✅ FIXED: ImagePicker now works perfectly with direct calls. BottomNavigation has both 📚 photo library and 📸 camera buttons that work without modal interference."
   ],
   "fileSuggestions": {
     "screens/WardrobeUploadScreen.tsx": [
       "This file is now much smaller after extracting styles. Continue extracting modals and repeated UI into components.",
-      "If you add more wardrobe features (e.g., batch editing, advanced filters), consider a dedicated WardrobeManager component."
+      "If you add more wardrobe features (e.g., batch editing, advanced filters), consider a dedicated WardrobeManager component.",
+      "From your wardrobe upload screen, navigate to the CameraScreen with the 'wardrobe' mode and process the photo with AI and add to wardrobe."
     ],
     "screens/styles/WardrobeUploadScreen.styles.ts": [
       "All styles for WardrobeUploadScreen are here. Keep style changes in this file for maintainability."
@@ -27,9 +31,29 @@
     ],
     "hooks/useNavigationState.ts": [
       "Navigation and UI state for multi-page flows. Add new navigation helpers here if you add more screens."
+    ],
+    "screens/CameraScreen.tsx": [
+      "Main camera interface with full-screen capture. Integrates with existing wardrobe flow and AI analysis.",
+      "Use different modes: 'wardrobe', 'profile', 'outfit' for optimized photo capture."
+    ],
+    "screens/PhotoEditingScreen.tsx": [
+      "Photo editing interface with crop, adjust, enhance, and background tools.",
+      "Integrates with usePhotoEditor hook for state management and operations."
+    ],
+    "hooks/useCameraControls.ts": [
+      "Camera state management including permissions, flash, zoom, and camera controls.",
+      "Handles platform-specific permission flows and device capabilities."
+    ],
+    "hooks/useCameraIntegration.ts": [
+      "Photo processing, gallery integration, and AI optimization.",
+      "Handles photo enhancement for clothing items and metadata storage."
+    ],
+    "hooks/usePhotoEditor.ts": [
+      "Photo editing state management with undo/redo and manipulation operations.",
+      "Integrates with expo-image-manipulator for crop, adjust, and enhance operations."
     ]
-  }
   },
   "claudePromptGuide": {
-    "systemMessage": "You are assisting with development on StyleMuse, an AI-powered virtual closet React Native app. Follow these project rules and architecture tips:\n\n1. All OpenAI prompt engineering and API logic belongs in utils/openai.ts.\n2. UI should stay clean and modular — extract reusable components to screens/components/.\n3. Use styles from screens/styles/ — avoid inline styling.\n4. State and logic for wardrobe features should go in hooks/useWardrobeData.ts.\n5. New screens should follow navigation patterns from hooks/useNavigationState.ts.\n6. Memoize where appropriate and optimize for performance.\n7. Consider future scalability: structure features to support cloud sync, user profiles, and shared wardrobes.\n\nWhen asked for changes, refactors, or explanations, follow these principles to guide your output."
+    "systemMessage": "You are assisting with development on StyleMuse, an AI-powered virtual closet React Native app. Follow these project rules and architecture tips:\n\n1. All OpenAI prompt engineering and API logic belongs in utils/openai.ts.\n2. UI should stay clean and modular — extract reusable components to screens/components/.\n3. Use styles from screens/styles/ — avoid inline styling.\n4. State and logic for wardrobe features should go in hooks/useWardrobeData.ts.\n5. New screens should follow navigation patterns from hooks/useNavigationState.ts.\n6. Camera features: use CameraScreen for capture, PhotoEditingScreen for editing, integrate with AI analysis.\n7. Memoize where appropriate and optimize for performance.\n8. Consider future scalability: structure features to support cloud sync, user profiles, and shared wardrobes.\n\nWhen asked for changes, refactors, or explanations, follow these principles to guide your output."
   }
+}

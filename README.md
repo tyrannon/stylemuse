@@ -29,6 +29,14 @@ StyleMuse is an AI-powered virtual closet app that helps you organize your wardr
 - **Laundry Analytics**: Rich insights with progress bars, status breakdowns, and contextual tips
 - **Wash History Tracking**: Complete history of wash cycles and frequency patterns
 
+### 📸 **In-App Camera System**
+- **Professional Camera Interface**: Full-screen camera with advanced controls
+- **Smart Photo Capture**: Optimized for clothing photography with grid guides
+- **Photo Source Selection**: Choose between camera or photo library upload
+- **Seamless Integration**: Camera photos flow directly into AI analysis
+- **Haptic Feedback**: Tactile responses for all camera interactions
+- **Permission Handling**: Graceful camera and storage permission management
+
 ### 📊 **Analytics & Insights**
 - **Outfit Analytics**: Track outfit usage, favorites, and wearing patterns
 - **Laundry Analytics**: Monitor wardrobe cleanliness and washing efficiency
@@ -201,6 +209,8 @@ stylemuse/
 │   ├── OutfitsPage.tsx                      # Outfit management interface
 │   ├── BuilderPage.tsx                      # Outfit builder interface
 │   ├── ProfilePage.tsx                      # User profile interface
+│   ├── CameraScreen.tsx                     # Professional camera interface
+│   ├── PhotoEditingScreen.tsx               # Photo editing with advanced tools
 │   ├── components/
 │   │   ├── shared/
 │   │   │   └── BottomNavigation.tsx         # Navigation component
@@ -215,7 +225,10 @@ stylemuse/
 │       └── WardrobeUploadScreen.styles.ts   # Modular style definitions
 ├── hooks/
 │   ├── useWardrobeData.ts                   # Wardrobe & laundry state management
-│   └── useNavigationState.ts               # Navigation state management
+│   ├── useNavigationState.ts               # Navigation state management
+│   ├── useCameraControls.ts                # Camera state and controls
+│   ├── usePhotoEditor.ts                    # Photo editing state management
+│   └── useCameraIntegration.ts              # Camera-wardrobe integration
 ├── utils/
 │   ├── openai.ts                            # AI integration (GPT-4o & DALL-E)
 │   └── SafeImage.tsx                        # Optimized image component

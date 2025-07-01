@@ -20,6 +20,7 @@ interface BottomNavigationProps {
   
   // Other functions
   pickMultipleImages: () => void;
+  openCamera: () => void;
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
   
   // Scroll ref for scroll-to-top functionality
@@ -43,6 +44,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   navigateToProfile,
   goBackToOutfits,
   pickMultipleImages,
+  openCamera,
   triggerHaptic,
   mainScrollViewRef,
   builderShakeValue,
@@ -131,16 +133,27 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Plus Button (Center) */}
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('medium');
-          pickMultipleImages();
-        }}
-        style={styles.plusButton}
-      >
-        <Text style={styles.plusButtonIcon}>+</Text>
-      </TouchableOpacity>
+      {/* Center Buttons (Photo Library + Camera) */}
+      <View style={styles.centerButtonContainer}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('medium');
+            pickMultipleImages();
+          }}
+          style={styles.centerButton}
+        >
+          <Text style={styles.centerButtonIcon}>📚</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('medium');
+            openCamera();
+          }}
+          style={styles.centerButton}
+        >
+          <Text style={styles.centerButtonIcon}>📸</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Outfits Page Button */}
       <TouchableOpacity
@@ -226,23 +239,27 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: 'bold',
   },
-  plusButton: {
-    width: 56,
-    height: 56,
+  centerButton: {
+    width: 48,
+    height: 48,
     backgroundColor: '#007AFF',
-    borderRadius: 28,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 6,
+    elevation: 6,
+    marginHorizontal: 4,
   },
-  plusButtonIcon: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  centerButtonIcon: {
+    fontSize: 24,
     color: 'white',
+  },
+  centerButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   profileButton: {
     width: 48,
