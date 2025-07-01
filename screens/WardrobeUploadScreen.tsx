@@ -24,6 +24,7 @@ import { ProfilePage } from './ProfilePage';
 import { StyleAdviceTab } from './StyleAdviceTab';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
+import { SmartSuggestionModal } from './components/SmartSuggestionModal';
 import { styles } from './styles/WardrobeUploadScreen.styles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -166,6 +167,9 @@ const WardrobeUploadScreen = () => {
 
   // Animated value for spin effect
   const [spinValue] = useState(new Animated.Value(0));
+  
+  // Smart suggestion modal state
+  const [showSmartSuggestionModal, setShowSmartSuggestionModal] = useState(false);
   
   // Ref for main scroll view to control scrolling
   const mainScrollViewRef = useRef<ScrollView>(null);
@@ -1612,20 +1616,59 @@ const WardrobeUploadScreen = () => {
   // Function to suggest smart outfit suggestions
   const handleSmartOutfitSuggestions = () => {
     triggerHaptic('medium');
-    const suggestions = getSmartOutfitSuggestions(5);
+    setShowSmartSuggestionModal(true);
+  };
+
+  const handleSmartSuggestionsGenerated = (suggestion: any) => {
+    // Auto-fill the outfit builder with the generated suggestions
+    setGearSlots({
+      top: suggestion.top ? { 
+        itemId: suggestion.top.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.top.image, 
+        itemTitle: suggestion.top.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      bottom: suggestion.bottom ? { 
+        itemId: suggestion.bottom.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.bottom.image, 
+        itemTitle: suggestion.bottom.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      shoes: suggestion.shoes ? { 
+        itemId: suggestion.shoes.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.shoes.image, 
+        itemTitle: suggestion.shoes.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      jacket: suggestion.jacket ? { 
+        itemId: suggestion.jacket.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.jacket.image, 
+        itemTitle: suggestion.jacket.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      hat: suggestion.hat ? { 
+        itemId: suggestion.hat.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.hat.image, 
+        itemTitle: suggestion.hat.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+      accessories: suggestion.accessories ? { 
+        itemId: suggestion.accessories.image, // Use image as itemId to match getEquippedItems logic
+        itemImage: suggestion.accessories.image, 
+        itemTitle: suggestion.accessories.title 
+      } : { itemId: null, itemImage: null, itemTitle: null },
+    });
+
+    // Show enhanced success feedback with AI analysis
+    const feedbackMessage = `✨ AI-Curated Outfit Complete! 
+
+${suggestion.reasoning}
+
+Style Score: ${suggestion.styleScore || suggestion.confidence}%
+${suggestion.formality ? `Formality: ${suggestion.formality}` : ''}
+${suggestion.colorPalette && suggestion.colorPalette.length > 0 ? `Color Palette: ${suggestion.colorPalette.join(', ')}` : ''}
+
+${suggestion.missingItems && suggestion.missingItems.length > 0 ? 
+  `\n💡 To complete this look:\n${suggestion.missingItems.map(item => `• ${item.description} - ${item.reason}`).join('\n')}` : 
+  ''}`;
     
-    if (suggestions.length === 0) {
-      alert('🤔 No smart suggestions available yet! Create and wear some outfits to get personalized recommendations.');
-      return;
-    }
-    
-    // Navigate to outfits page to show suggestions
-    navigateToOutfits();
-    
-    setTimeout(() => {
-      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      alert(`🧠 Found ${suggestions.length} smart outfit suggestions for you! Check out the suggestions section in the Outfits tab.`);
-    }, 500);
+    alert(feedbackMessage);
+    triggerHaptic('success');
   };
 
   // Function to shake animation
@@ -3739,6 +3782,13 @@ const WardrobeUploadScreen = () => {
           />
         </View>
       )}
+
+      {/* Smart Suggestion Modal */}
+      <SmartSuggestionModal
+        visible={showSmartSuggestionModal}
+        onClose={() => setShowSmartSuggestionModal(false)}
+        onSuggestionsGenerated={handleSmartSuggestionsGenerated}
+      />
     </SafeAreaView>
   );
 };

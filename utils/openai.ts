@@ -788,3 +788,139 @@ Respond in JSON format:
     };
   }
 }
+
+export async function generateIntelligentOutfitSelection(wardrobeItems: any[], context: any, styleDNA: any = null): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ No OpenAI API key found for intelligent outfit selection');
+    return null;
+  }
+
+  const prompt = `You are an expert fashion stylist with years of experience in creating perfectly coordinated outfits. Your task is to analyze the user's wardrobe and create an intelligent, stylish outfit based on the given context.
+
+USER'S WARDROBE:
+${wardrobeItems.map((item, index) => `
+${index + 1}. ${item.title || 'Untitled'}
+   - Color: ${item.color || 'not specified'}
+   - Material: ${item.material || 'not specified'}
+   - Style: ${item.style || 'not specified'}
+   - Fit: ${item.fit || 'not specified'}
+   - Category: ${item.category || 'unknown'}
+   - Description: ${item.description || 'no description'}
+   - Tags: ${item.tags ? item.tags.join(', ') : 'none'}
+`).join('')}
+
+OUTFIT CONTEXT:
+- Occasion: ${context.occasion}
+- Location: ${context.location}
+- Weather: ${context.weather}${context.temperature ? ` (${context.temperature}°F)` : ''}
+- Time of day: ${context.time}
+- Style goal: ${context.style}
+
+${styleDNA ? `USER'S STYLE DNA:
+- Personal style: ${styleDNA.style_preferences?.current_style_visible || 'not specified'}
+- Preferred styles: ${styleDNA.style_preferences?.preferred_styles?.join(', ') || 'not specified'}
+- Color palette: ${styleDNA.style_preferences?.color_palette?.join(', ') || 'not specified'}
+- Fit preferences: ${styleDNA.style_preferences?.fit_preferences || 'not specified'}
+- Build: ${styleDNA.appearance?.build || 'not specified'}
+` : ''}
+
+STYLING REQUIREMENTS:
+1. Select items that work together harmoniously in terms of color, style, and formality level
+2. Ensure the outfit is appropriate for the specified occasion and location
+3. Consider weather conditions and practicality
+4. Match the user's style goals and personal preferences
+5. Create a cohesive look that shows fashion expertise
+6. If certain categories are missing better items, note what would improve the outfit
+
+For each category (top, bottom, shoes, jacket, hat, accessories), either:
+- Select the BEST item from the wardrobe that fits the context
+- Leave empty if no suitable item exists or if not needed for this outfit
+
+CRITICAL: Only select items that genuinely work well together. Don't force selections if items don't coordinate properly.
+
+Return ONLY raw JSON in this exact format:
+{
+  "outfit": {
+    "top": "exact title of selected top item or null",
+    "bottom": "exact title of selected bottom item or null", 
+    "shoes": "exact title of selected shoes or null",
+    "jacket": "exact title of selected jacket/outerwear or null",
+    "hat": "exact title of selected hat or null",
+    "accessories": "exact title of selected accessory or null"
+  },
+  "reasoning": "Detailed explanation of why these items work together, addressing color coordination, style harmony, appropriateness for the context, and overall aesthetic appeal",
+  "styleScore": 85,
+  "missingItems": [
+    {
+      "category": "category name",
+      "description": "specific item that would improve this outfit",
+      "reason": "why this item would enhance the look"
+    }
+  ],
+  "colorPalette": ["primary color", "secondary color", "accent color"],
+  "formality": "casual/business casual/formal/athletic/etc",
+  "confidence": 92
+}`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a professional fashion stylist with expertise in color theory, style coordination, and outfit curation. You create sophisticated, well-coordinated outfits that are both stylish and appropriate for the context."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    max_tokens: 1000,
+    temperature: 0.3, // Lower temperature for more consistent, professional styling decisions
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Intelligent Outfit Selection Error:", res.status, errorText);
+      throw new Error("OpenAI intelligent outfit selection failed");
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error("No response from OpenAI");
+    }
+
+    try {
+      // Clean the response
+      let cleanResult = responseText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .replace(/^[^{]*{/, '{')
+        .replace(/}[^}]*$/, '}')
+        .trim();
+
+      const outfitSelection = JSON.parse(cleanResult);
+      console.log("✅ Intelligent outfit selection:", outfitSelection);
+      return outfitSelection;
+    } catch (parseError) {
+      console.error("❌ Failed to parse outfit selection JSON:", parseError);
+      console.error("Raw response:", responseText);
+      return null;
+    }
+
+  } catch (error) {
+    console.error("❌ generateIntelligentOutfitSelection Error:", error);
+    return null;
+  }
+}
