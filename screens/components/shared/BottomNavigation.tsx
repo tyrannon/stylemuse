@@ -21,6 +21,7 @@ interface BottomNavigationProps {
   // Other functions
   pickMultipleImages: () => void;
   openCamera: () => void;
+  openAddItemModal: () => void;
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
   
   // Scroll ref for scroll-to-top functionality
@@ -45,6 +46,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   goBackToOutfits,
   pickMultipleImages,
   openCamera,
+  openAddItemModal,
   triggerHaptic,
   mainScrollViewRef,
   builderShakeValue,
@@ -133,27 +135,16 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Center Buttons (Photo Library + Camera) */}
-      <View style={styles.centerButtonContainer}>
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('medium');
-            pickMultipleImages();
-          }}
-          style={styles.centerButton}
-        >
-          <Text style={styles.centerButtonIcon}>📚</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('medium');
-            openCamera();
-          }}
-          style={styles.centerButton}
-        >
-          <Text style={styles.centerButtonIcon}>📸</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Center Add Button */}
+      <TouchableOpacity
+        onPress={() => {
+          triggerHaptic('medium');
+          openAddItemModal();
+        }}
+        style={styles.centerAddButton}
+      >
+        <Text style={styles.centerAddButtonIcon}>+</Text>
+      </TouchableOpacity>
 
       {/* Outfits Page Button */}
       <TouchableOpacity
@@ -240,27 +231,29 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: 'bold',
   },
-  centerButton: {
-    width: 48,
-    height: 48,
+  centerAddButton: {
+    width: 56,
+    height: 56,
     backgroundColor: '#007AFF',
-    borderRadius: 24,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  centerAddButtonIcon: {
+    fontSize: 32,
+    color: 'white',
+    fontWeight: '300',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 6,
     marginHorizontal: 4,
-  },
-  centerButtonIcon: {
-    fontSize: 24,
-    color: 'white',
-  },
-  centerButtonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   profileButton: {
     width: 48,

@@ -251,13 +251,25 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Item Image */}
+      {/* Item Image or Text-Only Display */}
       <View style={styles.itemDetailImageContainer}>
-        <SafeImage
-          uri={item.image}
-          style={styles.itemDetailImage}
-          resizeMode="contain"
-        />
+        {item.image === 'text-only' ? (
+          <View style={styles.textOnlyImagePlaceholder}>
+            <Text style={styles.textOnlyIcon}>📝</Text>
+            <Text style={styles.textOnlyLabel}>Text Entry Item</Text>
+            <View style={styles.textOnlyDescription}>
+              <Text style={styles.textOnlyDescriptionText}>
+                {item.description || 'No description provided'}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <SafeImage
+            uri={item.image}
+            style={styles.itemDetailImage}
+            resizeMode="contain"
+          />
+        )}
       </View>
 
       {/* Item Information */}
@@ -917,5 +929,40 @@ const styles = StyleSheet.create({
   amazonSuggestionCard: {
     marginRight: 16,
     width: 180,
+  },
+  // Text-only item styles
+  textOnlyImagePlaceholder: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  textOnlyIcon: {
+    fontSize: 48,
+    marginBottom: 10,
+  },
+  textOnlyLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  textOnlyDescription: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 10,
+    maxWidth: '100%',
+  },
+  textOnlyDescriptionText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

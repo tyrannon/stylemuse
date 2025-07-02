@@ -30,6 +30,8 @@ import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../types/StyleAdvice';
 import { EnhancedStyleDNA } from '../types/Avatar';
 import { styles } from './styles/WardrobeUploadScreen.styles';
+import { TextItemEntryModal } from '../components/TextItemEntryModal';
+import { AddItemPage } from './AddItemPage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -103,6 +105,7 @@ const WardrobeUploadScreen = () => {
     showOutfitsPage,
     showProfilePage,
     showAvatarCustomization,
+    showAddItemPage,
     showingItemDetail,
     showingOutfitDetail,
     detailViewItem,
@@ -115,6 +118,7 @@ const WardrobeUploadScreen = () => {
     navigateToOutfits,
     navigateToProfile,
     navigateToAvatarCustomization,
+    navigateToAddItem,
     goBackToProfile,
     goBackToWardrobe,
     goBackToOutfits,
@@ -250,7 +254,6 @@ const WardrobeUploadScreen = () => {
   const [showLaundryAnalytics, setShowLaundryAnalytics] = useState(false);
 
   // State for camera integration
-  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
   const [showCameraScreen, setShowCameraScreen] = useState(false);
   const [showPhotoEditing, setShowPhotoEditing] = useState(false);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
@@ -267,6 +270,9 @@ const WardrobeUploadScreen = () => {
 
   // State for gender selector modal
   const [showGenderSelector, setShowGenderSelector] = useState(false);
+  
+  // State for text-only item entry modal
+  const [showTextItemModal, setShowTextItemModal] = useState(false);
 
   // Animated values are already declared above
 
@@ -676,6 +682,7 @@ const WardrobeUploadScreen = () => {
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
     if (!isBulkUpload) {
       setLoading(true);
+      startSpinAnimation(); // Start spinning animation for single image
       setDescription(null);
       setTitle(null);
       setTags([]);
@@ -759,6 +766,7 @@ const WardrobeUploadScreen = () => {
     } finally {
       if (!isBulkUpload) {
         setLoading(false);
+        stopSpinAnimation(); // Stop spinning animation for single image
       }
     }
   };
@@ -776,6 +784,51 @@ const WardrobeUploadScreen = () => {
     } else {
       // Add to selection
       setSelectedItemsForOutfit(prev => [...prev, imageUri]);
+    }
+  };
+
+  // Function to handle saving text-only items
+  const handleSaveTextItem = async (item: Partial<WardrobeItem>) => {
+    try {
+      // Add unique identifier for text-only items
+      const newItem: WardrobeItem = {
+        image: 'text-only',
+        title: item.title || item.description || 'Untitled Item',
+        description: item.description || '',
+        tags: item.tags || [],
+        color: item.color || '',
+        material: item.material || '',
+        style: item.style || '',
+        fit: item.fit || '',
+        category: item.category || '',
+        laundryStatus: item.laundryStatus || 'clean',
+      };
+
+      // Save to wardrobe
+      setSavedItems(prev => {
+        const newItems = [...prev, newItem];
+        // Save to storage
+        saveWardrobeItems(newItems);
+        return newItems;
+      });
+
+      // Categorize the item
+      const category = categorizeItem(newItem);
+      Alert.alert(
+        'Success! 🎉',
+        `Text item saved to wardrobe!\n📁 Categorized as: ${category.toUpperCase()}`,
+        [
+          { text: 'Done', style: 'default' },
+          { 
+            text: 'Add Another', 
+            style: 'default',
+            onPress: () => setShowTextItemModal(true)
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving text item:', error);
+      Alert.alert('Error', 'Failed to save item. Please try again.');
     }
   };
 
@@ -798,6 +851,7 @@ const WardrobeUploadScreen = () => {
 
     if (!result.canceled && result.assets.length > 0) {
       setBulkUploading(true);
+      startSpinAnimation(); // Start spinning animation for bulk upload
       setBulkProgress({ current: 0, total: result.assets.length });
       
       alert(`Processing ${result.assets.length} images...`);
@@ -816,6 +870,7 @@ const WardrobeUploadScreen = () => {
       }
       
       setBulkUploading(false);
+      stopSpinAnimation(); // Stop spinning animation for bulk upload
       setBulkProgress({ current: 0, total: 0 });
       alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
     }
@@ -827,54 +882,19 @@ const WardrobeUploadScreen = () => {
     setShowCameraScreen(true);
   };
 
-  // Function to handle camera capture
-  const handleCameraCapture = async () => {
-    setShowPhotoSourceModal(false);
-    
-    // Small delay to let modal close completely before launching camera
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+  // Function to open the add item page
+  const openAddItemModal = () => {
+    navigateToAddItem();
+  };
+
+  // Function to handle camera capture from add item page
+  const handleAddItemCameraPress = async () => {
+    // Go to camera screen directly
     setShowCameraScreen(true);
   };
 
-  // Function to handle photo taken from camera
-  const handlePhotoTaken = (photoUri: string) => {
-    setShowCameraScreen(false);
-    setCapturedPhotoUri(photoUri);
-    setShowPhotoEditing(true);
-  };
-
-  // Function to handle photo editing save
-  const handlePhotoEditingSave = async (editedPhotoUri: string) => {
-    setShowPhotoEditing(false);
-    setCapturedPhotoUri(null);
-    
-    // Process the edited photo through AI analysis
-    await handleAutoDescribeAndSave(editedPhotoUri, false);
-  };
-
-  // Function to handle photo editing cancel/retake
-  const handlePhotoEditingRetake = () => {
-    setShowPhotoEditing(false);
-    setShowCameraScreen(true);
-  };
-
-  // Function to handle direct camera photo (skip editing for now)
-  const handleCameraPhotoDirect = async (photoUri: string) => {
-    setShowCameraScreen(false);
-    setCapturedPhotoUri(null);
-    
-    // Process directly through AI analysis (skip editing screen for now to avoid complexity)
-    await handleAutoDescribeAndSave(photoUri, false);
-  };
-
-  // Function to pick images from library with "Add Another" flow for multiple items
+  // Function to pick images from library with "Add Another" flow for single items
   const pickMultipleImagesFromLibrary = async () => {
-    setShowPhotoSourceModal(false);
-    
-    // Small delay to let modal close completely before launching ImagePicker
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       alert('Permission to access media library is required!');
@@ -914,6 +934,54 @@ const WardrobeUploadScreen = () => {
       }
     }
   };
+
+  // Function to handle photo library from add item page (single photo)
+  const handleAddItemPhotoLibraryPress = async () => {
+    await pickMultipleImagesFromLibrary();
+  };
+
+  // Function to handle bulk upload from add item page 
+  const handleAddItemBulkUploadPress = async () => {
+    await pickMultipleImages();
+  };
+
+  // Function to handle text entry from add item page
+  const handleAddItemTextEntryPress = () => {
+    setShowTextItemModal(true);
+  };
+
+
+  // Function to handle photo taken from camera
+  const handlePhotoTaken = (photoUri: string) => {
+    setShowCameraScreen(false);
+    setCapturedPhotoUri(photoUri);
+    setShowPhotoEditing(true);
+  };
+
+  // Function to handle photo editing save
+  const handlePhotoEditingSave = async (editedPhotoUri: string) => {
+    setShowPhotoEditing(false);
+    setCapturedPhotoUri(null);
+    
+    // Process the edited photo through AI analysis
+    await handleAutoDescribeAndSave(editedPhotoUri, false);
+  };
+
+  // Function to handle photo editing cancel/retake
+  const handlePhotoEditingRetake = () => {
+    setShowPhotoEditing(false);
+    setShowCameraScreen(true);
+  };
+
+  // Function to handle direct camera photo (skip editing for now)
+  const handleCameraPhotoDirect = async (photoUri: string) => {
+    setShowCameraScreen(false);
+    setCapturedPhotoUri(null);
+    
+    // Process directly through AI analysis (skip editing screen for now to avoid complexity)
+    await handleAutoDescribeAndSave(photoUri, false);
+  };
+
 
   // Function to generate outfit based on selected items
   // This function will create a new outfit image using the selected items
@@ -2010,11 +2078,25 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 {/* Progress indicator during bulk upload */}
 {bulkUploading && (
-  <View style={{ marginBottom: 20, alignItems: 'center', padding: 15, backgroundColor: '#f8f9fa', borderRadius: 12, marginHorizontal: 20 }}>
-    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#007AFF' }}>
+  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
+    {/* Spinning Icon */}
+    <Animated.View
+      style={{
+        transform: [{
+          rotate: spinValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg']
+          })
+        }]
+      }}
+    >
+      <Text style={{ fontSize: 48, marginBottom: 15 }}>📚</Text>
+    </Animated.View>
+    
+    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#007AFF' }}>
       Processing images... ✨
     </Text>
-    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 10 }}>
+    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 15 }}>
       {bulkProgress.current} of {bulkProgress.total}
     </Text>
     <View style={{
@@ -2932,7 +3014,42 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
 
-{loading && <Text>Analyzing with AI...</Text>}
+{/* Spinning animation and loading text for single image AI analysis */}
+{loading && (
+  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
+    {/* Spinning Icon */}
+    <Animated.View
+      style={{
+        transform: [{
+          rotate: spinValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg']
+          })
+        }]
+      }}
+    >
+      <Text style={{ fontSize: 48, marginBottom: 15 }}>🤖</Text>
+    </Animated.View>
+    
+    {/* Loading Text */}
+    <Text style={{
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#007AFF',
+      textAlign: 'center',
+      marginBottom: 5
+    }}>
+      Analyzing with AI...
+    </Text>
+    <Text style={{
+      fontSize: 14,
+      color: '#666',
+      textAlign: 'center'
+    }}>
+      AI is identifying colors, materials, and style
+    </Text>
+  </View>
+)}
 
 
 
@@ -3706,6 +3823,16 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   />
 )}
 
+{/* Add Item Page */}
+{showAddItemPage && (
+  <AddItemPage
+    onCameraPress={handleAddItemCameraPress}
+    onPhotoLibraryPress={handleAddItemPhotoLibraryPress}
+    onBulkUploadPress={handleAddItemBulkUploadPress}
+    onTextEntryPress={handleAddItemTextEntryPress}
+  />
+)}
+
 
         </ScrollView>
       </View>
@@ -3725,6 +3852,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         goBackToOutfits={goBackToOutfits}
         pickMultipleImages={pickMultipleImages}
         openCamera={openCamera}
+        openAddItemModal={openAddItemModal}
         triggerHaptic={triggerHaptic}
         mainScrollViewRef={mainScrollViewRef}
         builderShakeValue={builderShakeValue}
@@ -3909,52 +4037,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         </Pressable>
       </Modal>
 
-      {/* Photo Source Selection Modal */}
-      <Modal
-        visible={showPhotoSourceModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowPhotoSourceModal(false)}
-      >
-        <Pressable
-          style={styles.photoSourceModalOverlay}
-          onPress={() => setShowPhotoSourceModal(false)}
-        >
-          <Pressable style={styles.photoSourceModalContent} onPress={() => {}}>
-            <Text style={styles.photoSourceModalTitle}>Add Photos</Text>
-            <Text style={styles.photoSourceModalSubtitle}>Choose how you want to add photos to your wardrobe</Text>
-            
-            <TouchableOpacity
-              style={styles.photoSourceOption}
-              onPress={handleCameraCapture}
-            >
-              <Text style={styles.photoSourceOptionIcon}>📸</Text>
-              <View style={styles.photoSourceOptionText}>
-                <Text style={styles.photoSourceOptionTitle}>Camera</Text>
-                <Text style={styles.photoSourceOptionSubtitle}>Take a single photo</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.photoSourceOption}
-              onPress={pickMultipleImagesFromLibrary}
-            >
-              <Text style={styles.photoSourceOptionIcon}>📚</Text>
-              <View style={styles.photoSourceOptionText}>
-                <Text style={styles.photoSourceOptionTitle}>Photo Library</Text>
-                <Text style={styles.photoSourceOptionSubtitle}>Add photos one by one with "Add Another" option</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.photoSourceCancelButton}
-              onPress={() => setShowPhotoSourceModal(false)}
-            >
-              <Text style={styles.photoSourceCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Camera Screen */}
       {showCameraScreen && (
@@ -3985,6 +4067,14 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         visible={showSmartSuggestionModal}
         onClose={() => setShowSmartSuggestionModal(false)}
         onSuggestionsGenerated={handleSmartSuggestionsGenerated}
+      />
+
+      {/* Text Item Entry Modal */}
+      <TextItemEntryModal
+        visible={showTextItemModal}
+        onClose={() => setShowTextItemModal(false)}
+        onSave={handleSaveTextItem}
+        categories={AVAILABLE_CATEGORIES}
       />
     </SafeAreaView>
   );

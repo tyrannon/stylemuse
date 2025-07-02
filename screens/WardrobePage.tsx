@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView } from 'react-native';
 import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import { LaundryAnalytics } from './components/LaundryAnalytics';
+import { TextItemCard } from '../components/TextItemCard';
 
 interface WardrobePageProps {
   savedItems: WardrobeItem[];
@@ -151,75 +152,112 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         </View>
       )}
       
-      <View style={styles.wardrobeInventoryGrid}>
-        {getSortedAndFilteredItems().map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            onPress={() => openWardrobeItemView(item)}
-            style={styles.wardrobeInventoryItem}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={{ uri: item.image }}
-              style={styles.wardrobeInventoryItemImage}
-              resizeMode="cover"
-            />
-            
-            <View style={styles.wardrobeInventoryItemInfo}>
-              <Text 
-                style={styles.wardrobeInventoryItemTitle}
-                numberOfLines={2}
-              >
-                {item.title || 'Untitled Item'}
-              </Text>
-              
-              <View style={styles.wardrobeInventoryItemTags}>
-                {item.tags?.slice(0, 3).map((tag, tagIndex) => (
-                  <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
-                    <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
-              
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>
-                  {categorizeItem(item).toUpperCase()}
-                </Text>
-              </View>
-              
-              {/* Laundry Status Indicator */}
-              {(() => {
-                const statusDisplay = getLaundryStatusDisplay(item.laundryStatus);
-                return (
-                  <View style={[styles.laundryStatusBadge, { backgroundColor: statusDisplay.color }]}>
-                    <Text style={styles.laundryStatusEmoji}>{statusDisplay.emoji}</Text>
-                    <Text style={styles.laundryStatusText}>{statusDisplay.text}</Text>
-                  </View>
-                );
-              })()}
-              
-              {/* Outfit Suggestions Button */}
+      <ScrollView style={styles.wardrobeScrollView} showsVerticalScrollIndicator={false}>
+        {/* Show text-only items first if they exist */}
+        {getSortedAndFilteredItems().filter(item => item.image === 'text-only').length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>📝 Text Items</Text>
+            {getSortedAndFilteredItems()
+              .filter(item => item.image === 'text-only')
+              .map((item, index) => (
+                <TextItemCard
+                  key={`text-${index}`}
+                  item={item}
+                  onPress={() => openWardrobeItemView(item)}
+                  category={categorizeItem(item)}
+                  laundryStatus={getLaundryStatusDisplay(item.laundryStatus)}
+                />
+              ))}
+          </View>
+        )}
+        
+        {/* Regular photo items in grid */}
+        <View style={styles.wardrobeInventoryGrid}>
+          {getSortedAndFilteredItems()
+            .filter(item => item.image !== 'text-only')
+            .map((item, index) => (
               <TouchableOpacity
-                onPress={() => generateOutfitSuggestions(item)}
-                style={styles.outfitSuggestionsButton}
+                key={`photo-${index}`}
+                onPress={() => openWardrobeItemView(item)}
+                style={styles.wardrobeInventoryItem}
+                activeOpacity={0.7}
               >
-                <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+                <Image
+                  source={{ uri: item.image }}
+                  style={styles.wardrobeInventoryItemImage}
+                  resizeMode="cover"
+                />
+                
+                <View style={styles.wardrobeInventoryItemInfo}>
+                  <Text 
+                    style={styles.wardrobeInventoryItemTitle}
+                    numberOfLines={2}
+                  >
+                    {item.title || 'Untitled Item'}
+                  </Text>
+                  
+                  <View style={styles.wardrobeInventoryItemTags}>
+                    {item.tags?.slice(0, 3).map((tag, tagIndex) => (
+                      <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
+                        <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>
+                      {categorizeItem(item).toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  {/* Laundry Status Indicator */}
+                  {(() => {
+                    const statusDisplay = getLaundryStatusDisplay(item.laundryStatus);
+                    return (
+                      <View style={[styles.laundryStatusBadge, { backgroundColor: statusDisplay.color }]}>
+                        <Text style={styles.laundryStatusEmoji}>{statusDisplay.emoji}</Text>
+                        <Text style={styles.laundryStatusText}>{statusDisplay.text}</Text>
+                      </View>
+                    );
+                  })()}
+                  
+                  {/* Outfit Suggestions Button */}
+                  <TouchableOpacity
+                    onPress={() => generateOutfitSuggestions(item)}
+                    style={styles.outfitSuggestionsButton}
+                  >
+                    <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Edit indicator */}
+                  <View style={styles.editIndicator}>
+                    <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
+                  </View>
+                </View>
               </TouchableOpacity>
-              
-              {/* Edit indicator */}
-              <View style={styles.editIndicator}>
-                <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+            ))}
+        </View>
+        <View style={{ height: 20 }} />
+      </ScrollView>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wardrobeScrollView: {
+    flex: 1,
+  },
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginHorizontal: 20,
+    marginBottom: 10,
+    color: '#333',
+  },
   emptyWardrobeContainer: {
     backgroundColor: '#f8f9fa',
     borderRadius: 16,

@@ -8,6 +8,7 @@ export const useNavigationState = () => {
   const [showOutfitsPage, setShowOutfitsPage] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
   const [showAvatarCustomization, setShowAvatarCustomization] = useState(false);
+  const [showAddItemPage, setShowAddItemPage] = useState(false);
   
   // Detail view states
   const [showingItemDetail, setShowingItemDetail] = useState(false);
@@ -48,6 +49,7 @@ export const useNavigationState = () => {
     setShowProfilePage(false);
     setShowOutfitsPage(false);
     setShowAvatarCustomization(false);
+    setShowAddItemPage(false);
     closeAllDetails();
   };
 
@@ -58,6 +60,7 @@ export const useNavigationState = () => {
     setShowProfilePage(false);
     setShowOutfitsPage(false);
     setShowAvatarCustomization(false);
+    setShowAddItemPage(false);
     closeAllDetails();
   };
 
@@ -68,6 +71,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowAvatarCustomization(false);
+    setShowAddItemPage(false);
     closeAllDetails();
   };
 
@@ -78,6 +82,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowOutfitsPage(false);
     setShowAvatarCustomization(false);
+    setShowAddItemPage(false);
     closeAllDetails();
   };
 
@@ -88,6 +93,18 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
+    setShowAddItemPage(false);
+    closeAllDetails();
+  };
+
+  const navigateToAddItem = () => {
+    setShowAddItemPage(true);
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowProfilePage(false);
+    setShowOutfitsPage(false);
+    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
@@ -148,6 +165,8 @@ export const useNavigationState = () => {
     setShowProfilePage,
     showAvatarCustomization,
     setShowAvatarCustomization,
+    showAddItemPage,
+    setShowAddItemPage,
     
     // Detail views
     showingItemDetail,
@@ -207,6 +226,7 @@ export const useNavigationState = () => {
     navigateToOutfits,
     navigateToProfile,
     navigateToAvatarCustomization,
+    navigateToAddItem,
     goBackToProfile,
     closeAllDetails,
     openItemDetail,
