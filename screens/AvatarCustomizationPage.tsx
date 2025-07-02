@@ -33,6 +33,8 @@ export const AvatarCustomizationPage: React.FC<AvatarCustomizationPageProps> = (
   const [activeSection, setActiveSection] = useState<string>('personal');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+  const [isLoadingCached, setIsLoadingCached] = useState(false);
+  const [avatarLoadingMessage, setAvatarLoadingMessage] = useState('');
 
   useEffect(() => {
     if (currentStyleDNA) {
@@ -136,12 +138,26 @@ export const AvatarCustomizationPage: React.FC<AvatarCustomizationPageProps> = (
   };
 
   const handleSave = async () => {
-    setIsGeneratingAvatar(true);
+    setIsLoadingCached(true);
+    setAvatarLoadingMessage('🔍 Checking for cached avatar...');
     
     try {
       // Generate avatar image based on customization
+      const startTime = Date.now();
       const avatarImageUrl = await generateAvatarImage(styleDNA, selectedGender);
-      console.log('✅ Generated avatar URL:', avatarImageUrl ? 'Success' : 'Failed');
+      const loadTime = Date.now() - startTime;
+      
+      // If it took less than 500ms, it was likely cached
+      if (loadTime < 500 && avatarImageUrl) {
+        setAvatarLoadingMessage('⚡ Found cached avatar!');
+        await new Promise(resolve => setTimeout(resolve, 200)); // Brief moment to show the message
+      } else if (avatarImageUrl) {
+        setIsLoadingCached(false);
+        setIsGeneratingAvatar(true);
+        setAvatarLoadingMessage('🎨 Generated fresh avatar!');
+      }
+      
+      console.log('✅ Avatar ready:', avatarImageUrl ? 'Success' : 'Failed', `(${loadTime}ms)`);
       
       const updatedStyleDNA = {
         ...styleDNA,
@@ -169,6 +185,8 @@ export const AvatarCustomizationPage: React.FC<AvatarCustomizationPageProps> = (
       onBack();
     } finally {
       setIsGeneratingAvatar(false);
+      setIsLoadingCached(false);
+      setAvatarLoadingMessage('');
     }
   };
 
@@ -616,11 +634,13 @@ export const AvatarCustomizationPage: React.FC<AvatarCustomizationPageProps> = (
           <Text style={styles.headerTitle}>Customize Avatar</Text>
           <TouchableOpacity 
             onPress={handleSave} 
-            style={[styles.saveButton, isGeneratingAvatar && styles.saveButtonDisabled]}
-            disabled={isGeneratingAvatar}
+            style={[styles.saveButton, (isGeneratingAvatar || isLoadingCached) && styles.saveButtonDisabled]}
+            disabled={isGeneratingAvatar || isLoadingCached}
           >
             <Text style={styles.saveButtonText}>
-              {isGeneratingAvatar ? '🎨 Generating...' : 'Save'}
+              {avatarLoadingMessage || 
+               (isGeneratingAvatar ? '🎨 Generating...' : 
+                isLoadingCached ? '⚡ Loading...' : 'Save')}
             </Text>
           </TouchableOpacity>
         </View>
