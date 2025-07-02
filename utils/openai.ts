@@ -439,6 +439,78 @@ Style: Contemporary fashion photography showcasing excellent outfit coordination
   }
 }
 
+// Generate Image for Text-Only Clothing Items
+
+/**
+ * Generate a product-style image for a text-only clothing item
+ */
+export async function generateClothingItemImage(item: any): Promise<string | null> {
+  if (!OPENAI_API_KEY) {
+    console.warn("⚠️ OpenAI API key not found for clothing item image generation");
+    return null;
+  }
+
+  console.log('🎨 Generating image for clothing item:', item.title || item.description);
+
+  // Build detailed prompt for the clothing item
+  const itemPrompt = `Create a high-quality, professional product photograph of ${item.description || item.title}.
+
+Details:
+- Item: ${item.title || item.description}
+- Category: ${item.category || 'clothing'}
+${item.color ? `- Color: ${item.color}` : ''}
+${item.material ? `- Material: ${item.material}` : ''}
+${item.style ? `- Style: ${item.style}` : ''}
+${item.fit ? `- Fit/Size: ${item.fit}` : ''}
+${item.tags?.filter(tag => !tag.includes('brand:') && tag !== 'text-entry').join(', ') ? `- Additional details: ${item.tags.filter(tag => !tag.includes('brand:') && tag !== 'text-entry').join(', ')}` : ''}
+
+Photography requirements:
+- Clean white or light gray background
+- Professional product photography lighting
+- Item displayed on mannequin or laid flat (whichever shows the item best)
+- High resolution, sharp focus, detailed texture
+- Commercial product photography style
+- Show the item clearly from front view
+- Natural colors that accurately represent the ${item.color || 'described'} color
+- No people, just the clothing item itself
+- Studio lighting that highlights material texture and details
+
+Style: Professional e-commerce product photography, clean, commercial, high-quality.`;
+
+  const payload = {
+    model: "dall-e-3",
+    prompt: itemPrompt,
+    n: 1,
+    size: "1024x1024",
+    quality: "standard",
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Clothing Item Image Error:", res.status, errorText);
+      throw new Error("OpenAI clothing item image generation failed");
+    }
+
+    const json = await res.json();
+    console.log("✅ Clothing item image generated successfully");
+    
+    return json?.data?.[0]?.url ?? null;
+  } catch (error) {
+    console.error("❌ generateClothingItemImage Error:", error);
+    throw error;
+  }
+}
+
 // Style Advice AI Functions
 
 /**

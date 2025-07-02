@@ -7,6 +7,7 @@ import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../../types/StyleAdvice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { generateClothingItemImage } from '../../utils/openai';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -88,6 +89,10 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   const [loadingAmazon, setLoadingAmazon] = useState(false);
   const [showAmazonSuggestions, setShowAmazonSuggestions] = useState(false);
   const [lastSearchTimestamp, setLastSearchTimestamp] = useState<Date | null>(null);
+  
+  // Image generation state
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
   const { getItemRecommendations } = useStyleRecommendations();
 
@@ -139,6 +144,36 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
       await AsyncStorage.setItem(ITEM_STORAGE_KEYS.SEARCH_TIMESTAMP, new Date().toISOString());
     } catch (error) {
       console.error('Error saving Amazon suggestions:', error);
+    }
+  };
+
+  // Generate image for text-only items
+  const handleGenerateImage = async () => {
+    if (isGeneratingImage) return;
+
+    setIsGeneratingImage(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      console.log('🎨 Generating image for item:', item.title || item.description);
+      const imageUrl = await generateClothingItemImage(item);
+      
+      if (imageUrl) {
+        setGeneratedImageUrl(imageUrl);
+        // Update the item with the generated image
+        await onSaveField('image', imageUrl);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        console.log('✅ Image generated and saved successfully');
+      } else {
+        Alert.alert('Generation Failed', 'Unable to generate image. Please try again.');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      Alert.alert('Error', 'Failed to generate image. Please check your connection and try again.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -262,10 +297,26 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                 {item.description || 'No description provided'}
               </Text>
             </View>
+            
+            {/* Generate Image Button */}
+            <TouchableOpacity
+              onPress={handleGenerateImage}
+              disabled={isGeneratingImage}
+              style={[styles.generateImageButton, isGeneratingImage && styles.generateImageButtonDisabled]}
+            >
+              {isGeneratingImage ? (
+                <View style={styles.generateImageLoading}>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.generateImageButtonText}>🎨 Generating...</Text>
+                </View>
+              ) : (
+                <Text style={styles.generateImageButtonText}>📸 Generate Image</Text>
+              )}
+            </TouchableOpacity>
           </View>
         ) : (
           <SafeImage
-            uri={item.image}
+            uri={generatedImageUrl || item.image}
             style={styles.itemDetailImage}
             resizeMode="contain"
           />
@@ -964,5 +1015,34 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // Generate image button styles
+  generateImageButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  generateImageButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
+  },
+  generateImageButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  generateImageLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });
