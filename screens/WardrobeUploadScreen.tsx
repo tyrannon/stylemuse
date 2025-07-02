@@ -683,7 +683,9 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle image generation for wardrobe items
   const handleGenerateItemImage = async (item: WardrobeItem) => {
-    setGeneratingImageForItem(item.image);
+    // Create a unique identifier for this item
+    const itemId = `${item.title || item.description}_${item.category}_${item.color}_${Date.now()}`;
+    setGeneratingImageForItem(itemId);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
@@ -691,11 +693,22 @@ const WardrobeUploadScreen = () => {
       const imageUrl = await generateClothingItemImage(item);
       
       if (imageUrl) {
-        // Update the item with the generated image
-        const updatedItem = { ...item, image: imageUrl };
-        const updatedItems = savedItems.map(savedItem => 
-          savedItem.image === item.image ? updatedItem : savedItem
-        );
+        // Download and save the image to device storage
+        const savedImagePath = await downloadAndSaveImage(imageUrl, itemId);
+        const finalImagePath = savedImagePath || imageUrl;
+        
+        // Update the item with the generated/saved image
+        const updatedItem = { ...item, image: finalImagePath };
+        const updatedItems = savedItems.map(savedItem => {
+          // Find the item by comparing multiple fields since image might be the same for text-only items
+          if (savedItem.title === item.title && 
+              savedItem.description === item.description && 
+              savedItem.category === item.category &&
+              savedItem.image === item.image) {
+            return updatedItem;
+          }
+          return savedItem;
+        });
         setSavedItems(updatedItems);
         
         // Save to AsyncStorage
@@ -713,6 +726,29 @@ const WardrobeUploadScreen = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setGeneratingImageForItem(null);
+    }
+  };
+
+  // Function to download and save generated images to device storage
+  const downloadAndSaveImage = async (imageUrl: string, itemId: string): Promise<string | null> => {
+    try {
+      const fileName = `generated_item_${itemId.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      console.log('⬇️ Downloading generated image to:', fileUri);
+      
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+      
+      if (downloadResult.status === 200) {
+        console.log('✅ Image saved to device storage:', fileUri);
+        return fileUri;
+      } else {
+        console.error('❌ Failed to download image:', downloadResult.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error downloading and saving image:', error);
+      return null;
     }
   };
 
@@ -3326,8 +3362,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
-    onGenerateItemImage={handleGenerateItemImage}
-    generatingImageForItem={generatingImageForItem}
   />
 )}
 

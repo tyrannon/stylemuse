@@ -26,9 +26,6 @@ interface WardrobePageProps {
   getLaundryStats: () => any;
   getSmartWashSuggestions: () => any;
   getItemsByLaundryStatus: (status: LaundryStatus) => WardrobeItem[];
-  // Image generation
-  onGenerateItemImage?: (item: WardrobeItem) => void;
-  generatingImageForItem?: string | null;
 }
 
 // Helper function to get laundry status display info
@@ -51,82 +48,6 @@ const getLaundryStatusDisplay = (status: LaundryStatus | undefined) => {
   }
 };
 
-// Component for regular wardrobe items with generate image fallback
-const WardrobeItemCard: React.FC<{
-  item: WardrobeItem;
-  onPress: () => void;
-  onGenerateImage?: (item: WardrobeItem) => void;
-  isGeneratingImage?: boolean;
-}> = ({ item, onPress, onGenerateImage, isGeneratingImage = false }) => {
-  const [imageError, setImageError] = useState(false);
-
-  const handleGenerateImage = async (e: any) => {
-    e.stopPropagation();
-    if (onGenerateImage && !isGeneratingImage) {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onGenerateImage(item);
-    }
-  };
-
-  const showGenerateButton = (imageError || !item.image || item.image === '') && onGenerateImage;
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.wardrobeInventoryItem}
-      activeOpacity={0.7}
-    >
-      {showGenerateButton ? (
-        <View style={styles.missingImagePlaceholder}>
-          <Text style={styles.missingImageIcon}>👔</Text>
-          <Text style={styles.missingImageText}>No Image</Text>
-          <TouchableOpacity
-            onPress={handleGenerateImage}
-            style={[styles.generateImageButton, isGeneratingImage && styles.generateImageButtonDisabled]}
-            disabled={isGeneratingImage}
-          >
-            {isGeneratingImage ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={styles.generateImageButtonIcon}>📸</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <Image
-          source={{ uri: item.image }}
-          style={styles.wardrobeInventoryItemImage}
-          resizeMode="cover"
-          onError={() => setImageError(true)}
-        />
-      )}
-      
-      <View style={styles.wardrobeInventoryItemInfo}>
-        <Text 
-          style={styles.wardrobeInventoryItemTitle}
-          numberOfLines={2}
-        >
-          {item.title || 'Untitled Item'}
-        </Text>
-        
-        <View style={styles.wardrobeInventoryItemTags}>
-          {item.tags?.slice(0, 3).map((tag, tagIndex) => (
-            <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
-              <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-        
-        {item.laundryStatus && item.laundryStatus !== 'clean' && (
-          <View style={[styles.laundryStatusBadge, { backgroundColor: getLaundryStatusDisplay(item.laundryStatus).color }]}>
-            <Text style={styles.laundryStatusEmoji}>{getLaundryStatusDisplay(item.laundryStatus).emoji}</Text>
-            <Text style={styles.laundryStatusText}>{getLaundryStatusDisplay(item.laundryStatus).text}</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 export const WardrobePage: React.FC<WardrobePageProps> = ({
   savedItems,
@@ -148,8 +69,6 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   getLaundryStats,
   getSmartWashSuggestions,
   getItemsByLaundryStatus,
-  onGenerateItemImage,
-  generatingImageForItem,
 }) => {
   if (savedItems.length === 0) {
     return (
@@ -249,8 +168,6 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                   onPress={() => openWardrobeItemView(item)}
                   category={categorizeItem(item)}
                   laundryStatus={getLaundryStatusDisplay(item.laundryStatus)}
-                  onGenerateImage={onGenerateItemImage}
-                  isGeneratingImage={generatingImageForItem === item.image}
                 />
               ))}
           </View>
@@ -261,13 +178,65 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           {getSortedAndFilteredItems()
             .filter(item => item.image !== 'text-only')
             .map((item, index) => (
-              <WardrobeItemCard
+              <TouchableOpacity
                 key={`photo-${index}`}
-                item={item}
                 onPress={() => openWardrobeItemView(item)}
-                onGenerateImage={onGenerateItemImage}
-                isGeneratingImage={generatingImageForItem === item.image}
-              />
+                style={styles.wardrobeInventoryItem}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={{ uri: item.image }}
+                  style={styles.wardrobeInventoryItemImage}
+                  resizeMode="cover"
+                />
+                
+                <View style={styles.wardrobeInventoryItemInfo}>
+                  <Text 
+                    style={styles.wardrobeInventoryItemTitle}
+                    numberOfLines={2}
+                  >
+                    {item.title || 'Untitled Item'}
+                  </Text>
+                  
+                  <View style={styles.wardrobeInventoryItemTags}>
+                    {item.tags?.slice(0, 3).map((tag, tagIndex) => (
+                      <View key={tagIndex} style={styles.wardrobeInventoryItemTag}>
+                        <Text style={styles.wardrobeInventoryItemTagText}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>
+                      {categorizeItem(item).toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  {/* Laundry Status Indicator */}
+                  {(() => {
+                    const statusDisplay = getLaundryStatusDisplay(item.laundryStatus);
+                    return (
+                      <View style={[styles.laundryStatusBadge, { backgroundColor: statusDisplay.color }]}>
+                        <Text style={styles.laundryStatusEmoji}>{statusDisplay.emoji}</Text>
+                        <Text style={styles.laundryStatusText}>{statusDisplay.text}</Text>
+                      </View>
+                    );
+                  })()}
+                  
+                  {/* Outfit Suggestions Button */}
+                  <TouchableOpacity
+                    onPress={() => generateOutfitSuggestions(item)}
+                    style={styles.outfitSuggestionsButton}
+                  >
+                    <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Edit indicator */}
+                  <View style={styles.editIndicator}>
+                    <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
             ))}
         </View>
         <View style={{ height: 20 }} />
@@ -474,49 +443,5 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: 'white',
-  },
-  // Missing image placeholder styles
-  missingImagePlaceholder: {
-    height: 120,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e9ecef',
-    borderStyle: 'dashed',
-    position: 'relative',
-  },
-  missingImageIcon: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  missingImageText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  generateImageButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    backgroundColor: '#007AFF',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  generateImageButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
-  },
-  generateImageButtonIcon: {
-    fontSize: 14,
   },
 });

@@ -8,6 +8,7 @@ import { StyleRecommendation } from '../../types/StyleAdvice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { generateClothingItemImage } from '../../utils/openai';
+import * as FileSystem from 'expo-file-system';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -147,6 +148,29 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     }
   };
 
+  // Function to download and save generated images to device storage
+  const downloadAndSaveImage = async (imageUrl: string, itemId: string): Promise<string | null> => {
+    try {
+      const fileName = `generated_item_${itemId.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      console.log('⬇️ Downloading generated image to:', fileUri);
+      
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+      
+      if (downloadResult.status === 200) {
+        console.log('✅ Image saved to device storage:', fileUri);
+        return fileUri;
+      } else {
+        console.error('❌ Failed to download image:', downloadResult.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error downloading and saving image:', error);
+      return null;
+    }
+  };
+
   // Generate image for text-only items
   const handleGenerateImage = async () => {
     if (isGeneratingImage) return;
@@ -159,9 +183,16 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
       const imageUrl = await generateClothingItemImage(item);
       
       if (imageUrl) {
-        setGeneratedImageUrl(imageUrl);
-        // Update the item with the generated image
-        await onSaveField('image', imageUrl);
+        // Create a unique identifier for this item
+        const itemId = `${item.title || item.description}_${item.category}_${item.color}_${Date.now()}`;
+        
+        // Download and save the image to device storage
+        const savedImagePath = await downloadAndSaveImage(imageUrl, itemId);
+        const finalImagePath = savedImagePath || imageUrl;
+        
+        setGeneratedImageUrl(finalImagePath);
+        // Update the item with the generated/saved image
+        await onSaveField('image', finalImagePath);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         console.log('✅ Image generated and saved successfully');
       } else {
