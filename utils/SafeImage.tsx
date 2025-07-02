@@ -25,6 +25,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
     uri.trim() !== '' && 
     (uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('/'));
 
+
   const getCategoryIcon = (cat?: string) => {
     if (!cat) return '👔';
     

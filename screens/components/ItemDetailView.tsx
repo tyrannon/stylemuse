@@ -7,8 +7,6 @@ import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../../types/StyleAdvice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { generateClothingItemImage } from '../../utils/openai';
-import * as FileSystem from 'expo-file-system';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -91,9 +89,8 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   const [showAmazonSuggestions, setShowAmazonSuggestions] = useState(false);
   const [lastSearchTimestamp, setLastSearchTimestamp] = useState<Date | null>(null);
   
-  // Image generation state
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  // Image state
+  const [imageError, setImageError] = useState(false);
 
   const { getItemRecommendations } = useStyleRecommendations();
 
@@ -107,6 +104,11 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   useEffect(() => {
     loadCachedAmazonSuggestions();
   }, [item]);
+
+  // Reset image error when item changes
+  useEffect(() => {
+    setImageError(false);
+  }, [item.image]);
 
   const loadCachedAmazonSuggestions = async () => {
     try {
@@ -148,65 +150,8 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     }
   };
 
-  // Function to download and save generated images to device storage
-  const downloadAndSaveImage = async (imageUrl: string, itemId: string): Promise<string | null> => {
-    try {
-      const fileName = `generated_item_${itemId.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
-      console.log('⬇️ Downloading generated image to:', fileUri);
-      
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
-      
-      if (downloadResult.status === 200) {
-        console.log('✅ Image saved to device storage:', fileUri);
-        return fileUri;
-      } else {
-        console.error('❌ Failed to download image:', downloadResult.status);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error downloading and saving image:', error);
-      return null;
-    }
-  };
 
-  // Generate image for text-only items
-  const handleGenerateImage = async () => {
-    if (isGeneratingImage) return;
 
-    setIsGeneratingImage(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      console.log('🎨 Generating image for item:', item.title || item.description);
-      const imageUrl = await generateClothingItemImage(item);
-      
-      if (imageUrl) {
-        // Create a unique identifier for this item
-        const itemId = `${item.title || item.description}_${item.category}_${item.color}_${Date.now()}`;
-        
-        // Download and save the image to device storage
-        const savedImagePath = await downloadAndSaveImage(imageUrl, itemId);
-        const finalImagePath = savedImagePath || imageUrl;
-        
-        setGeneratedImageUrl(finalImagePath);
-        // Update the item with the generated/saved image
-        await onSaveField('image', finalImagePath);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        console.log('✅ Image generated and saved successfully');
-      } else {
-        Alert.alert('Generation Failed', 'Unable to generate image. Please try again.');
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      Alert.alert('Error', 'Failed to generate image. Please check your connection and try again.');
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
 
   const findSimilarOnAmazon = async () => {
     if (loadingAmazon) return;
@@ -317,42 +262,25 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Item Image or Text-Only Display */}
+      {/* Item Image Display */}
       <View style={styles.itemDetailImageContainer}>
-        {item.image === 'text-only' ? (
-          <View style={styles.textOnlyImagePlaceholder}>
-            <Text style={styles.textOnlyIcon}>📝</Text>
-            <Text style={styles.textOnlyLabel}>Text Entry Item</Text>
-            <View style={styles.textOnlyDescription}>
-              <Text style={styles.textOnlyDescriptionText}>
-                {item.description || 'No description provided'}
-              </Text>
-            </View>
-            
-            {/* Generate Image Button */}
-            <TouchableOpacity
-              onPress={handleGenerateImage}
-              disabled={isGeneratingImage}
-              style={[styles.generateImageButton, isGeneratingImage && styles.generateImageButtonDisabled]}
-            >
-              {isGeneratingImage ? (
-                <View style={styles.generateImageLoading}>
-                  <ActivityIndicator size="small" color="white" />
-                  <Text style={styles.generateImageButtonText}>🎨 Generating...</Text>
-                </View>
-              ) : (
-                <Text style={styles.generateImageButtonText}>📸 Generate Image</Text>
-              )}
-            </TouchableOpacity>
+        {imageError || !item.image || item.image === '' || item.image === 'text-only' ? (
+          <View style={styles.missingImagePlaceholder}>
+            <Text style={styles.missingImageIcon}>👔</Text>
+            <Text style={styles.missingImageText}>No Image Available</Text>
           </View>
         ) : (
           <SafeImage
-            uri={generatedImageUrl || item.image}
+            uri={item.image}
             style={styles.itemDetailImage}
             resizeMode="contain"
+            placeholder="item"
+            category={categorizeItem(item)}
+            onError={() => setImageError(true)}
           />
         )}
       </View>
+
 
       {/* Item Information */}
       <View style={styles.itemDetailInfo}>
@@ -646,9 +574,9 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             ]}
           >
             {loadingAmazon ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 4 }} />
-                <Text style={styles.itemDetailActionButtonText}>Searching...</Text>
+              <View style={styles.smartSuggestionsLoading}>
+                <ActivityIndicator size="small" color="white" />
+                <Text style={styles.itemDetailActionButtonText}>🔍 Finding Similar Items...</Text>
               </View>
             ) : (
               <Text style={styles.itemDetailActionButtonText}>
@@ -678,9 +606,14 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                 disabled={loadingAmazon}
                 style={styles.refreshAmazonButton}
               >
-                <Text style={styles.refreshAmazonButtonText}>
-                  {loadingAmazon ? '🔄 Refreshing...' : '🔄 Refresh'}
-                </Text>
+                {loadingAmazon ? (
+                  <View style={styles.refreshLoadingContainer}>
+                    <ActivityIndicator size="small" color="#666" />
+                    <Text style={styles.refreshAmazonButtonText}>Refreshing...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.refreshAmazonButtonText}>🔄 Refresh</Text>
+                )}
               </TouchableOpacity>
             </View>
             
@@ -962,6 +895,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  smartSuggestionsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   amazonSuggestionsSection: {
     marginTop: 30,
     paddingTop: 20,
@@ -1001,6 +940,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontWeight: '600',
+  },
+  refreshLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   amazonSuggestionsScroll: {
     marginHorizontal: -20,
@@ -1047,33 +991,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  // Generate image button styles
-  generateImageButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 15,
+  // Regular image container styles
+  regularImageContainer: {
+    flex: 1,
+  },
+  missingImagePlaceholder: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+    minHeight: 200,
+  },
+  missingImageIcon: {
+    fontSize: 64,
+    marginBottom: 15,
+  },
+  missingImageText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 20,
+  },
+  imageWithGenerateContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  generateOverlayButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(0, 122, 255, 0.9)',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 6,
   },
-  generateImageButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
-  },
-  generateImageButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  generateImageLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  generateOverlayButtonText: {
+    fontSize: 20,
   },
 });

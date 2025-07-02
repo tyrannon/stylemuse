@@ -658,6 +658,7 @@ const WardrobeUploadScreen = () => {
     }
   }, [showingItemDetail, detailViewItem]);
 
+
   // Function to pick a single image from the library
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1792,7 +1793,15 @@ const WardrobeUploadScreen = () => {
   };
 
   // Function to generate outfit suggestions based on a selected item
-  const generateOutfitSuggestions = (selectedItem: any) => {
+  const generateOutfitSuggestions = async (selectedItem: any) => {
+    try {
+      // Close current detail view and show loading
+      goBackToWardrobe();
+      setGeneratingOutfit(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Add a small delay to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 1500));
     const itemCategory = categorizeItem(selectedItem);
     const suggestions = {
       top: null,
@@ -1923,6 +1932,12 @@ const WardrobeUploadScreen = () => {
     setSelectedSlot(null);
     
     alert(`✨ Outfit suggestion created! I've filled ${suggestedCount} slots with items that work well with your ${selectedItem.title || 'selected item'}! 🎨`);
+    } catch (error) {
+      console.error('Error generating outfit suggestions:', error);
+      alert('Failed to generate outfit suggestions. Please try again.');
+    } finally {
+      setGeneratingOutfit(false);
+    }
   };
 
   // Function to get sorted and filtered wardrobe items
@@ -3367,473 +3382,41 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 {/* Item Detail View */}
 {showingItemDetail && detailViewItem && (
-  <View style={styles.itemDetailContainer}>
-    {/* Header with back button */}
-    <View style={styles.itemDetailHeader}>
-      <TouchableOpacity
-        onPress={goBackToWardrobe}
-        style={styles.backButton}
-      >
-        <Text style={styles.backButtonText}>← Back to Wardrobe</Text>
-      </TouchableOpacity>
-      <Text style={styles.itemDetailTitle}>
-        {detailViewItem.title || 'Clothing Item'}
-      </Text>
-    </View>
-
-    {/* Item Image */}
-    <View style={styles.itemDetailImageContainer}>
-      <Image
-        source={{ uri: detailViewItem.image }}
-        style={styles.itemDetailImage}
-        resizeMode="contain"
-      />
-    </View>
-
-    {/* Item Information */}
-    <View style={styles.itemDetailInfo}>
-      {/* Editable Title */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Title:</Text>
-        {editingTitle ? (
-          <View style={styles.editFieldContainer}>
-            <TextInput
-              style={styles.editFieldInput}
-              value={tempTitle}
-              onChangeText={setTempTitle}
-              placeholder="Item title"
-              autoFocus
-              onBlur={async () => {
-                await saveFieldUpdate(detailViewItem, 'title', tempTitle);
-                setEditingTitle(false);
-              }}
-              onSubmitEditing={async () => {
-                await saveFieldUpdate(detailViewItem, 'title', tempTitle);
-                setEditingTitle(false);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempTitle(detailViewItem.title || '');
-              setEditingTitle(true);
-            }}
-            style={styles.editableField}
-          >
-            <Text style={styles.itemDetailValue}>
-              {detailViewItem.title || 'Tap to add title'}
-            </Text>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <Text style={styles.itemDetailDescription}>
-        {detailViewItem.description}
-      </Text>
-      
-      {/* Category with dropdown */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Category:</Text>
-        <TouchableOpacity
-          onPress={() => {
-            console.log('Category dropdown tapped in detail view!');
-            setSelectedCategory(categorizeItem(detailViewItem));
-            setCategoryDropdownVisible(true);
-          }}
-          style={styles.categoryDropdownButton}
-        >
-          <Text style={styles.categoryDropdownText}>
-            {categorizeItem(detailViewItem).toUpperCase()}
-          </Text>
-          <Text style={styles.categoryDropdownArrow}>▼</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Editable Color */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Color:</Text>
-        {editingColor ? (
-          <View style={styles.editFieldContainer}>
-            <TextInput
-              style={styles.editFieldInput}
-              value={tempColor}
-              onChangeText={setTempColor}
-              placeholder="Color"
-              autoFocus
-              onBlur={async () => {
-                await saveFieldUpdate(detailViewItem, 'color', tempColor);
-                setEditingColor(false);
-              }}
-              onSubmitEditing={async () => {
-                await saveFieldUpdate(detailViewItem, 'color', tempColor);
-                setEditingColor(false);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempColor(detailViewItem.color || '');
-              setEditingColor(true);
-            }}
-            style={styles.editableField}
-          >
-            <Text style={styles.itemDetailValue}>
-              {detailViewItem.color || 'Tap to add color'}
-            </Text>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      {/* Editable Material */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Material:</Text>
-        {editingMaterial ? (
-          <View style={styles.editFieldContainer}>
-            <TextInput
-              style={styles.editFieldInput}
-              value={tempMaterial}
-              onChangeText={setTempMaterial}
-              placeholder="Material"
-              autoFocus
-              onBlur={async () => {
-                await saveFieldUpdate(detailViewItem, 'material', tempMaterial);
-                setEditingMaterial(false);
-              }}
-              onSubmitEditing={async () => {
-                await saveFieldUpdate(detailViewItem, 'material', tempMaterial);
-                setEditingMaterial(false);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempMaterial(detailViewItem.material || '');
-              setEditingMaterial(true);
-            }}
-            style={styles.editableField}
-          >
-            <Text style={styles.itemDetailValue}>
-              {detailViewItem.material || 'Tap to add material'}
-            </Text>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      {/* Editable Style */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Style:</Text>
-        {editingStyle ? (
-          <View style={styles.editFieldContainer}>
-            <TextInput
-              style={styles.editFieldInput}
-              value={tempStyle}
-              onChangeText={setTempStyle}
-              placeholder="Style"
-              autoFocus
-              onBlur={async () => {
-                await saveFieldUpdate(detailViewItem, 'style', tempStyle);
-                setEditingStyle(false);
-              }}
-              onSubmitEditing={async () => {
-                await saveFieldUpdate(detailViewItem, 'style', tempStyle);
-                setEditingStyle(false);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempStyle(detailViewItem.style || '');
-              setEditingStyle(true);
-            }}
-            style={styles.editableField}
-          >
-            <Text style={styles.itemDetailValue}>
-              {detailViewItem.style || 'Tap to add style'}
-            </Text>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      {/* Editable Fit */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Fit:</Text>
-        {editingFit ? (
-          <View style={styles.editFieldContainer}>
-            <TextInput
-              style={styles.editFieldInput}
-              value={tempFit}
-              onChangeText={setTempFit}
-              placeholder="Fit"
-              autoFocus
-              onBlur={async () => {
-                await saveFieldUpdate(detailViewItem, 'fit', tempFit);
-                setEditingFit(false);
-              }}
-              onSubmitEditing={async () => {
-                await saveFieldUpdate(detailViewItem, 'fit', tempFit);
-                setEditingFit(false);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempFit(detailViewItem.fit || '');
-              setEditingFit(true);
-            }}
-            style={styles.editableField}
-          >
-            <Text style={styles.itemDetailValue}>
-              {detailViewItem.fit || 'Tap to add fit'}
-            </Text>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Editable Tags */}
-      <View style={styles.itemDetailField}>
-        <Text style={styles.itemDetailLabel}>Tags:</Text>
-        {editingTags ? (
-          <View style={styles.editTagsContainer}>
-            <View style={styles.tagsEditContainer}>
-              {tempTags.map((tag: string, index: number) => (
-                <View key={index} style={styles.editableTag}>
-                  <Text style={styles.editableTagText}>{tag}</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const newTags = tempTags.filter((_, i) => i !== index);
-                      setTempTags(newTags);
-                    }}
-                    style={styles.removeTagButton}
-                  >
-                    <Text style={styles.removeTagText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-            <View style={styles.addTagContainer}>
-              <TextInput
-                style={styles.addTagInput}
-                value={newTagInput}
-                onChangeText={setNewTagInput}
-                placeholder="Add tag"
-                onSubmitEditing={() => {
-                  if (newTagInput.trim()) {
-                    setTempTags([...tempTags, newTagInput.trim()]);
-                    setNewTagInput('');
-                  }
-                }}
-              />
-              <TouchableOpacity
-                onPress={async () => {
-                  await saveFieldUpdate(detailViewItem, 'tags', tempTags);
-                  setEditingTags(false);
-                  setNewTagInput('');
-                }}
-                style={styles.saveTagsButton}
-              >
-                <Text style={styles.saveTagsText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={() => {
-              setTempTags(detailViewItem.tags || []);
-              setEditingTags(true);
-            }}
-            style={styles.editableField}
-          >
-            <View style={styles.itemDetailTagsContainer}>
-              {(detailViewItem.tags || []).length > 0 ? (
-                detailViewItem.tags.map((tag: string, index: number) => (
-                  <View key={index} style={styles.itemDetailTag}>
-                    <Text style={styles.itemDetailTagText}>{tag}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.itemDetailValue}>Tap to add tags</Text>
-              )}
-            </View>
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.itemDetailActions}>
-        <TouchableOpacity
-          onPress={() => generateOutfitSuggestions(detailViewItem)}
-          style={[styles.itemDetailActionButton, { marginRight: 8, flex: 1 }]}
-        >
-          <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={() => findSimilarOnAmazon(detailViewItem)}
-          disabled={loadingAmazon}
-          style={[
-            styles.itemDetailActionButton, 
-            styles.amazonButton,
-            { flex: 1, marginRight: 8 },
-            loadingAmazon && styles.disabledButton
-          ]}
-        >
-          {loadingAmazon ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 4 }} />
-              <Text style={styles.itemDetailActionButtonText}>Searching...</Text>
-            </View>
-          ) : (
-            <Text style={styles.itemDetailActionButtonText}>
-              🛒 Find on Amazon
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => handleDeleteItem(detailViewItem)}
-          style={[styles.itemDetailActionButton, styles.deleteActionButton]}
-        >
-          <Text style={styles.deleteActionButtonText}>🗑️ Delete</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Amazon Suggestions Section */}
-      {showAmazonSuggestions && amazonSuggestions.length > 0 && (
-        <View style={styles.amazonSuggestionsSection}>
-          <View style={styles.amazonSuggestionsHeader}>
-            <View style={styles.amazonHeaderContent}>
-              <View style={styles.amazonHeaderText}>
-                <Text style={styles.amazonSuggestionsTitle}>
-                  🛒 Similar Items on Amazon
-                </Text>
-                {lastSearchTimestamp && (
-                  <Text style={styles.amazonSuggestionsSubtitle}>
-                    Found {amazonSuggestions.length} items • Last updated {lastSearchTimestamp.toLocaleDateString()}
-                  </Text>
-                )}
-                <TouchableOpacity
-                  onPress={() => findSimilarOnAmazon(detailViewItem)}
-                  disabled={loadingAmazon}
-                  style={styles.refreshAmazonButton}
-                >
-                  <Text style={styles.refreshAmazonButtonText}>
-                    {loadingAmazon ? '🔄 Refreshing...' : '🔄 Refresh'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              
-              {amazonPreviewImage && (
-                <View style={styles.amazonPreviewContainer}>
-                  <Text style={styles.amazonPreviewLabel}>Preview:</Text>
-                  <SafeImage
-                    uri={amazonPreviewImage}
-                    style={styles.amazonPreviewImage}
-                    resizeMode="cover"
-                    category={detailViewItem.category}
-                    placeholder="item"
-                  />
-                </View>
-              )}
-            </View>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.amazonSuggestionsScroll}
-            contentContainerStyle={styles.amazonSuggestionsContent}
-          >
-            {amazonSuggestions.map((recommendation, index) => (
-              <View key={recommendation.id} style={styles.amazonSuggestionCard}>
-                <OnlineItemCard
-                  recommendation={recommendation}
-                  onSaveToWishlist={() => handleWishlistSave(recommendation)}
-                  onViewDetails={() => handleViewDetails(recommendation)}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Laundry Management Section */}
-      <View style={styles.laundrySection}>
-        <View style={styles.laundrySectionHeader}>
-          <Text style={styles.laundrySectionTitle}>🧺 Laundry Status</Text>
-          {(() => {
-            const statusDisplay = getLaundryStatusDisplay(detailViewItem.laundryStatus);
-            return (
-              <View style={[styles.currentLaundryStatus, { backgroundColor: statusDisplay.color }]}>
-                <Text style={styles.currentLaundryStatusEmoji}>{statusDisplay.emoji}</Text>
-                <Text style={styles.currentLaundryStatusText}>{statusDisplay.text}</Text>
-              </View>
-            );
-          })()}
-        </View>
-        
-        <View style={styles.laundryControls}>
-          {['clean', 'dirty', 'in-laundry', 'drying', 'needs-ironing', 'out-of-rotation'].map((status) => {
-            const statusDisplay = getLaundryStatusDisplay(status as LaundryStatus);
-            const isActive = (detailViewItem.laundryStatus || 'clean') === status;
-            
-            return (
-              <TouchableOpacity
-                key={status}
-                onPress={async () => {
-                  try {
-                    await updateLaundryStatus(detailViewItem, status as LaundryStatus);
-                    // Update the detail view item to reflect the change
-                    const updatedItem = { ...detailViewItem, laundryStatus: status as LaundryStatus };
-                    setDetailViewItem(updatedItem);
-                  } catch (error) {
-                    console.error('Error updating laundry status:', error);
-                  }
-                }}
-                style={[
-                  styles.laundryControlButton,
-                  isActive && { backgroundColor: statusDisplay.color, opacity: 1 }
-                ]}
-              >
-                <Text style={[
-                  styles.laundryControlEmoji,
-                  isActive && { fontSize: 16 }
-                ]}>
-                  {statusDisplay.emoji}
-                </Text>
-                <Text style={[
-                  styles.laundryControlText,
-                  isActive && { color: 'white', fontWeight: 'bold' }
-                ]}>
-                  {statusDisplay.text}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        
-        {/* Laundry History */}
-        {detailViewItem.timesWashed && detailViewItem.timesWashed > 0 && (
-          <View style={styles.laundryHistory}>
-            <Text style={styles.laundryHistoryText}>
-              Washed {detailViewItem.timesWashed} time{detailViewItem.timesWashed !== 1 ? 's' : ''}
-              {detailViewItem.lastWashed && ` • Last: ${new Date(detailViewItem.lastWashed).toLocaleDateString()}`}
-            </Text>
-          </View>
-        )}
-      </View>
-    </View>
-  </View>
+  <ItemDetailView
+    item={detailViewItem}
+    onBack={goBackToWardrobe}
+    onSaveField={(field, value) => saveFieldUpdate(detailViewItem, field, value)}
+    onCategoryPress={() => setCategoryDropdownVisible(true)}
+    onGenerateOutfitSuggestions={generateOutfitSuggestions}
+    onDelete={deleteWardrobeItem}
+    categorizeItem={categorizeItem}
+    editingTitle={editingTitle}
+    setEditingTitle={setEditingTitle}
+    editingColor={editingColor}
+    setEditingColor={setEditingColor}
+    editingMaterial={editingMaterial}
+    setEditingMaterial={setEditingMaterial}
+    editingStyle={editingStyle}
+    setEditingStyle={setEditingStyle}
+    editingFit={editingFit}
+    setEditingFit={setEditingFit}
+    editingTags={editingTags}
+    setEditingTags={setEditingTags}
+    tempTitle={tempTitle}
+    setTempTitle={setTempTitle}
+    tempColor={tempColor}
+    setTempColor={setTempColor}
+    tempMaterial={tempMaterial}
+    setTempMaterial={setTempMaterial}
+    tempStyle={tempStyle}
+    setTempStyle={setTempStyle}
+    tempFit={tempFit}
+    setTempFit={setTempFit}
+    tempTags={tempTags}
+    setTempTags={setTempTags}
+    newTagInput={newTagInput}
+    setNewTagInput={setNewTagInput}
+  />
 )}
 
 {/* Outfit Detail View */}
@@ -3853,6 +3436,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     categorizeItem={categorizeItem}
   />
 )}
+
 
 {/* Profile Page */}
 {showProfilePage && (

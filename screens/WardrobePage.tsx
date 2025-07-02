@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIn
 import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import { LaundryAnalytics } from './components/LaundryAnalytics';
 import { TextItemCard } from '../components/TextItemCard';
+import { SafeImage } from '../utils/SafeImage';
 import * as Haptics from 'expo-haptics';
 
 interface WardrobePageProps {
@@ -184,10 +185,12 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                 style={styles.wardrobeInventoryItem}
                 activeOpacity={0.7}
               >
-                <Image
-                  source={{ uri: item.image }}
+                <SafeImage
+                  uri={item.image}
                   style={styles.wardrobeInventoryItemImage}
                   resizeMode="cover"
+                  placeholder="item"
+                  category={categorizeItem(item)}
                 />
                 
                 <View style={styles.wardrobeInventoryItemInfo}>
