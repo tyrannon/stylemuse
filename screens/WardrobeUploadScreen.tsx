@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { describeClothingItem } from '../utils/openai';
 import React, { useState, useEffect, useRef } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
+import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit, generateClothingItemImage } from '../utils/openai';
 import * as Location from 'expo-location';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
 import Constants from 'expo-constants';
@@ -190,6 +190,9 @@ const WardrobeUploadScreen = () => {
   
   // Smart suggestion modal state
   const [showSmartSuggestionModal, setShowSmartSuggestionModal] = useState(false);
+  
+  // Image generation state
+  const [generatingImageForItem, setGeneratingImageForItem] = useState<string | null>(null);
   
   // Ref for main scroll view to control scrolling
   const mainScrollViewRef = useRef<ScrollView>(null);
@@ -675,6 +678,41 @@ const WardrobeUploadScreen = () => {
       
       // Single upload (not bulk)
       await handleAutoDescribeAndSave(imageUri, false);
+    }
+  };
+
+  // Function to handle image generation for wardrobe items
+  const handleGenerateItemImage = async (item: WardrobeItem) => {
+    setGeneratingImageForItem(item.image);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      console.log('🎨 Generating image for wardrobe item:', item.title || item.description);
+      const imageUrl = await generateClothingItemImage(item);
+      
+      if (imageUrl) {
+        // Update the item with the generated image
+        const updatedItem = { ...item, image: imageUrl };
+        const updatedItems = savedItems.map(savedItem => 
+          savedItem.image === item.image ? updatedItem : savedItem
+        );
+        setSavedItems(updatedItems);
+        
+        // Save to AsyncStorage
+        await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+        
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        console.log('✅ Image generated and item updated successfully');
+      } else {
+        Alert.alert('Generation Failed', 'Unable to generate image. Please try again.');
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (error) {
+      console.error('Error generating item image:', error);
+      Alert.alert('Error', 'Failed to generate image. Please check your connection and try again.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setGeneratingImageForItem(null);
     }
   };
 
@@ -3288,6 +3326,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
+    onGenerateItemImage={handleGenerateItemImage}
+    generatingImageForItem={generatingImageForItem}
   />
 )}
 

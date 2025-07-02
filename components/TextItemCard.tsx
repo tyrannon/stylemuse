@@ -1,12 +1,15 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
+import * as Haptics from 'expo-haptics';
 
 interface TextItemCardProps {
   item: WardrobeItem;
   onPress: () => void;
   category: string;
   laundryStatus: { emoji: string; text: string; color: string };
+  onGenerateImage?: (item: WardrobeItem) => void;
+  isGeneratingImage?: boolean;
 }
 
 const extractBrandFromTags = (tags?: string[]): string | null => {
@@ -20,7 +23,16 @@ export const TextItemCard: React.FC<TextItemCardProps> = ({
   onPress,
   category,
   laundryStatus,
+  onGenerateImage,
+  isGeneratingImage = false,
 }) => {
+  const handleGenerateImage = async (e: any) => {
+    e.stopPropagation(); // Prevent card tap
+    if (onGenerateImage && !isGeneratingImage) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onGenerateImage(item);
+    }
+  };
   const getColorCircle = (color: string) => {
     const colorMap: { [key: string]: string } = {
       black: '#000000',
@@ -112,6 +124,23 @@ export const TextItemCard: React.FC<TextItemCardProps> = ({
       <View style={styles.textOnlyIndicator}>
         <Text style={styles.textOnlyIndicatorText}>📝</Text>
       </View>
+
+      {/* Generate Image Button */}
+      {onGenerateImage && (
+        <TouchableOpacity
+          onPress={handleGenerateImage}
+          style={[styles.generateImageButton, isGeneratingImage && styles.generateImageButtonDisabled]}
+          disabled={isGeneratingImage}
+        >
+          {isGeneratingImage ? (
+            <View style={styles.generateImageLoading}>
+              <ActivityIndicator size="small" color="white" />
+            </View>
+          ) : (
+            <Text style={styles.generateImageButtonIcon}>📸</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -246,5 +275,32 @@ const styles = StyleSheet.create({
   },
   textOnlyIndicatorText: {
     fontSize: 14,
+  },
+  generateImageButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    width: 36,
+    height: 36,
+    backgroundColor: '#007AFF',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  generateImageButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
+  },
+  generateImageButtonIcon: {
+    fontSize: 16,
+  },
+  generateImageLoading: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
