@@ -182,9 +182,14 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
           }
         }}
-        style={styles.profileButton}
+        style={styles.bottomNavButton}
       >
-        <Text style={styles.profileButtonPlaceholder}>🧬</Text>
+        <Text style={[styles.bottomNavIcon, showProfilePage && styles.bottomNavIconActive]}>
+          🧬
+        </Text>
+        <Text style={[styles.bottomNavLabel, showProfilePage && styles.bottomNavLabelActive]}>
+          Profile
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -254,24 +259,5 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
     marginHorizontal: 4,
-  },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  profileButtonPlaceholder: {
-    fontSize: 20,
-    color: '#666',
   },
 });
