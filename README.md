@@ -2,23 +2,43 @@
 
 StyleMuse is an AI-powered virtual closet app that helps you organize your wardrobe and generate stunning outfit combinations using GPT-4o Vision and DALL-E 3.
 
+## 🆕 Latest Updates (July 2025)
+
+- **Text-Only Item Entry**: Add wardrobe items without photos for quick cataloging
+- **Unified Loading Animations**: Consistent AI analysis feedback across all features
+- **Avatar Customization**: Create and customize your 3D style avatar
+- **Smart Outfit Suggestions**: Context-aware AI recommendations
+- **Amazon Integration**: Find and shop similar items online
+- **Improved Navigation**: Single + button for all input methods
+- **Enhanced Performance**: Optimized loading states and animations
+
 ## Features 🚀
 
 ### 👔 **Wardrobe Management**
 - **AI Clothing Analysis**: Automatically describes clothing items with detailed color, material, and style information
-- **Bulk Upload**: Add multiple clothing items at once with progress tracking
+- **Multiple Input Methods**: 
+  - Camera capture with professional interface
+  - Single photo upload with "Add Another" flow
+  - Bulk upload (up to 10 photos at once)
+  - Text-only entry for quick cataloging without photos
+- **Unified AI Loading Animations**: Consistent spinning animations across all upload methods
 - **Smart Organization**: Automatic categorization (tops, bottoms, shoes, jackets, hats, accessories)
 - **Advanced Filtering**: Filter by category, laundry status, and sorting options
-- **Item Detail Editing**: Inline editing of titles, colors, materials, styles, and tags
+- **Inline Item Editing**: Edit titles, colors, materials, styles, and tags without leaving the view
 - **Professional Navigation**: Tab-based interface with seamless page transitions
+- **Text Item Support**: Special cards for text-only items with visual indicators
 
 ### 🎨 **AI-Powered Outfit Generation**
 - **Smart Outfit Generation**: AI creates photorealistic outfit combinations from your wardrobe
 - **Style DNA System**: Personalized outfit generation based on your appearance and style preferences
+- **Avatar Customization**: Comprehensive avatar system with 3D model generation
+- **Contextual Smart Suggestions**: AI-powered outfit recommendations based on weather, occasion, and style
+- **Auto-Fill Builder**: One-tap outfit completion with intelligent item selection
 - **Weather-Based Outfits**: GPS + weather integration for location-appropriate styling
 - **Outfit Memory System**: Track which outfits you've worn and when
 - **Smart Re-Suggestions**: AI recommends outfits based on wear frequency and timing
 - **Outfit Analytics**: Comprehensive insights into your outfit wearing patterns
+- **Mark as Worn**: Track outfit usage with ratings and contextual notes
 
 ### 🧺 **Laundry Tracker System**
 - **Complete Status Tracking**: Monitor items through 6 laundry states (clean, dirty, washing, drying, needs iron, stored)
@@ -29,12 +49,17 @@ StyleMuse is an AI-powered virtual closet app that helps you organize your wardr
 - **Laundry Analytics**: Rich insights with progress bars, status breakdowns, and contextual tips
 - **Wash History Tracking**: Complete history of wash cycles and frequency patterns
 
-### 📸 **In-App Camera System**
+### 📸 **Smart Input System**
+- **Dedicated Add Item Page**: Clean interface replacing modal-based approach
 - **Professional Camera Interface**: Full-screen camera with advanced controls
 - **Smart Photo Capture**: Optimized for clothing photography with grid guides
-- **Photo Source Selection**: Choose between camera or photo library upload
-- **Seamless Integration**: Camera photos flow directly into AI analysis
-- **Haptic Feedback**: Tactile responses for all camera interactions
+- **Multiple Upload Options**:
+  - Camera capture for best AI results
+  - Single photo with "Add Another" convenience
+  - Bulk upload for processing multiple items
+  - Text entry for cataloging without photos
+- **Seamless Integration**: All input methods flow directly into AI analysis
+- **Haptic Feedback**: Tactile responses for all interactions
 - **Permission Handling**: Graceful camera and storage permission management
 
 ### 📊 **Analytics & Insights**
@@ -45,12 +70,21 @@ StyleMuse is an AI-powered virtual closet app that helps you organize your wardr
 - **Visual Progress Tracking**: Beautiful charts and progress indicators
 - **Contextual Tips**: Personalized advice based on your usage patterns
 
+### 🛍️ **Style Advice & Shopping**
+- **Amazon Integration**: Find similar items online with direct shopping links
+- **Smart Product Matching**: AI-powered recommendations based on your wardrobe items
+- **In-App Browser**: Seamless shopping experience without leaving the app
+- **Wishlist Management**: Save items for later consideration
+- **Price Tracking**: Monitor deals on items you're interested in
+
 ### 🎯 **User Experience**
-- **Professional Tab Navigation**: Seamless switching between wardrobe and analytics views
+- **Unified Navigation**: Single + button for all add methods
+- **Professional Tab Navigation**: Seamless switching between all app sections
 - **Interactive Gallery**: Swipeable wardrobe with selection modes and editing capabilities
-- **Animated Loading States**: Beautiful progress indicators and spinning animations
+- **Animated Loading States**: Consistent spinning animations across all AI operations
 - **Haptic Feedback**: Tactile responses for all interactions
 - **Responsive Design**: Optimized for all screen sizes and orientations
+- **Page-Based Architecture**: Eliminates modal conflicts with system pickers
 
 ## Tech Stack 💻
 
@@ -209,6 +243,8 @@ stylemuse/
 │   ├── OutfitsPage.tsx                      # Outfit management interface
 │   ├── BuilderPage.tsx                      # Outfit builder interface
 │   ├── ProfilePage.tsx                      # User profile interface
+│   ├── AddItemPage.tsx                      # Unified item input interface
+│   ├── AvatarCustomizationPage.tsx          # Avatar creation and editing
 │   ├── CameraScreen.tsx                     # Professional camera interface
 │   ├── PhotoEditingScreen.tsx               # Photo editing with advanced tools
 │   ├── components/
@@ -220,7 +256,9 @@ stylemuse/
 │   │   ├── OutfitDetailView.tsx             # Outfit detail interface
 │   │   ├── CategoryDropdown.tsx             # Category selection
 │   │   ├── MarkAsWornModal.tsx              # Outfit wear tracking
-│   │   └── SmartOutfitSuggestions.tsx       # AI outfit recommendations
+│   │   ├── SmartSuggestionModal.tsx         # Contextual outfit suggestions
+│   │   └── StyleAdvice/
+│   │       └── OnlineItemCard.tsx           # Amazon product display
 │   └── styles/
 │       └── WardrobeUploadScreen.styles.ts   # Modular style definitions
 ├── hooks/
@@ -229,9 +267,15 @@ stylemuse/
 │   ├── useCameraControls.ts                # Camera state and controls
 │   ├── usePhotoEditor.ts                    # Photo editing state management
 │   └── useCameraIntegration.ts              # Camera-wardrobe integration
+├── components/
+│   ├── TextItemEntryModal.tsx               # Text-only item entry form
+│   └── TextItemCard.tsx                     # Text item display card
 ├── utils/
 │   ├── openai.ts                            # AI integration (GPT-4o & DALL-E)
 │   └── SafeImage.tsx                        # Optimized image component
+├── types/
+│   ├── Avatar.ts                            # Avatar type definitions
+│   └── StyleAdvice.ts                       # Shopping type definitions
 ├── assets/                                  # Images and icons
 ├── eas.json                                 # EAS Build configuration
 ├── app.json                                 # Expo app configuration
@@ -246,7 +290,13 @@ stylemuse/
 
 **WardrobeUploadScreen.tsx** - Main application container
 - Navigation state management and routing
-- Bottom navigation with 5 pages (Builder, Wardrobe, Outfits, Profile, Settings)
+- Bottom navigation with unified + button for adding items
+- Orchestrates all app functionality and page transitions
+
+**AddItemPage.tsx** - Unified input interface
+- Four input methods: Camera, Single Photo, Bulk Upload, Text Entry
+- Clean page-based design eliminating modal conflicts
+- Intuitive navigation with helpful tips
 - Global state coordination and data flow
 - Modal management and overlays
 
