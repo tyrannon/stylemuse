@@ -12,6 +12,7 @@ interface UseStyleRecommendationsReturn {
   getItemRecommendations: (wardrobeItem: WardrobeItem) => Promise<OnlineItem[]>;
   getSimilarItems: (description: string, category: string) => Promise<OnlineItem[]>;
   analyzeWardrobeForRecommendations: (wardrobe: WardrobeItem[]) => Promise<StyleRecommendation[]>;
+  setCachedRecommendations: (recommendations: StyleRecommendation[]) => void;
 }
 
 export const useStyleRecommendations = (): UseStyleRecommendationsReturn => {
@@ -259,6 +260,11 @@ export const useStyleRecommendations = (): UseStyleRecommendationsReturn => {
     }
   }, [setRecommendationsFromWardrobe, refreshRecommendations]);
 
+  // Method to set cached recommendations directly
+  const setCachedRecommendations = useCallback((cachedRecommendations: StyleRecommendation[]) => {
+    setRecommendations(cachedRecommendations);
+  }, []);
+
   return {
     recommendations,
     loading,
@@ -267,5 +273,6 @@ export const useStyleRecommendations = (): UseStyleRecommendationsReturn => {
     getItemRecommendations,
     getSimilarItems,
     analyzeWardrobeForRecommendations,
+    setCachedRecommendations,
   };
 };

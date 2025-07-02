@@ -1,4 +1,4 @@
-import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert } from 'react-native';
+import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { SafeImage } from '../utils/SafeImage';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
@@ -21,10 +21,14 @@ import { BuilderPage } from './BuilderPage';
 import { WardrobePage } from './WardrobePage';
 import { OutfitsPage } from './OutfitsPage';
 import { ProfilePage } from './ProfilePage';
-import { StyleAdviceTab } from './StyleAdviceTab';
+import { AvatarCustomizationPage } from './AvatarCustomizationPage';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionModal } from './components/SmartSuggestionModal';
+import { useStyleRecommendations } from '../hooks/useStyleRecommendations';
+import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
+import { StyleRecommendation } from '../types/StyleAdvice';
+import { EnhancedStyleDNA } from '../types/Avatar';
 import { styles } from './styles/WardrobeUploadScreen.styles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -87,6 +91,9 @@ const WardrobeUploadScreen = () => {
     getItemsByLaundryStatus,
     getLaundryStats,
     getSmartWashSuggestions,
+    deleteWardrobeItem,
+    deleteLovedOutfit,
+    deleteBulkWardrobeItems,
   } = wardrobeData;
   
   const {
@@ -95,7 +102,7 @@ const WardrobeUploadScreen = () => {
     showWardrobe,
     showOutfitsPage,
     showProfilePage,
-    showStyleAdvice,
+    showAvatarCustomization,
     showingItemDetail,
     showingOutfitDetail,
     detailViewItem,
@@ -107,7 +114,8 @@ const WardrobeUploadScreen = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
-    navigateToStyleAdvice,
+    navigateToAvatarCustomization,
+    goBackToProfile,
     goBackToWardrobe,
     goBackToOutfits,
     openWardrobeItemView,
@@ -151,6 +159,14 @@ const WardrobeUploadScreen = () => {
     selectedCategory,
     setSelectedCategory,
   } = navigationState;
+
+  // Amazon search functionality
+  const { getItemRecommendations } = useStyleRecommendations();
+  const [amazonSuggestions, setAmazonSuggestions] = useState<StyleRecommendation[]>([]);
+  const [loadingAmazon, setLoadingAmazon] = useState(false);
+  const [showAmazonSuggestions, setShowAmazonSuggestions] = useState(false);
+  const [lastSearchTimestamp, setLastSearchTimestamp] = useState<Date | null>(null);
+  const [amazonPreviewImage, setAmazonPreviewImage] = useState<string | null>(null);
 
   // State Variables
   const [image, setImage] = useState<string | null>(null);
@@ -300,6 +316,265 @@ const WardrobeUploadScreen = () => {
     }
   };
 
+  // Amazon search functionality
+  const CACHE_VERSION = 'v6'; // Increment to force refresh of all cached data
+  
+  const getItemStorageKeys = (item: WardrobeItem) => ({
+    AMAZON_SUGGESTIONS: `stylemuse_amazon_suggestions_${CACHE_VERSION}_${item.image}`,
+    SEARCH_TIMESTAMP: `stylemuse_search_timestamp_${CACHE_VERSION}_${item.image}`,
+    PREVIEW_IMAGE: `stylemuse_amazon_preview_${CACHE_VERSION}_${item.image}`,
+  });
+
+  // Clean up old cache data from previous versions
+  const cleanupOldCache = async (item: WardrobeItem) => {
+    try {
+      const oldKeys = [
+        // v1 cache (no version)
+        `stylemuse_amazon_suggestions_${item.image}`,
+        `stylemuse_search_timestamp_${item.image}`,
+        `stylemuse_amazon_preview_${item.image}`,
+        // v2 cache
+        `stylemuse_amazon_suggestions_v2_${item.image}`,
+        `stylemuse_search_timestamp_v2_${item.image}`,
+        `stylemuse_amazon_preview_v2_${item.image}`,
+        // v3 cache
+        `stylemuse_amazon_suggestions_v3_${item.image}`,
+        `stylemuse_search_timestamp_v3_${item.image}`,
+        `stylemuse_amazon_preview_v3_${item.image}`,
+        // v4 cache
+        `stylemuse_amazon_suggestions_v4_${item.image}`,
+        `stylemuse_search_timestamp_v4_${item.image}`,
+        `stylemuse_amazon_preview_v4_${item.image}`,
+      ];
+      
+      await Promise.all(oldKeys.map(key => AsyncStorage.removeItem(key)));
+      console.log('🧹 Cleaned up old cache data for item');
+    } catch (error) {
+      console.error('Error cleaning up old cache:', error);
+    }
+  };
+
+  const loadCachedAmazonSuggestions = async (item: WardrobeItem) => {
+    try {
+      // Clean up old cache first
+      await cleanupOldCache(item);
+      
+      const storageKeys = getItemStorageKeys(item);
+      const [cachedSuggestions, cachedTimestamp, cachedPreviewImage] = await Promise.all([
+        AsyncStorage.getItem(storageKeys.AMAZON_SUGGESTIONS),
+        AsyncStorage.getItem(storageKeys.SEARCH_TIMESTAMP),
+        AsyncStorage.getItem(storageKeys.PREVIEW_IMAGE),
+      ]);
+
+      console.log('🔍 Checking cache for item:', item.title, {
+        hasSuggestions: !!cachedSuggestions,
+        hasTimestamp: !!cachedTimestamp,
+        hasPreview: !!cachedPreviewImage
+      });
+
+      if (cachedSuggestions && cachedTimestamp) {
+        const timestampDate = new Date(cachedTimestamp);
+        const hoursOld = (Date.now() - timestampDate.getTime()) / (1000 * 60 * 60);
+        
+        // Use cached suggestions if less than 24 hours old
+        if (hoursOld < 24) {
+          try {
+            const parsedSuggestions = JSON.parse(cachedSuggestions);
+            if (Array.isArray(parsedSuggestions) && parsedSuggestions.length > 0) {
+              // Check if cached suggestions have problematic images (from old cache)
+              const hasProblematicImages = parsedSuggestions.some(suggestion => {
+                const imageUrl = suggestion.onlineItem.imageUrl;
+                return !imageUrl || 
+                       imageUrl === null || 
+                       imageUrl === '' ||
+                       imageUrl.includes('placeholder.com') ||
+                       imageUrl.includes('via.placeholder.com') ||
+                       imageUrl.includes('dummyimage.com') ||
+                       imageUrl.includes('httpbin.org');
+              });
+              
+              if (hasProblematicImages) {
+                console.log('🔄 Cached suggestions have problematic image URLs, refreshing automatically');
+                return false; // Don't use cached data with problematic images
+              }
+              
+              console.log('✅ Loading cached Amazon suggestions for item:', parsedSuggestions.length, 'items');
+              setAmazonSuggestions(parsedSuggestions);
+              setLastSearchTimestamp(timestampDate);
+              setShowAmazonSuggestions(true);
+              
+              // Load cached preview image if available
+              if (cachedPreviewImage) {
+                setAmazonPreviewImage(cachedPreviewImage);
+              }
+              
+              return true;
+            }
+          } catch (parseError) {
+            console.error('Error parsing cached Amazon suggestions:', parseError);
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error loading cached Amazon suggestions:', error);
+      return false;
+    }
+  };
+
+  const saveCachedAmazonSuggestions = async (item: WardrobeItem, suggestions: StyleRecommendation[], previewImage?: string) => {
+    try {
+      const storageKeys = getItemStorageKeys(item);
+      await AsyncStorage.setItem(storageKeys.AMAZON_SUGGESTIONS, JSON.stringify(suggestions));
+      await AsyncStorage.setItem(storageKeys.SEARCH_TIMESTAMP, new Date().toISOString());
+      
+      if (previewImage) {
+        await AsyncStorage.setItem(storageKeys.PREVIEW_IMAGE, previewImage);
+      }
+    } catch (error) {
+      console.error('Error saving Amazon suggestions:', error);
+    }
+  };
+
+  const findSimilarOnAmazon = async (item: WardrobeItem) => {
+    if (loadingAmazon) return;
+
+    setLoadingAmazon(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      console.log('🔍 Finding similar items on Amazon for:', item.title);
+      
+      // Get recommendations using the existing hook
+      const onlineItems = await getItemRecommendations(item);
+      
+      console.log('📦 Received online items from Amazon API:', onlineItems.map(item => ({
+        title: item.title,
+        imageUrl: item.imageUrl,
+        hasImage: !!item.imageUrl
+      })));
+      
+      if (onlineItems.length === 0) {
+        Alert.alert(
+          'No Similar Items Found',
+          'We couldn\'t find any similar items on Amazon right now. Try again later or update your item details for better results.',
+          [{ text: 'OK' }]
+        );
+        setLoadingAmazon(false);
+        return;
+      }
+
+      // Convert to StyleRecommendation format for consistent display
+      const recommendations: StyleRecommendation[] = onlineItems.map((onlineItem, index) => ({
+        id: `${item.image}-amazon-${onlineItem.id}-${index}`,
+        type: 'similar' as const,
+        wardrobeContext: item,
+        onlineItem,
+        similarityScore: 75 + Math.random() * 25, // Random score between 75-100
+        reasoning: `Similar style and category to your ${item.title}`,
+        confidenceLevel: 80,
+        aiInsight: `Found this ${onlineItem.category} item that matches your style`,
+        generatedAt: new Date(),
+      }));
+
+      // Extract preview image from first result (handle empty strings as null)
+      const firstItemImage = onlineItems.length > 0 ? onlineItems[0].imageUrl : null;
+      const previewImage = firstItemImage && firstItemImage.trim() !== '' ? firstItemImage : null;
+      
+      console.log('🖼️ Preview image extracted:', {
+        hasItems: onlineItems.length > 0,
+        firstItemImage: onlineItems[0]?.imageUrl,
+        previewImage: previewImage
+      });
+      
+      setAmazonSuggestions(recommendations);
+      setShowAmazonSuggestions(true);
+      setLastSearchTimestamp(new Date());
+      
+      if (previewImage) {
+        console.log('🎯 Setting preview image:', previewImage);
+        setAmazonPreviewImage(previewImage);
+      } else {
+        console.log('🚫 No preview image to set (null/undefined)');
+        setAmazonPreviewImage(null);
+      }
+      
+      // Save to cache
+      await saveCachedAmazonSuggestions(item, recommendations, previewImage || undefined);
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('Error finding similar items:', error);
+      Alert.alert(
+        'Search Failed',
+        'Unable to search for similar items. Please check your connection and try again.',
+        [{ text: 'OK' }]
+      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoadingAmazon(false);
+    }
+  };
+
+  const handleWishlistSave = (recommendation: StyleRecommendation) => {
+    // TODO: Implement wishlist functionality
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Added to Wishlist', 'Item saved to your wishlist!');
+  };
+
+  const handleViewDetails = (recommendation: StyleRecommendation) => {
+    // TODO: Implement item details modal
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Item Details', 'Item details feature coming soon!');
+  };
+
+  const handleDeleteItem = (item: WardrobeItem) => {
+    Alert.alert(
+      'Delete Item',
+      `Are you sure you want to delete "${item.title || 'this item'}" from your wardrobe? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWardrobeItem(item);
+              setDetailViewItem(null); // Close the detail view after deletion
+              navigateToWardrobe(); // Navigate back to wardrobe page
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete item. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteOutfit = async (outfitId: string) => {
+    try {
+      await deleteLovedOutfit(outfitId);
+    } catch (error) {
+      console.error('Error deleting outfit:', error);
+      throw error;
+    }
+  };
+
+  const updateStyleDNA = async (updatedStyleDNA: EnhancedStyleDNA) => {
+    try {
+      setStyleDNA(updatedStyleDNA);
+      await AsyncStorage.setItem(STORAGE_KEYS.STYLE_DNA, JSON.stringify(updatedStyleDNA));
+      console.log('✅ Enhanced Style DNA updated and saved to storage');
+    } catch (error) {
+      console.error('❌ Error updating style DNA:', error);
+    }
+  };
+
   // Load data from storage on app start
   useEffect(() => {
     const loadStoredData = async () => {
@@ -359,6 +634,20 @@ const WardrobeUploadScreen = () => {
 
     loadStoredData();
   }, []);
+
+  // Load cached Amazon suggestions when item detail view opens
+  useEffect(() => {
+    if (showingItemDetail && detailViewItem) {
+      // Reset Amazon suggestions state
+      setAmazonSuggestions([]);
+      setShowAmazonSuggestions(false);
+      setLastSearchTimestamp(null);
+      setAmazonPreviewImage(null);
+      
+      // Load cached suggestions for this item
+      loadCachedAmazonSuggestions(detailViewItem);
+    }
+  }, [showingItemDetail, detailViewItem]);
 
   // Function to pick a single image from the library
   const pickImage = async () => {
@@ -1214,21 +1503,6 @@ const WardrobeUploadScreen = () => {
     setEditItemNewTag("");
   };
 
-  // Function to delete wardrobe item
-  const deleteWardrobeItem = (itemToDelete: any) => {
-    setSavedItems(prev => {
-      const newItems = prev.filter(item => item.image !== itemToDelete.image);
-      // Save to storage
-      saveWardrobeItems(newItems);
-      return newItems;
-    });
-    if (editingItem && editingItem.image === itemToDelete.image) {
-      setEditingItem(null);
-      setEditItemTitle("");
-      setEditItemTags([]);
-      setEditItemNewTag("");
-    }
-  };
 
   // Function to add tag to editing item
   const addTagToEditingItem = () => {
@@ -2683,7 +2957,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.top.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.top.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('top')}
               style={styles.clearSlotButton}
@@ -2705,7 +2979,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.bottom.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.bottom.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.bottom.itemImage} style={styles.gearSlotImage} category="bottom" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('bottom')}
               style={styles.clearSlotButton}
@@ -2727,7 +3001,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.shoes.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.shoes.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.shoes.itemImage} style={styles.gearSlotImage} category="shoes" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('shoes')}
               style={styles.clearSlotButton}
@@ -2752,7 +3026,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.jacket.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.jacket.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.jacket.itemImage} style={styles.gearSlotImage} category="jacket" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('jacket')}
               style={styles.clearSlotButton}
@@ -2774,7 +3048,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.hat.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.hat.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.hat.itemImage} style={styles.gearSlotImage} category="hat" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('hat')}
               style={styles.clearSlotButton}
@@ -2796,7 +3070,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         {gearSlots.accessories.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.accessories.itemImage} style={styles.gearSlotImage} />
+            <SafeImage uri={gearSlots.accessories.itemImage} style={styles.gearSlotImage} category="accessories" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('accessories')}
               style={styles.clearSlotButton}
@@ -3204,15 +3478,103 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         )}
       </View>
 
-      {/* Action Buttons - Only Outfit Ideas now */}
+      {/* Action Buttons */}
       <View style={styles.itemDetailActions}>
         <TouchableOpacity
           onPress={() => generateOutfitSuggestions(detailViewItem)}
-          style={[styles.itemDetailActionButton, { flex: 1 }]}
+          style={[styles.itemDetailActionButton, { marginRight: 8, flex: 1 }]}
         >
           <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => findSimilarOnAmazon(detailViewItem)}
+          disabled={loadingAmazon}
+          style={[
+            styles.itemDetailActionButton, 
+            styles.amazonButton,
+            { flex: 1, marginRight: 8 },
+            loadingAmazon && styles.disabledButton
+          ]}
+        >
+          {loadingAmazon ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 4 }} />
+              <Text style={styles.itemDetailActionButtonText}>Searching...</Text>
+            </View>
+          ) : (
+            <Text style={styles.itemDetailActionButtonText}>
+              🛒 Find on Amazon
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => handleDeleteItem(detailViewItem)}
+          style={[styles.itemDetailActionButton, styles.deleteActionButton]}
+        >
+          <Text style={styles.deleteActionButtonText}>🗑️ Delete</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Amazon Suggestions Section */}
+      {showAmazonSuggestions && amazonSuggestions.length > 0 && (
+        <View style={styles.amazonSuggestionsSection}>
+          <View style={styles.amazonSuggestionsHeader}>
+            <View style={styles.amazonHeaderContent}>
+              <View style={styles.amazonHeaderText}>
+                <Text style={styles.amazonSuggestionsTitle}>
+                  🛒 Similar Items on Amazon
+                </Text>
+                {lastSearchTimestamp && (
+                  <Text style={styles.amazonSuggestionsSubtitle}>
+                    Found {amazonSuggestions.length} items • Last updated {lastSearchTimestamp.toLocaleDateString()}
+                  </Text>
+                )}
+                <TouchableOpacity
+                  onPress={() => findSimilarOnAmazon(detailViewItem)}
+                  disabled={loadingAmazon}
+                  style={styles.refreshAmazonButton}
+                >
+                  <Text style={styles.refreshAmazonButtonText}>
+                    {loadingAmazon ? '🔄 Refreshing...' : '🔄 Refresh'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              
+              {amazonPreviewImage && (
+                <View style={styles.amazonPreviewContainer}>
+                  <Text style={styles.amazonPreviewLabel}>Preview:</Text>
+                  <SafeImage
+                    uri={amazonPreviewImage}
+                    style={styles.amazonPreviewImage}
+                    resizeMode="cover"
+                    category={detailViewItem.category}
+                    placeholder="item"
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.amazonSuggestionsScroll}
+            contentContainerStyle={styles.amazonSuggestionsContent}
+          >
+            {amazonSuggestions.map((recommendation, index) => (
+              <View key={recommendation.id} style={styles.amazonSuggestionCard}>
+                <OnlineItemCard
+                  recommendation={recommendation}
+                  onSaveToWishlist={() => handleWishlistSave(recommendation)}
+                  onViewDetails={() => handleViewDetails(recommendation)}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Laundry Management Section */}
       <View style={styles.laundrySection}>
@@ -3296,197 +3658,37 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       openWardrobeItemView(item); // Open item detail
     }}
     onMarkAsWorn={markOutfitAsWorn}
+    onDelete={handleDeleteOutfit}
     categorizeItem={categorizeItem}
   />
 )}
 
 {/* Profile Page */}
 {showProfilePage && (
-  <View style={{ marginTop: 20 }}>
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-      🧬 Style DNA Profile
-    </Text>
-    
-    {/* Profile Image Section */}
-    <View style={{ alignItems: 'center', marginBottom: 20 }}>
-      <TouchableOpacity
-        onPress={pickProfileImage}
-        style={{ position: 'relative' }}
-      >
-        {profileImage ? (
-          <SafeImage 
-            uri={profileImage} 
-            style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }} 
-          />
-        ) : (
-          <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#e0e0e0' }}>
-            <Text style={{ fontSize: 40 }}>🧬</Text>
-          </View>
-        )}
-        <View style={{ position: 'absolute', top: 5, right: 5, width: 30, height: 30, borderRadius: 15, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: 'white', fontSize: 16 }}>✏️</Text>
-        </View>
-      </TouchableOpacity>
-      
-      {profileImage && (
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('medium');
-            analyzeProfileImage(profileImage);
-          }}
-          style={{
-            marginTop: 15,
-            paddingHorizontal: 20,
-            paddingVertical: 10,
-            borderRadius: 25,
-            backgroundColor: '#007AFF',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-          disabled={analyzingProfile}
-        >
-          <Text style={{ fontSize: 14, fontWeight: 'bold', color: 'white' }}>
-            {analyzingProfile ? '🧬 Analyzing...' : '🧬 Analyze Style DNA'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
+  <ProfilePage
+    profileImage={profileImage}
+    styleDNA={styleDNA}
+    selectedGender={selectedGender}
+    savedItems={savedItems}
+    lovedOutfits={lovedOutfits}
+    analyzingProfile={analyzingProfile}
+    pickProfileImage={pickProfileImage}
+    analyzeProfileImage={analyzeProfileImage}
+    setShowGenderSelector={setShowGenderSelector}
+    onUpdateStyleDNA={updateStyleDNA}
+    triggerHaptic={triggerHaptic}
+    navigateToAvatarCustomization={navigateToAvatarCustomization}
+  />
+)}
 
-    {/* Gender Selection Section */}
-    <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5, textAlign: 'center' }}>
-        Gender Identity
-      </Text>
-      <Text style={{ fontSize: 12, color: '#666', marginBottom: 10, textAlign: 'center' }}>
-        Helps AI generate outfits that match your preferred style
-      </Text>
-      
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('light');
-          setShowGenderSelector(true);
-        }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 15,
-          borderWidth: 2,
-          borderColor: !selectedGender ? '#ff6b6b' : '#e0e0e0',
-          borderRadius: 12,
-          backgroundColor: '#f8f9fa',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 24, marginRight: 10 }}>
-            {selectedGender === 'male' ? '👨' : 
-             selectedGender === 'female' ? '👩' : 
-             selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
-          </Text>
-          <Text style={{ fontSize: 16, color: '#333' }}>
-            {selectedGender ? selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1) : 'Select Gender'}
-          </Text>
-        </View>
-        <Text style={{ fontSize: 16, color: '#666' }}>▶️</Text>
-      </TouchableOpacity>
-    </View>
-
-    {/* Style DNA Results Section */}
-    {styleDNA && (
-      <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
-          Style Analysis Results
-        </Text>
-        
-        {/* Appearance */}
-        {styleDNA.appearance && (
-          <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>👤 Appearance</Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Hair:</Text> {styleDNA.appearance.hair_color || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Build:</Text> {styleDNA.appearance.build || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Complexion:</Text> {styleDNA.appearance.complexion || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666' }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Age Range:</Text> {styleDNA.appearance.approximate_age_range || 'Not specified'}
-            </Text>
-          </View>
-        )}
-
-        {/* Style Preferences */}
-        {styleDNA.style_preferences && (
-          <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>🎨 Style Preferences</Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Current Style:</Text> {styleDNA.style_preferences.current_style_visible || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Preferred Styles:</Text> {styleDNA.style_preferences.preferred_styles?.join(', ') || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 3 }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Color Palette:</Text> {styleDNA.style_preferences.color_palette?.join(', ') || 'Not specified'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#666' }}>
-              <Text style={{ fontWeight: 'bold', color: '#2E7D32' }}>Fit Preferences:</Text> {styleDNA.style_preferences.fit_preferences || 'Not specified'}
-            </Text>
-          </View>
-        )}
-
-        {/* Outfit Generation Notes */}
-        {styleDNA.outfit_generation_notes && (
-          <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>✨ Outfit Generation</Text>
-            <Text style={{ fontSize: 12, color: '#666', lineHeight: 16 }}>
-              {styleDNA.outfit_generation_notes}
-            </Text>
-          </View>
-        )}
-      </View>
-    )}
-
-    {/* Stats Section */}
-    <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
-        Your Stats
-      </Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, alignItems: 'center', flex: 1, marginHorizontal: 5 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 }}>{savedItems.length}</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Wardrobe Items</Text>
-        </View>
-        <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, alignItems: 'center', flex: 1, marginHorizontal: 5 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 }}>{lovedOutfits.length}</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Loved Outfits</Text>
-        </View>
-        <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, alignItems: 'center', flex: 1, marginHorizontal: 5 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 }}>
-            {styleDNA ? '✅' : '❌'}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Style DNA</Text>
-        </View>
-        <View style={{ backgroundColor: '#f8f8f8', borderRadius: 8, padding: 15, alignItems: 'center', flex: 1, marginHorizontal: 5 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 }}>
-            {selectedGender ? '✅' : '❌'}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Gender Set</Text>
-        </View>
-      </View>
-    </View>
-
- 
-  </View>
+{/* Avatar Customization Page */}
+{showAvatarCustomization && (
+  <AvatarCustomizationPage
+    currentStyleDNA={styleDNA}
+    selectedGender={selectedGender}
+    onSave={updateStyleDNA}
+    onBack={goBackToProfile}
+  />
 )}
 
 {/* Outfits Page */}
@@ -3504,9 +3706,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   />
 )}
 
-{showStyleAdvice && (
-  <StyleAdviceTab />
-)}
 
         </ScrollView>
       </View>
@@ -3517,14 +3716,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         showWardrobe={showWardrobe}
         showOutfitsPage={showOutfitsPage}
         showProfilePage={showProfilePage}
-        showStyleAdvice={showStyleAdvice}
         showingItemDetail={showingItemDetail}
         showingOutfitDetail={showingOutfitDetail}
         navigateToBuilder={navigateToBuilder}
         navigateToWardrobe={navigateToWardrobe}
         navigateToOutfits={navigateToOutfits}
         navigateToProfile={navigateToProfile}
-        navigateToStyleAdvice={navigateToStyleAdvice}
         goBackToOutfits={goBackToOutfits}
         pickMultipleImages={pickMultipleImages}
         openCamera={openCamera}

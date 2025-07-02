@@ -7,7 +7,7 @@ export const useNavigationState = () => {
   const [showLovedItems, setShowLovedItems] = useState(false);
   const [showOutfitsPage, setShowOutfitsPage] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
-  const [showStyleAdvice, setShowStyleAdvice] = useState(false);
+  const [showAvatarCustomization, setShowAvatarCustomization] = useState(false);
   
   // Detail view states
   const [showingItemDetail, setShowingItemDetail] = useState(false);
@@ -47,7 +47,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowStyleAdvice(false);
+    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
@@ -57,7 +57,7 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowStyleAdvice(false);
+    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
@@ -67,7 +67,7 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowProfilePage(false);
-    setShowStyleAdvice(false);
+    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
@@ -77,19 +77,25 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowOutfitsPage(false);
-    setShowStyleAdvice(false);
+    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
-  const navigateToStyleAdvice = () => {
-    setShowStyleAdvice(true);
+  const navigateToAvatarCustomization = () => {
+    setShowAvatarCustomization(true);
     setShowOutfitBuilder(false);
     setShowWardrobe(false);
     setShowLovedItems(false);
-    setShowOutfitsPage(false);
     setShowProfilePage(false);
+    setShowOutfitsPage(false);
     closeAllDetails();
   };
+
+  const goBackToProfile = () => {
+    setShowAvatarCustomization(false);
+    setShowProfilePage(true);
+  };
+
 
   const closeAllDetails = () => {
     setShowingItemDetail(false);
@@ -140,8 +146,8 @@ export const useNavigationState = () => {
     setShowOutfitsPage,
     showProfilePage,
     setShowProfilePage,
-    showStyleAdvice,
-    setShowStyleAdvice,
+    showAvatarCustomization,
+    setShowAvatarCustomization,
     
     // Detail views
     showingItemDetail,
@@ -200,7 +206,8 @@ export const useNavigationState = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
-    navigateToStyleAdvice,
+    navigateToAvatarCustomization,
+    goBackToProfile,
     closeAllDetails,
     openItemDetail,
     openOutfitDetail,

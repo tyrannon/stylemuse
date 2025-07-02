@@ -654,6 +654,94 @@ export const useWardrobeData = () => {
     };
   };
 
+  // Delete functions
+  const deleteWardrobeItem = async (itemToDelete: WardrobeItem): Promise<void> => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Remove item from wardrobe
+      const updatedItems = savedItems.filter(item => item.image !== itemToDelete.image);
+      setSavedItems(updatedItems);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      // Clean up any outfits that used this item
+      const updatedOutfits = lovedOutfits.map(outfit => ({
+        ...outfit,
+        selectedItems: outfit.selectedItems.filter(itemImage => itemImage !== itemToDelete.image)
+      })).filter(outfit => outfit.selectedItems.length > 0); // Remove outfits with no items left
+      
+      if (updatedOutfits.length !== lovedOutfits.length) {
+        setLovedOutfits(updatedOutfits);
+        await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      }
+      
+      console.log('✅ Wardrobe item deleted successfully');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('❌ Error deleting wardrobe item:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  };
+
+  const deleteLovedOutfit = async (outfitId: string): Promise<void> => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Remove outfit from loved outfits
+      const updatedOutfits = lovedOutfits.filter(outfit => outfit.id !== outfitId);
+      setLovedOutfits(updatedOutfits);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      
+      console.log('✅ Outfit deleted successfully');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('❌ Error deleting outfit:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  };
+
+  const deleteBulkWardrobeItems = async (itemsToDelete: WardrobeItem[]): Promise<void> => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      
+      const imagesToDelete = itemsToDelete.map(item => item.image);
+      
+      // Remove items from wardrobe
+      const updatedItems = savedItems.filter(item => !imagesToDelete.includes(item.image));
+      setSavedItems(updatedItems);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      // Clean up any outfits that used these items
+      const updatedOutfits = lovedOutfits.map(outfit => ({
+        ...outfit,
+        selectedItems: outfit.selectedItems.filter(itemImage => !imagesToDelete.includes(itemImage))
+      })).filter(outfit => outfit.selectedItems.length > 0);
+      
+      if (updatedOutfits.length !== lovedOutfits.length) {
+        setLovedOutfits(updatedOutfits);
+        await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      }
+      
+      console.log(`✅ ${itemsToDelete.length} wardrobe items deleted successfully`);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('❌ Error deleting bulk wardrobe items:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  };
+
   return {
     // State
     savedItems,
@@ -694,5 +782,10 @@ export const useWardrobeData = () => {
     getItemsByLaundryStatus,
     getLaundryStats,
     getSmartWashSuggestions,
+    
+    // Delete Functions
+    deleteWardrobeItem,
+    deleteLovedOutfit,
+    deleteBulkWardrobeItems,
   };
 };

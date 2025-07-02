@@ -1,37 +1,172 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Alert, Modal, Dimensions } from 'react-native';
 import { OnlineItemCard } from './OnlineItemCard';
+import { SafeImage } from '../../../utils/SafeImage';
 import { useStyleRecommendations } from '../../../hooks/useStyleRecommendations';
 import { useWardrobeData } from '../../../hooks/useWardrobeData';
+import { generatePersonalizedOutfitImage } from '../../../utils/openai';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export const DiscoverScreen: React.FC = () => {
-  const { savedItems } = useWardrobeData();
+  const { savedItems, styleDNA, selectedGender } = useWardrobeData();
   const { 
     recommendations, 
     loading, 
     error, 
     refreshRecommendations,
-    getItemRecommendations 
+    getItemRecommendations,
+    setCachedRecommendations
   } = useStyleRecommendations();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [generatedOutfitImage, setGeneratedOutfitImage] = useState<string | null>(null);
+  const [generatingOutfit, setGeneratingOutfit] = useState(false);
+  const [showOutfitModal, setShowOutfitModal] = useState(false);
+  const [lastRecommendationsUpdate, setLastRecommendationsUpdate] = useState<Date | null>(null);
 
   const categories = ['all', 'tops', 'bottoms', 'shoes', 'jackets', 'accessories'];
 
+  // Storage keys
+  const STORAGE_KEYS = {
+    LAST_RECOMMENDATIONS: 'stylemuse_last_recommendations',
+    LAST_OUTFIT_IMAGE: 'stylemuse_last_outfit_image',
+    RECOMMENDATIONS_TIMESTAMP: 'stylemuse_recommendations_timestamp',
+  };
+
   useEffect(() => {
-    // Generate initial recommendations when component mounts
-    if (savedItems.length > 0) {
-      refreshRecommendations(savedItems);
-    }
+    loadPersistedData();
+  }, []);
+
+  useEffect(() => {
+    // Only generate initial recommendations if we don't have any cached data
+    // and the component has been mounted for at least 1 second (to allow cache loading)
+    const timeoutId = setTimeout(() => {
+      if (savedItems.length > 0 && recommendations.length === 0) {
+        console.log('🔄 No cached recommendations found, generating new ones...');
+        refreshRecommendations(savedItems);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
   }, [savedItems]);
+
+  // Save recommendations to storage whenever they change
+  useEffect(() => {
+    if (recommendations.length > 0) {
+      console.log('💾 Saving recommendations to storage:', recommendations.length, 'items');
+      saveRecommendations(recommendations);
+    }
+  }, [recommendations]);
+
+  const loadPersistedData = async () => {
+    try {
+      const [lastImage, lastTimestamp, lastRecommendations] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.LAST_OUTFIT_IMAGE),
+        AsyncStorage.getItem(STORAGE_KEYS.RECOMMENDATIONS_TIMESTAMP),
+        AsyncStorage.getItem(STORAGE_KEYS.LAST_RECOMMENDATIONS),
+      ]);
+
+      if (lastImage) {
+        setGeneratedOutfitImage(lastImage);
+      }
+
+      if (lastTimestamp) {
+        setLastRecommendationsUpdate(new Date(lastTimestamp));
+      }
+
+      // Load persisted recommendations if available and not too old (24 hours)
+      if (lastRecommendations && lastTimestamp) {
+        const timestampDate = new Date(lastTimestamp);
+        const hoursOld = (Date.now() - timestampDate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursOld < 24) { // Only use cached recommendations if less than 24 hours old
+          try {
+            const parsedRecommendations = JSON.parse(lastRecommendations);
+            if (Array.isArray(parsedRecommendations) && parsedRecommendations.length > 0) {
+              console.log('✅ Loading cached recommendations:', parsedRecommendations.length, 'items');
+              setCachedRecommendations(parsedRecommendations);
+            }
+          } catch (parseError) {
+            console.error('Error parsing cached recommendations:', parseError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading persisted data:', error);
+    }
+  };
+
+  const saveOutfitImage = async (imageUrl: string) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LAST_OUTFIT_IMAGE, imageUrl);
+      await AsyncStorage.setItem(STORAGE_KEYS.RECOMMENDATIONS_TIMESTAMP, new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving outfit image:', error);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    console.log('🔄 Manual refresh triggered');
     await refreshRecommendations(savedItems);
+    const now = new Date();
+    setLastRecommendationsUpdate(now);
     setRefreshing(false);
+  };
+
+  // Save recommendations to storage whenever they change
+  const saveRecommendations = async (recommendationsToSave: any[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LAST_RECOMMENDATIONS, JSON.stringify(recommendationsToSave));
+      await AsyncStorage.setItem(STORAGE_KEYS.RECOMMENDATIONS_TIMESTAMP, new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving recommendations:', error);
+    }
+  };
+
+  const generateOutfitFromRecommendations = async () => {
+    if (recommendations.length === 0) {
+      Alert.alert('No Recommendations', 'Please refresh to get some recommendations first!');
+      return;
+    }
+
+    setGeneratingOutfit(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      // Create a sample outfit using top recommendations
+      const topRecommendations = recommendations.slice(0, 4);
+      const outfitItems = topRecommendations.map(rec => ({
+        image: rec.onlineItem.imageUrl,
+        title: rec.onlineItem.title,
+        description: rec.onlineItem.description,
+        category: rec.onlineItem.category,
+      }));
+
+      console.log('🎨 Generating outfit image from recommendations...');
+      const imageUrl = await generatePersonalizedOutfitImage(outfitItems, styleDNA, selectedGender);
+      
+      if (imageUrl) {
+        setGeneratedOutfitImage(imageUrl);
+        await saveOutfitImage(imageUrl);
+        setShowOutfitModal(true);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        throw new Error('Failed to generate outfit image');
+      }
+
+    } catch (error) {
+      console.error('Error generating outfit:', error);
+      Alert.alert('Generation Failed', 'Unable to generate outfit image. Please try again.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setGeneratingOutfit(false);
+    }
   };
 
   const handleCategoryFilter = async (category: string) => {
@@ -150,6 +285,57 @@ export const DiscoverScreen: React.FC = () => {
           />
         }
       >
+        {/* Outfit Generation Section */}
+        {recommendations.length > 0 && (
+          <View style={styles.outfitGenerationSection}>
+            <Text style={styles.outfitSectionTitle}>✨ Create Outfit from Recommendations</Text>
+            <Text style={styles.outfitSectionSubtitle}>
+              Generate a stylized outfit image using your top recommendations
+            </Text>
+            
+            {generatedOutfitImage && (
+              <TouchableOpacity 
+                onPress={() => setShowOutfitModal(true)}
+                style={styles.generatedOutfitContainer}
+                activeOpacity={0.8}
+              >
+                <SafeImage
+                  uri={generatedOutfitImage}
+                  style={styles.generatedOutfitImage}
+                  resizeMode="cover"
+                  placeholder="outfit"
+                />
+                <View style={styles.outfitOverlay}>
+                  <Text style={styles.outfitOverlayText}>Tap to View</Text>
+                </View>
+                {lastRecommendationsUpdate && (
+                  <Text style={styles.lastUpdateText}>
+                    Generated {lastRecommendationsUpdate.toLocaleDateString()}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={generateOutfitFromRecommendations}
+              disabled={generatingOutfit || recommendations.length === 0}
+              style={[
+                styles.generateOutfitButton,
+                (generatingOutfit || recommendations.length === 0) && styles.disabledButton
+              ]}
+            >
+              <Text style={styles.generateOutfitButtonText}>
+                {generatingOutfit 
+                  ? '🎨 Generating Outfit...' 
+                  : generatedOutfitImage 
+                    ? '🔄 Generate New Outfit'
+                    : '🎨 Generate Outfit Image'
+                }
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.recommendationsContainer}>
           <Text style={styles.sectionTitle}>
             {selectedCategory === 'all' ? 'Recommended for You' : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Recommendations`}
@@ -176,6 +362,58 @@ export const DiscoverScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Outfit Modal */}
+      <Modal
+        visible={showOutfitModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowOutfitModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Generated Outfit</Text>
+              <TouchableOpacity
+                onPress={() => setShowOutfitModal(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {generatedOutfitImage && (
+              <View style={styles.modalImageContainer}>
+                <SafeImage
+                  uri={generatedOutfitImage}
+                  style={styles.modalOutfitImage}
+                  resizeMode="contain"
+                  placeholder="outfit"
+                />
+              </View>
+            )}
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={generateOutfitFromRecommendations}
+                disabled={generatingOutfit}
+                style={[styles.regenerateButton, generatingOutfit && styles.disabledButton]}
+              >
+                <Text style={styles.regenerateButtonText}>
+                  {generatingOutfit ? '🎨 Generating...' : '🔄 Generate New'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setShowOutfitModal(false)}
+                style={styles.doneButton}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -324,6 +562,154 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // New outfit generation styles
+  outfitGenerationSection: {
+    backgroundColor: '#f8f9fa',
+    margin: 20,
+    marginBottom: 10,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  outfitSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  outfitSectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  generatedOutfitContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  generatedOutfitImage: {
+    width: screenWidth - 80,
+    height: (screenWidth - 80) * 1.2,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  outfitOverlay: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  outfitOverlayText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  lastUpdateText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  generateOutfitButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  generateOutfitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#999',
+    opacity: 0.6,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    margin: 20,
+    borderRadius: 16,
+    maxHeight: '90%',
+    width: screenWidth - 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+  },
+  modalImageContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalOutfitImage: {
+    width: screenWidth - 80,
+    height: (screenWidth - 80) * 1.2,
+    borderRadius: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  regenerateButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  regenerateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  doneButton: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    color: '#333',
     fontSize: 16,
     fontWeight: 'bold',
   },

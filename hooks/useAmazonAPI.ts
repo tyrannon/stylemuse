@@ -134,12 +134,13 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
-    // Mock product data - use search-based URLs that will work
+    // Mock product data - no images needed, text-only approach
+
     const mockProducts: AmazonProduct[] = [
       {
         asin: 'SEARCH1',
         title: `${params.Keywords} - Stylish Cotton Blend`,
-        imageUrl: 'https://via.placeholder.com/300x400/007AFF/FFFFFF?text=Mock+Product+1',
+        imageUrl: null,
         price: 29.99 + Math.random() * 70,
         currency: 'USD',
         rating: 4.0 + Math.random() * 1,
@@ -150,7 +151,7 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
       {
         asin: 'SEARCH2',
         title: `Premium ${params.Keywords} - Designer Style`,
-        imageUrl: 'https://via.placeholder.com/300x400/FF6B6B/FFFFFF?text=Mock+Product+2',
+        imageUrl: null,
         price: 45.99 + Math.random() * 50,
         currency: 'USD',
         rating: 4.2 + Math.random() * 0.8,
@@ -161,7 +162,7 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
       {
         asin: 'SEARCH3',
         title: `Classic ${params.Keywords} - Essential Collection`,
-        imageUrl: 'https://via.placeholder.com/300x400/4ECDC4/FFFFFF?text=Mock+Product+3',
+        imageUrl: null,
         price: 19.99 + Math.random() * 30,
         currency: 'USD',
         rating: 3.8 + Math.random() * 1.2,
@@ -267,7 +268,7 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
       const formattedProducts: AmazonProduct[] = products.map((item: any) => ({
         asin: item.asin || item.ASIN,
         title: item.title || item.ItemInfo?.Title?.DisplayValue || 'Untitled',
-        imageUrl: item.imageUrl || item.Images?.Primary?.Large?.URL || '',
+        imageUrl: item.imageUrl || item.Images?.Primary?.Large?.URL || null,
         price: item.price || (item.Offers?.Listings?.[0]?.Price?.Amount / 100) || 0,
         currency: item.currency || item.Offers?.Listings?.[0]?.Price?.Currency || 'USD',
         rating: item.rating || item.CustomerReviews?.StarRating?.Value || 0,
@@ -343,7 +344,7 @@ export const useAmazonAPI = (): UseAmazonAPIReturn => {
       const productDetails: AmazonProductDetails = {
         asin: item.asin || item.ASIN,
         title: item.title || item.ItemInfo?.Title?.DisplayValue || 'Untitled',
-        imageUrl: item.imageUrl || item.Images?.Primary?.Large?.URL || '',
+        imageUrl: item.imageUrl || item.Images?.Primary?.Large?.URL || null,
         price: item.price || (item.Offers?.Listings?.[0]?.Price?.Amount / 100) || 0,
         currency: item.currency || item.Offers?.Listings?.[0]?.Price?.Currency || 'USD',
         rating: item.rating || item.CustomerReviews?.StarRating?.Value || 0,

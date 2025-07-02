@@ -1954,6 +1954,104 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Amazon suggestions styles
+  amazonButton: {
+    backgroundColor: '#FF9500',
+  },
+  disabledButton: {
+    backgroundColor: '#999',
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteActionButton: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  deleteActionButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  amazonSuggestionsSection: {
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  amazonSuggestionsHeader: {
+    marginBottom: 16,
+  },
+  amazonHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  amazonHeaderText: {
+    flex: 1,
+    marginRight: 16,
+  },
+  amazonSuggestionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  amazonSuggestionsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  refreshAmazonButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  refreshAmazonButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  amazonSuggestionsScroll: {
+    marginHorizontal: -20,
+  },
+  amazonSuggestionsContent: {
+    paddingHorizontal: 20,
+  },
+  amazonSuggestionCard: {
+    marginRight: 16,
+    width: 180,
+  },
+  amazonPreviewContainer: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  amazonPreviewLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  amazonPreviewImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
   // Editable field styles
   editableField: {
     flexDirection: 'row',

@@ -60,26 +60,15 @@ export const OnlineItemCard: React.FC<OnlineItemCardProps> = ({
 
   return (
     <View style={styles.card}>
-      {/* Product Image */}
-      <TouchableOpacity onPress={onViewDetails} activeOpacity={0.8}>
-        <View style={styles.imageContainer}>
-          <SafeImage
-            uri={onlineItem.imageUrl}
-            style={styles.productImage}
-            resizeMode="cover"
-          />
-          
-          {/* Similarity Badge */}
-          <View style={[styles.similarityBadge, { backgroundColor: getSimilarityColor(similarityScore) }]}>
-            <Text style={styles.similarityText}>{Math.round(similarityScore)}%</Text>
-          </View>
-          
-          {/* Merchant Logo */}
-          <View style={styles.merchantBadge}>
-            <Text style={styles.merchantText}>{onlineItem.merchant.name}</Text>
-          </View>
+      {/* Header with merchant and similarity */}
+      <View style={styles.cardHeader}>
+        <View style={styles.merchantBadge}>
+          <Text style={styles.merchantText}>{onlineItem.merchant.name}</Text>
         </View>
-      </TouchableOpacity>
+        <View style={[styles.similarityBadge, { backgroundColor: getSimilarityColor(similarityScore) }]}>
+          <Text style={styles.similarityText}>{Math.round(similarityScore)}% match</Text>
+        </View>
+      </View>
 
       {/* Product Info */}
       <View style={styles.productInfo}>
@@ -87,25 +76,18 @@ export const OnlineItemCard: React.FC<OnlineItemCardProps> = ({
           {onlineItem.title}
         </Text>
         
-        {/* Price and Rating */}
-        <View style={styles.priceRow}>
-          <View style={styles.priceContainer}>
-            <Text style={styles.price}>
-              {formatPrice(onlineItem.price, onlineItem.currency)}
-            </Text>
-            {onlineItem.originalPrice && onlineItem.originalPrice > onlineItem.price && (
-              <Text style={styles.originalPrice}>
-                {formatPrice(onlineItem.originalPrice, onlineItem.currency)}
-              </Text>
-            )}
-          </View>
-          
-          {onlineItem.rating > 0 && (
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>⭐ {onlineItem.rating.toFixed(1)}</Text>
-            </View>
-          )}
+        {/* Search Info */}
+        <View style={styles.searchInfo}>
+          <Text style={styles.searchInfoText}>
+            🔍 This will search Amazon for similar items
+          </Text>
         </View>
+        
+        {onlineItem.rating > 0 && (
+          <View style={styles.ratingContainer}>
+            <Text style={styles.ratingText}>⭐ {onlineItem.rating.toFixed(1)} ({onlineItem.reviewCount || 0} reviews)</Text>
+          </View>
+        )}
 
         {/* Context Info */}
         <View style={styles.contextContainer}>
@@ -139,7 +121,7 @@ export const OnlineItemCard: React.FC<OnlineItemCardProps> = ({
           style={styles.buyButton}
           activeOpacity={0.7}
         >
-          <Text style={styles.buyButtonText}>View Item</Text>
+          <Text style={styles.buyButtonText}>Search Amazon</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -160,44 +142,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: cardWidth * 1.2, // Aspect ratio for clothing items
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    overflow: 'hidden',
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
   },
   similarityBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   similarityText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
   },
   merchantBadge: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
   },
   merchantText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   productInfo: {
     padding: 12,
@@ -209,26 +182,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 8,
   },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  searchInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginRight: 6,
-  },
-  originalPrice: {
+  searchInfoText: {
     fontSize: 12,
-    color: '#999',
-    textDecorationLine: 'line-through',
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   ratingContainer: {
     flexDirection: 'row',

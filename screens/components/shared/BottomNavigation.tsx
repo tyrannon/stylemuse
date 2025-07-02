@@ -8,7 +8,6 @@ interface BottomNavigationProps {
   showWardrobe: boolean;
   showOutfitsPage: boolean;
   showProfilePage: boolean;
-  showStyleAdvice: boolean;
   showingItemDetail: boolean;
   showingOutfitDetail: boolean;
   
@@ -17,7 +16,6 @@ interface BottomNavigationProps {
   navigateToWardrobe: () => void;
   navigateToOutfits: () => void;
   navigateToProfile: () => void;
-  navigateToStyleAdvice: () => void;
   goBackToOutfits: () => void;
   
   // Other functions
@@ -38,14 +36,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   showWardrobe,
   showOutfitsPage,
   showProfilePage,
-  showStyleAdvice,
   showingItemDetail,
   showingOutfitDetail,
   navigateToBuilder,
   navigateToWardrobe,
   navigateToOutfits,
   navigateToProfile,
-  navigateToStyleAdvice,
   goBackToOutfits,
   pickMultipleImages,
   openCamera,
@@ -183,26 +179,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         </Text>
       </TouchableOpacity>
 
-      {/* Style Advice Button */}
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('light');
-          if (!showStyleAdvice) {
-            navigateToStyleAdvice();
-          } else if (showStyleAdvice) {
-            // If already on style advice page, scroll to top
-            mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          }
-        }}
-        style={styles.bottomNavButton}
-      >
-        <Text style={[styles.bottomNavIcon, showStyleAdvice && styles.bottomNavIconActive]}>
-          ✨
-        </Text>
-        <Text style={[styles.bottomNavLabel, showStyleAdvice && styles.bottomNavLabelActive]}>
-          Advice
-        </Text>
-      </TouchableOpacity>
 
       {/* Style DNA Profile Button */}
       <TouchableOpacity

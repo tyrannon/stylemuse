@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Image, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Image, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { LovedOutfit, WardrobeItem } from '../../hooks/useWardrobeData';
 import { MarkAsWornModal } from './MarkAsWornModal';
 import { SafeImage } from '../../utils/SafeImage';
+import * as Haptics from 'expo-haptics';
 
 // Helper function to safely format dates
 const formatDate = (date: any): string => {
@@ -24,6 +25,7 @@ interface OutfitDetailViewProps {
   onDownloadImage: (imageUri: string) => void;
   onItemTap: (item: WardrobeItem) => void;
   onMarkAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
+  onDelete: (outfitId: string) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
 }
 
@@ -35,12 +37,39 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
   onDownloadImage,
   onItemTap,
   onMarkAsWorn,
+  onDelete,
   categorizeItem,
 }) => {
   const [showMarkAsWornModal, setShowMarkAsWornModal] = useState(false);
+
+  const handleDeleteOutfit = () => {
+    Alert.alert(
+      'Delete Outfit',
+      'Are you sure you want to delete this outfit? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await onDelete(outfit.id);
+              onBack(); // Go back to outfits list after deletion
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete outfit. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
   return (
     <View style={styles.itemDetailContainer}>
-      {/* Header with back button */}
+      {/* Header with back and delete buttons */}
       <View style={styles.itemDetailHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back to Outfits</Text>
@@ -48,6 +77,9 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
         <Text style={styles.itemDetailTitle}>
           Generated Outfit
         </Text>
+        <TouchableOpacity onPress={handleDeleteOutfit} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Outfit Image */}
@@ -210,17 +242,19 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   itemDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   backButton: {
-    alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: '#f0f0f0',
     borderRadius: 20,
-    marginBottom: 15,
+    flex: 0,
   },
   backButtonText: {
     fontSize: 16,
@@ -228,10 +262,25 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   itemDetailTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  deleteButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fee',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#fbb',
+    flex: 0,
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    color: '#d32f2f',
   },
   itemDetailImageContainer: {
     padding: 20,

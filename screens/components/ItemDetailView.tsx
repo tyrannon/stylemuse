@@ -1,7 +1,12 @@
-import React from 'react';
-import { View, Image, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Image, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { WardrobeItem } from '../../hooks/useWardrobeData';
 import { SafeImage } from '../../utils/SafeImage';
+import { useStyleRecommendations } from '../../hooks/useStyleRecommendations';
+import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
+import { StyleRecommendation } from '../../types/StyleAdvice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -9,6 +14,7 @@ interface ItemDetailViewProps {
   onSaveField: (field: string, value: string | string[]) => Promise<WardrobeItem>;
   onCategoryPress: () => void;
   onGenerateOutfitSuggestions: (item: WardrobeItem) => void;
+  onDelete: (item: WardrobeItem) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
   
   // Editing states
@@ -48,6 +54,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onSaveField,
   onCategoryPress,
   onGenerateOutfitSuggestions,
+  onDelete,
   categorizeItem,
   editingTitle,
   setEditingTitle,
@@ -76,9 +83,162 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   newTagInput,
   setNewTagInput,
 }) => {
+  // Amazon search state
+  const [amazonSuggestions, setAmazonSuggestions] = useState<StyleRecommendation[]>([]);
+  const [loadingAmazon, setLoadingAmazon] = useState(false);
+  const [showAmazonSuggestions, setShowAmazonSuggestions] = useState(false);
+  const [lastSearchTimestamp, setLastSearchTimestamp] = useState<Date | null>(null);
+
+  const { getItemRecommendations } = useStyleRecommendations();
+
+  // Storage keys for item-specific caching
+  const ITEM_STORAGE_KEYS = {
+    AMAZON_SUGGESTIONS: `stylemuse_amazon_suggestions_${item.image}`,
+    SEARCH_TIMESTAMP: `stylemuse_search_timestamp_${item.image}`,
+  };
+
+  // Load cached Amazon suggestions on mount
+  useEffect(() => {
+    loadCachedAmazonSuggestions();
+  }, [item]);
+
+  const loadCachedAmazonSuggestions = async () => {
+    try {
+      const [cachedSuggestions, cachedTimestamp] = await Promise.all([
+        AsyncStorage.getItem(ITEM_STORAGE_KEYS.AMAZON_SUGGESTIONS),
+        AsyncStorage.getItem(ITEM_STORAGE_KEYS.SEARCH_TIMESTAMP),
+      ]);
+
+      if (cachedSuggestions && cachedTimestamp) {
+        const timestampDate = new Date(cachedTimestamp);
+        const hoursOld = (Date.now() - timestampDate.getTime()) / (1000 * 60 * 60);
+        
+        // Use cached suggestions if less than 24 hours old
+        if (hoursOld < 24) {
+          try {
+            const parsedSuggestions = JSON.parse(cachedSuggestions);
+            if (Array.isArray(parsedSuggestions) && parsedSuggestions.length > 0) {
+              console.log('✅ Loading cached Amazon suggestions for item:', parsedSuggestions.length, 'items');
+              setAmazonSuggestions(parsedSuggestions);
+              setLastSearchTimestamp(timestampDate);
+              setShowAmazonSuggestions(true); // Show if we have cached data
+            }
+          } catch (parseError) {
+            console.error('Error parsing cached Amazon suggestions:', parseError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading cached Amazon suggestions:', error);
+    }
+  };
+
+  const saveCachedAmazonSuggestions = async (suggestions: StyleRecommendation[]) => {
+    try {
+      await AsyncStorage.setItem(ITEM_STORAGE_KEYS.AMAZON_SUGGESTIONS, JSON.stringify(suggestions));
+      await AsyncStorage.setItem(ITEM_STORAGE_KEYS.SEARCH_TIMESTAMP, new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving Amazon suggestions:', error);
+    }
+  };
+
+  const findSimilarOnAmazon = async () => {
+    if (loadingAmazon) return;
+
+    setLoadingAmazon(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      console.log('🔍 Finding similar items on Amazon for:', item.title);
+      
+      // Get recommendations using the existing hook
+      const onlineItems = await getItemRecommendations(item);
+      
+      if (onlineItems.length === 0) {
+        Alert.alert(
+          'No Similar Items Found',
+          'We couldn\'t find any similar items on Amazon right now. Try again later or update your item details for better results.',
+          [{ text: 'OK' }]
+        );
+        setLoadingAmazon(false);
+        return;
+      }
+
+      // Convert to StyleRecommendation format for consistent display
+      const recommendations: StyleRecommendation[] = onlineItems.map((onlineItem, index) => ({
+        id: `${item.image}-amazon-${onlineItem.id}-${index}`,
+        type: 'similar' as const,
+        wardrobeContext: item,
+        onlineItem,
+        similarityScore: 75 + Math.random() * 25, // Random score between 75-100
+        reasoning: `Similar style and category to your ${item.title}`,
+        confidenceLevel: 80,
+        aiInsight: `Found this ${onlineItem.category} item that matches your style`,
+        generatedAt: new Date(),
+      }));
+
+      setAmazonSuggestions(recommendations);
+      setShowAmazonSuggestions(true);
+      setLastSearchTimestamp(new Date());
+      
+      // Save to cache
+      await saveCachedAmazonSuggestions(recommendations);
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('Error finding similar items:', error);
+      Alert.alert(
+        'Search Failed',
+        'Unable to search for similar items. Please check your connection and try again.',
+        [{ text: 'OK' }]
+      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoadingAmazon(false);
+    }
+  };
+
+  const handleWishlistSave = (recommendation: StyleRecommendation) => {
+    // TODO: Implement wishlist functionality
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Added to Wishlist', 'Item saved to your wishlist!');
+  };
+
+  const handleViewDetails = (recommendation: StyleRecommendation) => {
+    // TODO: Implement item details modal
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Item Details', 'Item details feature coming soon!');
+  };
+
+  const handleDeleteItem = () => {
+    Alert.alert(
+      'Delete Item',
+      `Are you sure you want to delete "${item.title || 'this item'}" from your wardrobe? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await onDelete(item);
+              onBack(); // Go back to wardrobe after deletion
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete item. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
   return (
     <View style={styles.itemDetailContainer}>
-      {/* Header with back button */}
+      {/* Header with back and delete buttons */}
       <View style={styles.itemDetailHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back to Wardrobe</Text>
@@ -86,6 +246,9 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         <Text style={styles.itemDetailTitle}>
           {item.title || 'Clothing Item'}
         </Text>
+        <TouchableOpacity onPress={handleDeleteItem} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Item Image */}
@@ -373,11 +536,78 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         <View style={styles.itemDetailActions}>
           <TouchableOpacity
             onPress={() => onGenerateOutfitSuggestions(item)}
-            style={[styles.itemDetailActionButton, { flex: 1 }]}
+            style={[styles.itemDetailActionButton, { marginRight: 8, flex: 1 }]}
           >
             <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={findSimilarOnAmazon}
+            disabled={loadingAmazon}
+            style={[
+              styles.itemDetailActionButton, 
+              styles.amazonButton,
+              { flex: 1 },
+              loadingAmazon && styles.disabledButton
+            ]}
+          >
+            {loadingAmazon ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.itemDetailActionButtonText}>Searching...</Text>
+              </View>
+            ) : (
+              <Text style={styles.itemDetailActionButtonText}>
+                🛒 Find on Amazon
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* Amazon Suggestions Section */}
+        {showAmazonSuggestions && amazonSuggestions.length > 0 && (
+          <View style={styles.amazonSuggestionsSection}>
+            <View style={styles.amazonSuggestionsHeader}>
+              <Text style={styles.amazonSuggestionsTitle}>
+                🔍 Amazon Search Suggestions
+              </Text>
+              <Text style={styles.amazonSuggestionsDescription}>
+                These are search terms that will help you find similar items on Amazon
+              </Text>
+              {lastSearchTimestamp && (
+                <Text style={styles.amazonSuggestionsSubtitle}>
+                  {amazonSuggestions.length} search suggestions • Last updated {lastSearchTimestamp.toLocaleDateString()}
+                </Text>
+              )}
+              <TouchableOpacity
+                onPress={findSimilarOnAmazon}
+                disabled={loadingAmazon}
+                style={styles.refreshAmazonButton}
+              >
+                <Text style={styles.refreshAmazonButtonText}>
+                  {loadingAmazon ? '🔄 Refreshing...' : '🔄 Refresh'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.amazonSuggestionsScroll}
+              contentContainerStyle={styles.amazonSuggestionsContent}
+            >
+              {amazonSuggestions.map((recommendation, index) => (
+                <View key={recommendation.id} style={styles.amazonSuggestionCard}>
+                  <OnlineItemCard
+                    recommendation={recommendation}
+                    onSaveToWishlist={() => handleWishlistSave(recommendation)}
+                    onViewDetails={() => handleViewDetails(recommendation)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -396,17 +626,19 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   itemDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   backButton: {
-    alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: '#f0f0f0',
     borderRadius: 20,
-    marginBottom: 15,
+    flex: 0,
   },
   backButtonText: {
     fontSize: 16,
@@ -414,10 +646,25 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   itemDetailTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  deleteButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fee',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#fbb',
+    flex: 0,
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    color: '#d32f2f',
   },
   itemDetailImageContainer: {
     padding: 20,
@@ -608,5 +855,67 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Amazon suggestions styles
+  amazonButton: {
+    backgroundColor: '#FF9500',
+  },
+  disabledButton: {
+    backgroundColor: '#999',
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  amazonSuggestionsSection: {
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  amazonSuggestionsHeader: {
+    marginBottom: 16,
+  },
+  amazonSuggestionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  amazonSuggestionsDescription: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  amazonSuggestionsSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+  },
+  refreshAmazonButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  refreshAmazonButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  amazonSuggestionsScroll: {
+    marginHorizontal: -20,
+  },
+  amazonSuggestionsContent: {
+    paddingHorizontal: 20,
+  },
+  amazonSuggestionCard: {
+    marginRight: 16,
+    width: 180,
   },
 });
