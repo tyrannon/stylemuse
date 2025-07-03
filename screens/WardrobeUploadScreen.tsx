@@ -1959,17 +1959,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         >
           <Pressable style={styles.slotSelectionModalContent}>
             <Text style={styles.slotSelectionTitle}>
-              Select {selectedSlot?.toUpperCase()} Item
+              Select {modalState.selectedSlot?.toUpperCase()} Item
             </Text>
             <Text style={styles.slotSelectionSubtitle}>
-              Showing {getItemsByCategory(selectedSlot || '').length} {selectedSlot} items
+              Showing {getItemsByCategory(modalState.selectedSlot || '').length} {modalState.selectedSlot} items
             </Text>
             
             <ScrollView style={styles.slotSelectionScroll}>
-              {getItemsByCategory(selectedSlot || '').map((item, index) => (
+              {getItemsByCategory(modalState.selectedSlot || '').map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => assignItemToSlot(selectedSlot!, item)}
+                  onPress={() => assignItemToSlot(modalState.selectedSlot!, item)}
                   style={styles.slotSelectionItem}
                 >
                   <SafeImage
@@ -2011,13 +2011,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 </TouchableOpacity>
               ))}
               
-              {getItemsByCategory(selectedSlot || '').length === 0 && (
+              {getItemsByCategory(modalState.selectedSlot || '').length === 0 && (
                 <View style={styles.noItemsContainer}>
                   <Text style={styles.noItemsText}>
-                    No {selectedSlot} items found
+                    No {modalState.selectedSlot} items found
                   </Text>
                   <Text style={styles.noItemsSubtext}>
-                    Add some {selectedSlot} items to your wardrobe first!
+                    Add some {modalState.selectedSlot} items to your wardrobe first!
                   </Text>
                 </View>
               )}
@@ -2601,9 +2601,9 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     <View style={styles.gearRow}>
       <TouchableOpacity
         onPress={() => openSlotSelection('top')}
-        style={[styles.gearSlot, outfitGeneration.outfitGeneration.gearSlots.top.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.top.itemImage && styles.gearSlotFilled]}
       >
-        {outfitGeneration.outfitGeneration.gearSlots.top.itemImage ? (
+        {outfitGeneration.gearSlots.top.itemImage ? (
           <>
             <SafeImage uri={outfitGeneration.gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
             <TouchableOpacity
