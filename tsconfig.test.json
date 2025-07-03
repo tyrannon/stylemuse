@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "@testing-library/jest-native"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "__tests__/**/*",
+    "hooks/**/*",
+    "components/**/*",
+    "screens/**/*",
+    "types/**/*"
+  ]
+}

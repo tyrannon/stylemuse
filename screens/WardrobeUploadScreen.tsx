@@ -1,12 +1,15 @@
 import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { describeClothingItem } from '../utils/openai';
 import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
 import * as Location from 'expo-location';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Hooks
 import { useWardrobeData, WardrobeItem, LovedOutfit, LaundryStatus } from '../hooks/useWardrobeData';
@@ -42,6 +45,7 @@ import { styles } from './styles/WardrobeUploadScreen.styles';
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
 import { EnhancedStyleDNA } from '../types/Avatar';
+import { STORAGE_KEYS } from '../constants/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -514,14 +518,14 @@ const WardrobeUploadScreen = () => {
     if (!result.canceled && result.assets.length > 0) {
       imageHandling.setBulkUploading(true);
       startSpinAnimation(); // Start spinning animation for bulk upload
-      setBulkProgress({ current: 0, total: result.assets.length });
+      imageHandling.setBulkProgress({ current: 0, total: result.assets.length });
       
       alert(`Processing ${result.assets.length} images...`);
       
       // Process each image one by one
       for (let i = 0; i < result.assets.length; i++) {
         const asset = result.assets[i];
-        setBulkProgress({ current: i + 1, total: result.assets.length });
+        imageHandling.setBulkProgress({ current: i + 1, total: result.assets.length });
         
         try {
           await handleAutoDescribeAndSave(asset.uri, true);
@@ -533,7 +537,7 @@ const WardrobeUploadScreen = () => {
       
       imageHandling.setBulkUploading(false);
       stopSpinAnimation(); // Stop spinning animation for bulk upload
-      setBulkProgress({ current: 0, total: 0 });
+      imageHandling.setBulkProgress({ current: 0, total: 0 });
       alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
     }
   };
@@ -541,7 +545,7 @@ const WardrobeUploadScreen = () => {
   // SIMPLE DIRECT CAMERA APPROACH - No modal, just open camera directly
   const openCamera = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowCameraScreen(true);
+    modalState.setShowCamera(true);
   };
 
   // Function to open the add item page
@@ -552,7 +556,7 @@ const WardrobeUploadScreen = () => {
   // Function to handle camera capture from add item page
   const handleAddItemCameraPress = async () => {
     // Go to camera screen directly
-    setShowCameraScreen(true);
+    modalState.setShowCamera(true);
   };
 
   // Function to pick images from library with "Add Another" flow for single items
@@ -615,14 +619,14 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle photo taken from camera
   const handlePhotoTaken = (photoUri: string) => {
-    setShowCameraScreen(false);
+    modalState.setShowCamera(false);
     setCapturedPhotoUri(photoUri);
-    setShowPhotoEditing(true);
+    modalState.setShowPhotoEditing(true);
   };
 
   // Function to handle photo editing save
   const handlePhotoEditingSave = async (editedPhotoUri: string) => {
-    setShowPhotoEditing(false);
+    modalState.setShowPhotoEditing(false);
     setCapturedPhotoUri(null);
     
     // Process the edited photo through AI analysis
@@ -631,13 +635,13 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle photo editing cancel/retake
   const handlePhotoEditingRetake = () => {
-    setShowPhotoEditing(false);
-    setShowCameraScreen(true);
+    modalState.setShowPhotoEditing(false);
+    modalState.setShowCamera(true);
   };
 
   // Function to handle direct camera photo (skip editing for now)
   const handleCameraPhotoDirect = async (photoUri: string) => {
-    setShowCameraScreen(false);
+    modalState.setShowCamera(false);
     setCapturedPhotoUri(null);
     
     // Process directly through AI analysis (skip editing screen for now to avoid complexity)
@@ -2756,14 +2760,14 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <View style={{ marginTop: 10, alignItems: 'center' }}>
     <TouchableOpacity
       onPress={handleGenerateOutfit}
-      disabled={generatingOutfit || getEquippedItems().length < 1}
+      disabled={outfitGeneration.generatingOutfit || getEquippedItems().length < 1}
       style={[
         styles.generateOutfitButton,
-        (generatingOutfit || getEquippedItems().length < 1) && styles.generateOutfitButtonDisabled
+        (outfitGeneration.generatingOutfit || getEquippedItems().length < 1) && styles.generateOutfitButtonDisabled
       ]}
     >
       <Text style={styles.generateOutfitButtonText}>
-        {generatingOutfit ? '🎮 Generating...' : '🎮 Generate Outfit'}
+        {outfitGeneration.generatingOutfit ? '🎮 Generating...' : '🎮 Generate Outfit'}
       </Text>
     </TouchableOpacity>
     
@@ -3139,11 +3143,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
       {/* Camera Screen */}
-      {showCameraScreen && (
+      {modalState.showCamera && (
         <View style={styles.fullScreenOverlay}>
           <CameraScreen
             onPhotoTaken={handleCameraPhotoDirect}
-            onCancel={() => setShowCameraScreen(false)}
+            onCancel={() => modalState.setShowCamera(false)}
             mode="wardrobe"
             showGrid={true}
           />
@@ -3151,7 +3155,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       )}
 
       {/* Photo Editing Screen */}
-      {showPhotoEditing && capturedPhotoUri && (
+      {modalState.showPhotoEditing && capturedPhotoUri && (
         <View style={styles.fullScreenOverlay}>
           <PhotoEditingScreen
             photoUri={capturedPhotoUri}
@@ -3165,7 +3169,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       {/* Smart Suggestion Modal */}
       <SmartSuggestionModal
         visible={modalState.showSmartSuggestionModal}
-        onClose={() => setShowSmartSuggestionModal(false)}
+        onClose={() => modalState.setShowSmartSuggestionModal(false)}
         onSuggestionsGenerated={handleSmartSuggestionsGenerated}
       />
 
