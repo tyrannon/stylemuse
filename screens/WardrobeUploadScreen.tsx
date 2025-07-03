@@ -2801,8 +2801,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 {showWardrobe && (
   <WardrobePage
     savedItems={savedItems}
-    modalState.showSortFilterModal={modalState.showSortFilterModal}
-    modalState.setShowSortFilterModal={modalState.setShowSortFilterModal}
+    showSortFilterModal={modalState.showSortFilterModal}
+    setShowSortFilterModal={modalState.setShowSortFilterModal}
     filterCategory={filterCategory}
     filterLaundryStatus={filterLaundryStatus}
     sortBy={sortBy}
@@ -2814,8 +2814,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     openWardrobeItemView={openWardrobeItemView}
     categorizeItem={categorizeItem}
     generateOutfitSuggestions={generateOutfitSuggestions}
-    modalState.showLaundryAnalytics={modalState.showLaundryAnalytics}
-    modalState.setShowLaundryAnalytics={modalState.setShowLaundryAnalytics}
+    showLaundryAnalytics={modalState.showLaundryAnalytics}
+    setShowLaundryAnalytics={modalState.setShowLaundryAnalytics}
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
@@ -2891,7 +2891,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     analyzingProfile={analyzingProfile}
     pickProfileImage={pickProfileImage}
     analyzeProfileImage={analyzeProfileImage}
-    modalState.setShowGenderSelector={modalState.setShowGenderSelector}
+    setShowGenderSelector={modalState.setShowGenderSelector}
     onUpdateStyleDNA={updateStyleDNA}
     triggerHaptic={triggerHaptic}
     navigateToAvatarCustomization={navigateToAvatarCustomization}
