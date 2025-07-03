@@ -1,18 +1,23 @@
 import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator } from 'react-native';
-import { SafeImage } from '../utils/SafeImage';
-import * as FileSystem from 'expo-file-system';
+import React, { useState, useEffect, useRef } from 'react';
 import * as MediaLibrary from 'expo-media-library';
 import { describeClothingItem } from '../utils/openai';
-import React, { useState, useEffect, useRef } from 'react';
-import * as ImagePicker from 'expo-image-picker';
-import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit, generateClothingItemImage } from '../utils/openai';
+import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
 import * as Location from 'expo-location';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
 import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+
+// Hooks
 import { useWardrobeData, WardrobeItem, LovedOutfit, LaundryStatus } from '../hooks/useWardrobeData';
 import { useNavigationState } from '../hooks/useNavigationState';
+import { useImageHandling } from '../hooks/useImageHandling';
+import { useAmazonRecommendations } from '../hooks/useAmazonRecommendations';
+import { useModalState } from '../hooks/useModalState';
+import { useOutfitGeneration } from '../hooks/useOutfitGeneration';
+
+// Components
+import { SafeImage } from '../utils/SafeImage';
 import { BottomNavigation } from './components/shared/BottomNavigation';
 import { ItemDetailView } from './components/ItemDetailView';
 import { OutfitDetailView } from './components/OutfitDetailView';
@@ -25,44 +30,20 @@ import { AvatarCustomizationPage } from './AvatarCustomizationPage';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionModal } from './components/SmartSuggestionModal';
-import { useStyleRecommendations } from '../hooks/useStyleRecommendations';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
-import { StyleRecommendation } from '../types/StyleAdvice';
-import { EnhancedStyleDNA } from '../types/Avatar';
-import { styles } from './styles/WardrobeUploadScreen.styles';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
 
+// Utils and Services
+import { getLaundryStatusDisplay } from '../utils/laundryStatus';
+import { StorageService } from '../services/StorageService';
+import { styles } from './styles/WardrobeUploadScreen.styles';
+
+// Types
+import { StyleRecommendation } from '../types/StyleAdvice';
+import { EnhancedStyleDNA } from '../types/Avatar';
+
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-// Storage keys for AsyncStorage
-const STORAGE_KEYS = {
-  WARDROBE_ITEMS: 'stylemuse_wardrobe_items',
-  LOVED_OUTFITS: 'stylemuse_loved_outfits',
-  STYLE_DNA: 'stylemuse_style_dna',
-  SELECTED_GENDER: 'stylemuse_selected_gender',
-  PROFILE_IMAGE: 'stylemuse_profile_image',
-};
-
-// Helper function to get laundry status display info
-const getLaundryStatusDisplay = (status: LaundryStatus | undefined) => {
-  switch (status || 'clean') {
-    case 'clean':
-      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
-    case 'dirty':
-      return { emoji: '🧺', text: 'Dirty', color: '#FF5722' };
-    case 'in-laundry':
-      return { emoji: '🌊', text: 'Washing', color: '#2196F3' };
-    case 'drying':
-      return { emoji: '💨', text: 'Drying', color: '#FF9800' };
-    case 'needs-ironing':
-      return { emoji: '👔', text: 'Iron', color: '#9C27B0' };
-    case 'out-of-rotation':
-      return { emoji: '📦', text: 'Stored', color: '#607D8B' };
-    default:
-      return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
-  }
-};
 
 const WardrobeUploadScreen = () => {
   // Use our custom hooks for data and navigation state
@@ -164,106 +145,53 @@ const WardrobeUploadScreen = () => {
     setSelectedCategory,
   } = navigationState;
 
-  // Amazon search functionality
-  const { getItemRecommendations } = useStyleRecommendations();
-  const [amazonSuggestions, setAmazonSuggestions] = useState<StyleRecommendation[]>([]);
-  const [loadingAmazon, setLoadingAmazon] = useState(false);
-  const [showAmazonSuggestions, setShowAmazonSuggestions] = useState(false);
-  const [lastSearchTimestamp, setLastSearchTimestamp] = useState<Date | null>(null);
-  const [amazonPreviewImage, setAmazonPreviewImage] = useState<string | null>(null);
+  // Use our custom hooks for refactored functionality
+  const imageHandling = useImageHandling();
+  const amazonRecommendations = useAmazonRecommendations();
+  const modalState = useModalState();
+  const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem);
 
-  // State Variables
+  // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
-  const [bulkUploading, setBulkUploading] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedItemsForOutfit, setSelectedItemsForOutfit] = useState<string[]>([]);
-  const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
-  const [generatingOutfit, setGeneratingOutfit] = useState(false);
 
-  // Animated value for spin effect
+  // Animation and UI states
   const [spinValue] = useState(new Animated.Value(0));
-  
-  // Smart suggestion modal state
-  const [showSmartSuggestionModal, setShowSmartSuggestionModal] = useState(false);
-  
-  // Image generation state
-  const [generatingImageForItem, setGeneratingImageForItem] = useState<string | null>(null);
-  
-  // Ref for main scroll view to control scrolling
-  const mainScrollViewRef = useRef<ScrollView>(null);
-
-  // State for profile and style DNA analysis
   const [analyzingProfile, setAnalyzingProfile] = useState(false);
-
-  // State for weather data
   const [weatherData, setWeatherData] = useState<any | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  // State for outfit modal and zoom
   const [outfitModalVisible, setOutfitModalVisible] = useState(false);
   const [outfitScale] = useState(new Animated.Value(1));
   const [outfitTranslateX] = useState(new Animated.Value(0));
   const [outfitTranslateY] = useState(new Animated.Value(0));
   const [currentScale, setCurrentScale] = useState(1);
-  
-  // Animation values for shake effects
   const [builderShakeValue] = useState(new Animated.Value(0));
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
 
-  // selectedGender is now provided by useWardrobeData hook
-
-  // State for gear slot system
-  const [gearSlots, setGearSlots] = useState<{
-    [key: string]: {
-      itemId: string | null;
-      itemImage: string | null;
-      itemTitle: string | null;
-    };
-  }>({
-    top: { itemId: null, itemImage: null, itemTitle: null },
-    bottom: { itemId: null, itemImage: null, itemTitle: null },
-    shoes: { itemId: null, itemImage: null, itemTitle: null },
-    jacket: { itemId: null, itemImage: null, itemTitle: null },
-    hat: { itemId: null, itemImage: null, itemTitle: null },
-    accessories: { itemId: null, itemImage: null, itemTitle: null },
-  });
-
-  // State for slot selection modal
-  const [slotSelectionModalVisible, setSlotSelectionModalVisible] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-
-  // State for wardrobe inventory modal
+  // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [editItemTitle, setEditItemTitle] = useState<string>("");
   const [editItemTags, setEditItemTags] = useState<string[]>([]);
   const [editItemNewTag, setEditItemNewTag] = useState<string>("");
-
-  // State for loved outfit navigation
   const [currentLovedOutfitIndex, setCurrentLovedOutfitIndex] = useState<number>(0);
   const [lovedOutfitModalVisible, setLovedOutfitModalVisible] = useState(false);
 
-  // State for wardrobe sorting and filtering
+  // Wardrobe sorting and filtering
   const [sortBy, setSortBy] = useState<'recent' | 'category' | 'name'>('recent');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterLaundryStatus, setFilterLaundryStatus] = useState<string>('all');
-  const [showSortFilterModal, setShowSortFilterModal] = useState(false);
-  const [showLaundryAnalytics, setShowLaundryAnalytics] = useState(false);
 
-  // State for camera integration
-  const [showCameraScreen, setShowCameraScreen] = useState(false);
-  const [showPhotoEditing, setShowPhotoEditing] = useState(false);
+  // Camera integration states
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
-
-  // State for wardrobe item view modal
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
+  
+  // Ref for main scroll view to control scrolling
+  const mainScrollViewRef = useRef<ScrollView>(null);
   
   // Category editing states are now provided by useNavigationState hook
   
@@ -271,272 +199,22 @@ const WardrobeUploadScreen = () => {
 
   // Navigation states are now provided by useNavigationState hook
 
-  // State for gender selector modal
-  const [showGenderSelector, setShowGenderSelector] = useState(false);
-  
-  // State for text-only item entry modal
-  const [showTextItemModal, setShowTextItemModal] = useState(false);
+  // Extract storage functions from our refactored hooks/services
+  const saveWardrobeItems = StorageService.saveWardrobeItems;
+  const saveLovedOutfits = StorageService.saveLovedOutfits;
+  const saveStyleDNA = StorageService.saveStyleDNA;
+  const saveSelectedGender = StorageService.saveSelectedGender;
+  const saveProfileImage = StorageService.saveProfileImage;
 
-  // Animated values are already declared above
+  // Extract functions from our refactored hooks
+  const {
+    loadCachedAmazonSuggestions,
+    findSimilarOnAmazon,
+    handleWishlistSave,
+    handleViewDetails
+  } = amazonRecommendations;
 
-  // Storage functions
-  const saveWardrobeItems = async (items: any[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(items));
-      console.log('✅ Wardrobe items saved to storage');
-    } catch (error) {
-      console.error('❌ Error saving wardrobe items:', error);
-    }
-  };
-
-  const saveLovedOutfits = async (outfits: any[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(outfits));
-      console.log('✅ Loved outfits saved to storage');
-    } catch (error) {
-      console.error('❌ Error saving loved outfits:', error);
-    }
-  };
-
-  const saveStyleDNA = async (dna: any) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.STYLE_DNA, JSON.stringify(dna));
-      console.log('✅ Style DNA saved to storage');
-    } catch (error) {
-      console.error('❌ Error saving style DNA:', error);
-    }
-  };
-
-  const saveSelectedGender = async (gender: string | null) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.SELECTED_GENDER, JSON.stringify(gender));
-      console.log('✅ Selected gender saved to storage');
-    } catch (error) {
-      console.error('❌ Error saving selected gender:', error);
-    }
-  };
-
-  const saveProfileImage = async (imageUri: string | null) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.PROFILE_IMAGE, JSON.stringify(imageUri));
-      console.log('✅ Profile image saved to storage');
-    } catch (error) {
-      console.error('❌ Error saving profile image:', error);
-    }
-  };
-
-  // Amazon search functionality
-  const CACHE_VERSION = 'v6'; // Increment to force refresh of all cached data
-  
-  const getItemStorageKeys = (item: WardrobeItem) => ({
-    AMAZON_SUGGESTIONS: `stylemuse_amazon_suggestions_${CACHE_VERSION}_${item.image}`,
-    SEARCH_TIMESTAMP: `stylemuse_search_timestamp_${CACHE_VERSION}_${item.image}`,
-    PREVIEW_IMAGE: `stylemuse_amazon_preview_${CACHE_VERSION}_${item.image}`,
-  });
-
-  // Clean up old cache data from previous versions
-  const cleanupOldCache = async (item: WardrobeItem) => {
-    try {
-      const oldKeys = [
-        // v1 cache (no version)
-        `stylemuse_amazon_suggestions_${item.image}`,
-        `stylemuse_search_timestamp_${item.image}`,
-        `stylemuse_amazon_preview_${item.image}`,
-        // v2 cache
-        `stylemuse_amazon_suggestions_v2_${item.image}`,
-        `stylemuse_search_timestamp_v2_${item.image}`,
-        `stylemuse_amazon_preview_v2_${item.image}`,
-        // v3 cache
-        `stylemuse_amazon_suggestions_v3_${item.image}`,
-        `stylemuse_search_timestamp_v3_${item.image}`,
-        `stylemuse_amazon_preview_v3_${item.image}`,
-        // v4 cache
-        `stylemuse_amazon_suggestions_v4_${item.image}`,
-        `stylemuse_search_timestamp_v4_${item.image}`,
-        `stylemuse_amazon_preview_v4_${item.image}`,
-      ];
-      
-      await Promise.all(oldKeys.map(key => AsyncStorage.removeItem(key)));
-      console.log('🧹 Cleaned up old cache data for item');
-    } catch (error) {
-      console.error('Error cleaning up old cache:', error);
-    }
-  };
-
-  const loadCachedAmazonSuggestions = async (item: WardrobeItem) => {
-    try {
-      // Clean up old cache first
-      await cleanupOldCache(item);
-      
-      const storageKeys = getItemStorageKeys(item);
-      const [cachedSuggestions, cachedTimestamp, cachedPreviewImage] = await Promise.all([
-        AsyncStorage.getItem(storageKeys.AMAZON_SUGGESTIONS),
-        AsyncStorage.getItem(storageKeys.SEARCH_TIMESTAMP),
-        AsyncStorage.getItem(storageKeys.PREVIEW_IMAGE),
-      ]);
-
-      console.log('🔍 Checking cache for item:', item.title, {
-        hasSuggestions: !!cachedSuggestions,
-        hasTimestamp: !!cachedTimestamp,
-        hasPreview: !!cachedPreviewImage
-      });
-
-      if (cachedSuggestions && cachedTimestamp) {
-        const timestampDate = new Date(cachedTimestamp);
-        const hoursOld = (Date.now() - timestampDate.getTime()) / (1000 * 60 * 60);
-        
-        // Use cached suggestions if less than 24 hours old
-        if (hoursOld < 24) {
-          try {
-            const parsedSuggestions = JSON.parse(cachedSuggestions);
-            if (Array.isArray(parsedSuggestions) && parsedSuggestions.length > 0) {
-              // Check if cached suggestions have problematic images (from old cache)
-              const hasProblematicImages = parsedSuggestions.some(suggestion => {
-                const imageUrl = suggestion.onlineItem.imageUrl;
-                return !imageUrl || 
-                       imageUrl === null || 
-                       imageUrl === '' ||
-                       imageUrl.includes('placeholder.com') ||
-                       imageUrl.includes('via.placeholder.com') ||
-                       imageUrl.includes('dummyimage.com') ||
-                       imageUrl.includes('httpbin.org');
-              });
-              
-              if (hasProblematicImages) {
-                console.log('🔄 Cached suggestions have problematic image URLs, refreshing automatically');
-                return false; // Don't use cached data with problematic images
-              }
-              
-              console.log('✅ Loading cached Amazon suggestions for item:', parsedSuggestions.length, 'items');
-              setAmazonSuggestions(parsedSuggestions);
-              setLastSearchTimestamp(timestampDate);
-              setShowAmazonSuggestions(true);
-              
-              // Load cached preview image if available
-              if (cachedPreviewImage) {
-                setAmazonPreviewImage(cachedPreviewImage);
-              }
-              
-              return true;
-            }
-          } catch (parseError) {
-            console.error('Error parsing cached Amazon suggestions:', parseError);
-          }
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Error loading cached Amazon suggestions:', error);
-      return false;
-    }
-  };
-
-  const saveCachedAmazonSuggestions = async (item: WardrobeItem, suggestions: StyleRecommendation[], previewImage?: string) => {
-    try {
-      const storageKeys = getItemStorageKeys(item);
-      await AsyncStorage.setItem(storageKeys.AMAZON_SUGGESTIONS, JSON.stringify(suggestions));
-      await AsyncStorage.setItem(storageKeys.SEARCH_TIMESTAMP, new Date().toISOString());
-      
-      if (previewImage) {
-        await AsyncStorage.setItem(storageKeys.PREVIEW_IMAGE, previewImage);
-      }
-    } catch (error) {
-      console.error('Error saving Amazon suggestions:', error);
-    }
-  };
-
-  const findSimilarOnAmazon = async (item: WardrobeItem) => {
-    if (loadingAmazon) return;
-
-    setLoadingAmazon(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      console.log('🔍 Finding similar items on Amazon for:', item.title);
-      
-      // Get recommendations using the existing hook
-      const onlineItems = await getItemRecommendations(item);
-      
-      console.log('📦 Received online items from Amazon API:', onlineItems.map(item => ({
-        title: item.title,
-        imageUrl: item.imageUrl,
-        hasImage: !!item.imageUrl
-      })));
-      
-      if (onlineItems.length === 0) {
-        Alert.alert(
-          'No Similar Items Found',
-          'We couldn\'t find any similar items on Amazon right now. Try again later or update your item details for better results.',
-          [{ text: 'OK' }]
-        );
-        setLoadingAmazon(false);
-        return;
-      }
-
-      // Convert to StyleRecommendation format for consistent display
-      const recommendations: StyleRecommendation[] = onlineItems.map((onlineItem, index) => ({
-        id: `${item.image}-amazon-${onlineItem.id}-${index}`,
-        type: 'similar' as const,
-        wardrobeContext: item,
-        onlineItem,
-        similarityScore: 75 + Math.random() * 25, // Random score between 75-100
-        reasoning: `Similar style and category to your ${item.title}`,
-        confidenceLevel: 80,
-        aiInsight: `Found this ${onlineItem.category} item that matches your style`,
-        generatedAt: new Date(),
-      }));
-
-      // Extract preview image from first result (handle empty strings as null)
-      const firstItemImage = onlineItems.length > 0 ? onlineItems[0].imageUrl : null;
-      const previewImage = firstItemImage && firstItemImage.trim() !== '' ? firstItemImage : null;
-      
-      console.log('🖼️ Preview image extracted:', {
-        hasItems: onlineItems.length > 0,
-        firstItemImage: onlineItems[0]?.imageUrl,
-        previewImage: previewImage
-      });
-      
-      setAmazonSuggestions(recommendations);
-      setShowAmazonSuggestions(true);
-      setLastSearchTimestamp(new Date());
-      
-      if (previewImage) {
-        console.log('🎯 Setting preview image:', previewImage);
-        setAmazonPreviewImage(previewImage);
-      } else {
-        console.log('🚫 No preview image to set (null/undefined)');
-        setAmazonPreviewImage(null);
-      }
-      
-      // Save to cache
-      await saveCachedAmazonSuggestions(item, recommendations, previewImage || undefined);
-      
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-    } catch (error) {
-      console.error('Error finding similar items:', error);
-      Alert.alert(
-        'Search Failed',
-        'Unable to search for similar items. Please check your connection and try again.',
-        [{ text: 'OK' }]
-      );
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoadingAmazon(false);
-    }
-  };
-
-  const handleWishlistSave = (recommendation: StyleRecommendation) => {
-    // TODO: Implement wishlist functionality
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Added to Wishlist', 'Item saved to your wishlist!');
-  };
-
-  const handleViewDetails = (recommendation: StyleRecommendation) => {
-    // TODO: Implement item details modal
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Item Details', 'Item details feature coming soon!');
-  };
+  // Amazon functions are now provided by amazonRecommendations hook
 
   const handleDeleteItem = (item: WardrobeItem) => {
     Alert.alert(
@@ -648,110 +326,19 @@ const WardrobeUploadScreen = () => {
   useEffect(() => {
     if (showingItemDetail && detailViewItem) {
       // Reset Amazon suggestions state
-      setAmazonSuggestions([]);
-      setShowAmazonSuggestions(false);
-      setLastSearchTimestamp(null);
-      setAmazonPreviewImage(null);
+      amazonRecommendations.setAmazonSuggestions([]);
+      amazonRecommendations.setShowAmazonSuggestions(false);
+      amazonRecommendations.setLastSearchTimestamp(null);
+      amazonRecommendations.setAmazonPreviewImage(null);
       
       // Load cached suggestions for this item
       loadCachedAmazonSuggestions(detailViewItem);
     }
-  }, [showingItemDetail, detailViewItem]);
+  }, [showingItemDetail, detailViewItem, loadCachedAmazonSuggestions, amazonRecommendations]);
 
 
-  // Function to pick a single image from the library
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access media library is required!');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      const imageUri = result.assets[0].uri;
-      setImage(imageUri);
-      
-      // Single upload (not bulk)
-      await handleAutoDescribeAndSave(imageUri, false);
-    }
-  };
-
-  // Function to handle image generation for wardrobe items
-  const handleGenerateItemImage = async (item: WardrobeItem) => {
-    // Create a unique identifier for this item
-    const itemId = `${item.title || item.description}_${item.category}_${item.color}_${Date.now()}`;
-    setGeneratingImageForItem(itemId);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      console.log('🎨 Generating image for wardrobe item:', item.title || item.description);
-      const imageUrl = await generateClothingItemImage(item);
-      
-      if (imageUrl) {
-        // Download and save the image to device storage
-        const savedImagePath = await downloadAndSaveImage(imageUrl, itemId);
-        const finalImagePath = savedImagePath || imageUrl;
-        
-        // Update the item with the generated/saved image
-        const updatedItem = { ...item, image: finalImagePath };
-        const updatedItems = savedItems.map(savedItem => {
-          // Find the item by comparing multiple fields since image might be the same for text-only items
-          if (savedItem.title === item.title && 
-              savedItem.description === item.description && 
-              savedItem.category === item.category &&
-              savedItem.image === item.image) {
-            return updatedItem;
-          }
-          return savedItem;
-        });
-        setSavedItems(updatedItems);
-        
-        // Save to AsyncStorage
-        await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
-        
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        console.log('✅ Image generated and item updated successfully');
-      } else {
-        Alert.alert('Generation Failed', 'Unable to generate image. Please try again.');
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-    } catch (error) {
-      console.error('Error generating item image:', error);
-      Alert.alert('Error', 'Failed to generate image. Please check your connection and try again.');
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setGeneratingImageForItem(null);
-    }
-  };
-
-  // Function to download and save generated images to device storage
-  const downloadAndSaveImage = async (imageUrl: string, itemId: string): Promise<string | null> => {
-    try {
-      const fileName = `generated_item_${itemId.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
-      console.log('⬇️ Downloading generated image to:', fileUri);
-      
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
-      
-      if (downloadResult.status === 200) {
-        console.log('✅ Image saved to device storage:', fileUri);
-        return fileUri;
-      } else {
-        console.error('❌ Failed to download image:', downloadResult.status);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error downloading and saving image:', error);
-      return null;
-    }
-  };
+  // Extract image handling functions from our refactored hook
+  const { pickImage, handleGenerateItemImage, downloadAndSaveImage } = imageHandling;
 
   // Function to handle automatic description and saving of clothing item
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
@@ -1792,153 +1379,8 @@ const WardrobeUploadScreen = () => {
     setLovedOutfitModalVisible(true);
   };
 
-  // Function to generate outfit suggestions based on a selected item
-  const generateOutfitSuggestions = async (selectedItem: any) => {
-    try {
-      // Close current detail view and show loading
-      goBackToWardrobe();
-      setGeneratingOutfit(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      // Add a small delay to show the loading state
-      await new Promise(resolve => setTimeout(resolve, 1500));
-    const itemCategory = categorizeItem(selectedItem);
-    const suggestions = {
-      top: null,
-      bottom: null,
-      shoes: null,
-      jacket: null,
-      hat: null,
-      accessories: null,
-    };
-    
-    // Start with the selected item
-    suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
-    
-    // Get all items in the wardrobe
-    const allItems = [...savedItems];
-    
-    // Remove the selected item from consideration for other slots
-    const remainingItems = allItems.filter(item => item.image !== selectedItem.image);
-    
-    // Suggest items for each category based on style compatibility
-    const suggestItemForCategory = (category: string, excludeItems: any[] = []) => {
-      const categoryItems = remainingItems.filter(item => {
-        const itemCategory = categorizeItem(item);
-        return itemCategory === category && !excludeItems.some(exclude => exclude.image === item.image);
-      });
-      
-      if (categoryItems.length === 0) return null;
-      
-      // Simple scoring system based on style compatibility
-      const scoredItems = categoryItems.map(item => {
-        let score = 0;
-        
-        // Color compatibility
-        if (selectedItem.color && item.color) {
-          const selectedColor = selectedItem.color.toLowerCase();
-          const itemColor = item.color.toLowerCase();
-          
-          // Same color family gets high score
-          if (selectedColor === itemColor) score += 10;
-          // Neutral colors work well together
-          else if ((selectedColor.includes('black') || selectedColor.includes('white') || selectedColor.includes('gray')) &&
-                   (itemColor.includes('black') || itemColor.includes('white') || itemColor.includes('gray'))) score += 8;
-          // Complementary colors
-          else if ((selectedColor.includes('blue') && itemColor.includes('brown')) ||
-                   (selectedColor.includes('brown') && itemColor.includes('blue'))) score += 7;
-        }
-        
-        // Style compatibility
-        if (selectedItem.style && item.style) {
-          const selectedStyle = selectedItem.style.toLowerCase();
-          const itemStyle = item.style.toLowerCase();
-          
-          if (selectedStyle.includes('casual') && itemStyle.includes('casual')) score += 5;
-          if (selectedStyle.includes('formal') && itemStyle.includes('formal')) score += 5;
-          if (selectedStyle.includes('sport') && itemStyle.includes('sport')) score += 5;
-        }
-        
-        // Material compatibility
-        if (selectedItem.material && item.material) {
-          const selectedMaterial = selectedItem.material.toLowerCase();
-          const itemMaterial = item.material.toLowerCase();
-          
-          if (selectedMaterial === itemMaterial) score += 3;
-          if ((selectedMaterial.includes('denim') && itemMaterial.includes('denim')) ||
-              (selectedMaterial.includes('cotton') && itemMaterial.includes('cotton'))) score += 2;
-        }
-        
-        // Random factor to add variety
-        score += Math.random() * 3;
-        
-        return { item, score };
-      });
-      
-      // Sort by score and return the best match
-      scoredItems.sort((a, b) => b.score - a.score);
-      return scoredItems[0]?.item || null;
-    };
-    
-    // Suggest items for each category
-    if (itemCategory !== 'top') suggestions.top = suggestItemForCategory('top');
-    if (itemCategory !== 'bottom') suggestions.bottom = suggestItemForCategory('bottom');
-    if (itemCategory !== 'shoes') suggestions.shoes = suggestItemForCategory('shoes');
-    if (itemCategory !== 'jacket') suggestions.jacket = suggestItemForCategory('jacket');
-    if (itemCategory !== 'hat') suggestions.hat = suggestItemForCategory('hat');
-    if (itemCategory !== 'accessories') suggestions.accessories = suggestItemForCategory('accessories');
-    
-    // Update gear slots with suggestions
-    const newGearSlots = {
-      top: suggestions.top ? {
-        itemId: suggestions.top.image,
-        itemImage: suggestions.top.image,
-        itemTitle: suggestions.top.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-      bottom: suggestions.bottom ? {
-        itemId: suggestions.bottom.image,
-        itemImage: suggestions.bottom.image,
-        itemTitle: suggestions.bottom.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-      shoes: suggestions.shoes ? {
-        itemId: suggestions.shoes.image,
-        itemImage: suggestions.shoes.image,
-        itemTitle: suggestions.shoes.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-      jacket: suggestions.jacket ? {
-        itemId: suggestions.jacket.image,
-        itemImage: suggestions.jacket.image,
-        itemTitle: suggestions.jacket.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-      hat: suggestions.hat ? {
-        itemId: suggestions.hat.image,
-        itemImage: suggestions.hat.image,
-        itemTitle: suggestions.hat.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-      accessories: suggestions.accessories ? {
-        itemId: suggestions.accessories.image,
-        itemImage: suggestions.accessories.image,
-        itemTitle: suggestions.accessories.title || 'Untitled Item',
-      } : { itemId: null, itemImage: null, itemTitle: null },
-    };
-    
-    setGearSlots(newGearSlots);
-    
-    // Count how many items were suggested
-    const suggestedCount = Object.values(suggestions).filter(item => item !== null).length;
-    
-    // Close the slot selection modal if it's open
-    setSlotSelectionModalVisible(false);
-    setSelectedSlot(null);
-    
-    alert(`✨ Outfit suggestion created! I've filled ${suggestedCount} slots with items that work well with your ${selectedItem.title || 'selected item'}! 🎨`);
-    } catch (error) {
-      console.error('Error generating outfit suggestions:', error);
-      alert('Failed to generate outfit suggestions. Please try again.');
-    } finally {
-      setGeneratingOutfit(false);
-    }
-  };
+  // Extract outfit generation function from our refactored hook
+  const { generateOutfitSuggestions } = outfitGeneration;
 
   // Function to get sorted and filtered wardrobe items
   const getSortedAndFilteredItems = () => {
