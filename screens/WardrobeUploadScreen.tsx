@@ -343,7 +343,7 @@ const WardrobeUploadScreen = () => {
   // Function to handle automatic description and saving of clothing item
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
     if (!isBulkUpload) {
-      setLoading(true);
+      imageHandling.setLoading(true);
       startSpinAnimation(); // Start spinning animation for single image
       setDescription(null);
       setTitle(null);
@@ -427,7 +427,7 @@ const WardrobeUploadScreen = () => {
       }
     } finally {
       if (!isBulkUpload) {
-        setLoading(false);
+        imageHandling.setLoading(false);
         stopSpinAnimation(); // Stop spinning animation for single image
       }
     }
@@ -438,14 +438,14 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle item selection for outfit generation
   const handleItemSelection = (imageUri: string) => {
-    if (!isSelectionMode) return;
+    if (!outfitGeneration.isSelectionMode) return;
     
-    if (selectedItemsForOutfit.includes(imageUri)) {
+    if (outfitGeneration.selectedItemsForOutfit.includes(imageUri)) {
       // Remove from selection
-      setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
+      outfitGeneration.setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
     } else {
       // Add to selection
-      setSelectedItemsForOutfit(prev => [...prev, imageUri]);
+      outfitGeneration.setSelectedItemsForOutfit(prev => [...prev, imageUri]);
     }
   };
 
@@ -484,7 +484,7 @@ const WardrobeUploadScreen = () => {
           { 
             text: 'Add Another', 
             style: 'default',
-            onPress: () => setShowTextItemModal(true)
+            onPress: () => modalState.setShowTextItemModal(true)
           }
         ]
       );
@@ -512,7 +512,7 @@ const WardrobeUploadScreen = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setBulkUploading(true);
+      imageHandling.setBulkUploading(true);
       startSpinAnimation(); // Start spinning animation for bulk upload
       setBulkProgress({ current: 0, total: result.assets.length });
       
@@ -531,7 +531,7 @@ const WardrobeUploadScreen = () => {
         }
       }
       
-      setBulkUploading(false);
+      imageHandling.setBulkUploading(false);
       stopSpinAnimation(); // Stop spinning animation for bulk upload
       setBulkProgress({ current: 0, total: 0 });
       alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
@@ -609,7 +609,7 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle text entry from add item page
   const handleAddItemTextEntryPress = () => {
-    setShowTextItemModal(true);
+    modalState.setShowTextItemModal(true);
   };
 
 
@@ -662,12 +662,12 @@ const WardrobeUploadScreen = () => {
       if (!proceed) return;
     }
 
-    setGeneratingOutfit(true);
+    outfitGeneration.setGeneratingOutfit(true);
     startSpinAnimation();
     
     try {
       // Set the selected items for outfit display
-      setSelectedItemsForOutfit(equippedItems.map(item => item.image));
+      outfitGeneration.setSelectedItemsForOutfit(equippedItems.map(item => item.image));
       
       // Get weather data if we have it, otherwise use regular generation
       const currentWeather = weatherData || await getLocationAndWeather();
@@ -681,7 +681,7 @@ const WardrobeUploadScreen = () => {
         // Download the generated outfit locally
         try {
           const localImageUri = await downloadAndSaveOutfit(generatedImageUrl);
-          setGeneratedOutfit(localImageUri);
+          outfitGeneration.setGeneratedOutfit(localImageUri);
           resetOutfitTransform(); // Reset transform for new image
           setOutfitModalVisible(true); // Show the modal
           
@@ -716,7 +716,7 @@ const WardrobeUploadScreen = () => {
         } catch (downloadError) {
           console.error('Failed to download outfit:', downloadError);
           // Fallback: use the URL directly but warn the user
-          setGeneratedOutfit(generatedImageUrl);
+          outfitGeneration.setGeneratedOutfit(generatedImageUrl);
           resetOutfitTransform();
           setOutfitModalVisible(true);
           alert("Outfit generated! ⚠️ Couldn't save locally - please save to Loved collection manually.");
@@ -729,7 +729,7 @@ const WardrobeUploadScreen = () => {
       console.error('Error generating outfit:', error);
       alert("Failed to generate AI outfit. Please try again.");
     } finally {
-      setGeneratingOutfit(false);
+      outfitGeneration.setGeneratingOutfit(false);
       stopSpinAnimation();
     }
   };
@@ -1145,13 +1145,13 @@ const WardrobeUploadScreen = () => {
 
   // Function to open slot selection modal
   const openSlotSelection = (slotKey: string) => {
-    setSelectedSlot(slotKey);
-    setSlotSelectionModalVisible(true);
+    modalState.setSelectedSlot(slotKey);
+    modalState.setSlotSelectionModalVisible(true);
   };
 
   // Function to assign item to gear slot
   const assignItemToSlot = (slotKey: string, item: any) => {
-    setGearSlots(prev => ({
+    outfitGeneration.setGearSlots(prev => ({
       ...prev,
       [slotKey]: {
         itemId: item.image,
@@ -1159,13 +1159,13 @@ const WardrobeUploadScreen = () => {
         itemTitle: item.title || 'Untitled Item',
       }
     }));
-    setSlotSelectionModalVisible(false);
-    setSelectedSlot(null);
+    modalState.setSlotSelectionModalVisible(false);
+    modalState.setSelectedSlot(null);
   };
 
   // Function to clear gear slot
   const clearGearSlot = (slotKey: string) => {
-    setGearSlots(prev => ({
+    outfitGeneration.setGearSlots(prev => ({
       ...prev,
       [slotKey]: {
         itemId: null,
@@ -1178,7 +1178,7 @@ const WardrobeUploadScreen = () => {
   // Function to get all equipped items for outfit generation
   const getEquippedItems = () => {
     const equippedItems = [];
-    for (const [slotKey, slotData] of Object.entries(gearSlots)) {
+    for (const [slotKey, slotData] of Object.entries(outfitGeneration.gearSlots)) {
       if (slotData.itemId) {
         const item = savedItems.find(savedItem => savedItem.image === slotData.itemId);
         if (item) {
@@ -1249,13 +1249,13 @@ const WardrobeUploadScreen = () => {
 
   // Function to save outfit to loved collection
   const saveOutfitToLoved = () => {
-    if (!generatedOutfit) return;
+    if (!outfitGeneration.generatedOutfit) return;
     
     const equippedItems = getEquippedItems();
     
     const newLovedOutfit = {
       id: Date.now().toString(),
-      image: generatedOutfit,
+      image: outfitGeneration.generatedOutfit,
       weatherData: weatherData || null,
       styleDNA: styleDNA || null,
       selectedItems: equippedItems.map(item => item.image),
@@ -1291,7 +1291,7 @@ const WardrobeUploadScreen = () => {
 
   // Function to view loved outfit in modal
   const viewLovedOutfit = (outfit: any) => {
-    setGeneratedOutfit(outfit.image);
+    outfitGeneration.setGeneratedOutfit(outfit.image);
     resetOutfitTransform();
     setOutfitModalVisible(true);
   };
@@ -1489,12 +1489,12 @@ const WardrobeUploadScreen = () => {
   // Function to suggest smart outfit suggestions
   const handleSmartOutfitSuggestions = () => {
     triggerHaptic('medium');
-    setShowSmartSuggestionModal(true);
+    modalState.setShowSmartSuggestionModal(true);
   };
 
   const handleSmartSuggestionsGenerated = (suggestion: any) => {
     // Auto-fill the outfit builder with the generated suggestions
-    setGearSlots({
+    outfitGeneration.setGearSlots({
       top: suggestion.top ? { 
         itemId: suggestion.top.image, // Use image as itemId to match getEquippedItems logic
         itemImage: suggestion.top.image, 
@@ -1608,7 +1608,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 </View>
 
 {/* Progress indicator during bulk upload */}
-{bulkUploading && (
+{imageHandling.bulkUploading && (
   <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
     {/* Spinning Icon */}
     <Animated.View
@@ -1628,7 +1628,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       Processing images... ✨
     </Text>
     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 15 }}>
-      {bulkProgress.current} of {bulkProgress.total}
+      {imageHandling.bulkProgress.current} of {imageHandling.bulkProgress.total}
     </Text>
     <View style={{
       width: 250,
@@ -1638,7 +1638,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       overflow: 'hidden',
     }}>
       <View style={{
-        width: `${(bulkProgress.current / bulkProgress.total) * 100}%`,
+        width: `${(imageHandling.bulkProgress.current / imageHandling.bulkProgress.total) * 100}%`,
         height: '100%',
         backgroundColor: '#007AFF',
         borderRadius: 4,
@@ -1683,7 +1683,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 )}
 
 {/* Spinning animation and loading text for outfit generation */}
-{generatingOutfit && (
+{outfitGeneration.generatingOutfit && (
   <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
     {/* Spinning Icon */}
     <Animated.View
@@ -1744,9 +1744,9 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     {/* Cancel button */}
     <TouchableOpacity
       onPress={() => {
-        setGeneratingOutfit(false);
+        outfitGeneration.setGeneratingOutfit(false);
         stopSpinAnimation();
-        setIsSelectionMode(true);
+        outfitGeneration.setIsSelectionMode(true);
       }}
       style={{
         marginTop: 20,
@@ -1809,7 +1809,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
               {/* Zoomable Image Container */}
               <View style={styles.imageContainer}>
-                {generatedOutfit ? (
+                {outfitGeneration.generatedOutfit ? (
                   <GestureHandlerRootView style={{ width: '100%', height: '100%' }}>
                     <PanGestureHandler
                       onGestureEvent={onPanGestureEvent}
@@ -1842,7 +1842,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                               style={styles.outfitImageTouchable}
                             >
                               <SafeImage
-                                uri={generatedOutfit}
+                                uri={outfitGeneration.generatedOutfit}
                                 style={styles.outfitImage}
                                 resizeMode="contain"
                                 onError={(error) => console.log('Image error:', error)}
@@ -1857,13 +1857,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 ) : (
                   <View style={{ justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                     <Text style={{ color: '#666', fontSize: 16 }}>No outfit image available</Text>
-                    <Text style={{ color: '#999', fontSize: 12, marginTop: 5 }}>generatedOutfit: {generatedOutfit || 'null'}</Text>
+                    <Text style={{ color: '#999', fontSize: 12, marginTop: 5 }}>generatedOutfit: {outfitGeneration.generatedOutfit || 'null'}</Text>
                   </View>
                 )}
               </View>
 
               {/* Original Items Section */}
-              {selectedItemsForOutfit.length > 0 && (
+              {outfitGeneration.selectedItemsForOutfit.length > 0 && (
                 <View style={styles.originalItemsContainer}>
                   <Text style={styles.originalItemsTitle}>Based on these items:</Text>
                   <ScrollView
@@ -1871,7 +1871,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                     showsHorizontalScrollIndicator={false}
                     style={styles.originalItemsScroll}
                   >
-                    {selectedItemsForOutfit.map((imageUri, index) => (
+                    {outfitGeneration.selectedItemsForOutfit.map((imageUri, index) => (
                       <View key={index} style={styles.originalItemCard}>
                         <Image 
                           source={{ uri: imageUri }} 
@@ -1921,9 +1921,9 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 <TouchableOpacity
                   onPress={() => {
                     setOutfitModalVisible(false);
-                    setGeneratedOutfit(null);
-                    setSelectedItemsForOutfit([]);
-                    setIsSelectionMode(true);
+                    outfitGeneration.setGeneratedOutfit(null);
+                    outfitGeneration.setSelectedItemsForOutfit([]);
+                    outfitGeneration.setIsSelectionMode(true);
                   }}
                   style={styles.actionButton}
                 >
@@ -1933,8 +1933,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 <TouchableOpacity
                   onPress={() => {
                     setOutfitModalVisible(false);
-                    setGeneratedOutfit(null);
-                    setSelectedItemsForOutfit([]);
+                    outfitGeneration.setGeneratedOutfit(null);
+                    outfitGeneration.setSelectedItemsForOutfit([]);
                   }}
                   style={[styles.actionButton, styles.keepOutfitButton]}
                 >
@@ -1948,13 +1948,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
       {/* Slot Selection Modal */}
       <Modal
-        visible={slotSelectionModalVisible}
+        visible={modalState.slotSelectionModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setSlotSelectionModalVisible(false)}
+        onRequestClose={() => modalState.setSlotSelectionModalVisible(false)}
       >
         <Pressable
-          onPress={() => setSlotSelectionModalVisible(false)}
+          onPress={() => modalState.setSlotSelectionModalVisible(false)}
           style={styles.modalOverlay}
         >
           <Pressable style={styles.slotSelectionModalContent}>
@@ -2024,7 +2024,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
             </ScrollView>
             
             <TouchableOpacity
-              onPress={() => setSlotSelectionModalVisible(false)}
+              onPress={() => modalState.setSlotSelectionModalVisible(false)}
               style={styles.slotSelectionCloseButton}
             >
               <Text style={styles.slotSelectionCloseButtonText}>Cancel</Text>
@@ -2358,13 +2358,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
       {/* Sort & Filter Modal */}
       <Modal
-        visible={showSortFilterModal}
+        visible={modalState.showSortFilterModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowSortFilterModal(false)}
+        onRequestClose={() => modalState.setShowSortFilterModal(false)}
       >
         <Pressable
-          onPress={() => setShowSortFilterModal(false)}
+          onPress={() => modalState.setShowSortFilterModal(false)}
           style={styles.modalOverlay}
         >
           <Pressable style={styles.sortFilterModalContent}>
@@ -2373,7 +2373,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 🔍 Sort & Filter Wardrobe
               </Text>
               <TouchableOpacity
-                onPress={() => setShowSortFilterModal(false)}
+                onPress={() => modalState.setShowSortFilterModal(false)}
                 style={styles.closeSortFilterButton}
               >
                 <Text style={styles.closeSortFilterButtonText}>✕</Text>
@@ -2522,7 +2522,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
               </TouchableOpacity>
               
               <TouchableOpacity
-                onPress={() => setShowSortFilterModal(false)}
+                onPress={() => modalState.setShowSortFilterModal(false)}
                 style={styles.applyButton}
               >
                 <Text style={styles.applyButtonText}>✅ Apply</Text>
@@ -2546,7 +2546,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
 {/* Spinning animation and loading text for single image AI analysis */}
-{loading && (
+{imageHandling.loading && (
   <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
     {/* Spinning Icon */}
     <Animated.View
@@ -2601,11 +2601,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     <View style={styles.gearRow}>
       <TouchableOpacity
         onPress={() => openSlotSelection('top')}
-        style={[styles.gearSlot, gearSlots.top.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.outfitGeneration.gearSlots.top.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.top.itemImage ? (
+        {outfitGeneration.outfitGeneration.gearSlots.top.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('top')}
               style={styles.clearSlotButton}
@@ -2617,17 +2617,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>👕</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          TOP {gearSlots.top.itemImage && `(${getItemsByCategory('top').length})`}
+          TOP {outfitGeneration.gearSlots.top.itemImage && `(${getItemsByCategory('top').length})`}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => openSlotSelection('bottom')}
-        style={[styles.gearSlot, gearSlots.bottom.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.bottom.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.bottom.itemImage ? (
+        {outfitGeneration.gearSlots.bottom.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.bottom.itemImage} style={styles.gearSlotImage} category="bottom" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.bottom.itemImage} style={styles.gearSlotImage} category="bottom" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('bottom')}
               style={styles.clearSlotButton}
@@ -2639,17 +2639,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>👖</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          BOTTOM {gearSlots.bottom.itemImage && `(${getItemsByCategory('bottom').length})`}
+          BOTTOM {outfitGeneration.gearSlots.bottom.itemImage && `(${getItemsByCategory('bottom').length})`}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => openSlotSelection('shoes')}
-        style={[styles.gearSlot, gearSlots.shoes.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.shoes.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.shoes.itemImage ? (
+        {outfitGeneration.gearSlots.shoes.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.shoes.itemImage} style={styles.gearSlotImage} category="shoes" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.shoes.itemImage} style={styles.gearSlotImage} category="shoes" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('shoes')}
               style={styles.clearSlotButton}
@@ -2661,7 +2661,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>👟</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          SHOES {gearSlots.shoes.itemImage && `(${getItemsByCategory('shoes').length})`}
+          SHOES {outfitGeneration.gearSlots.shoes.itemImage && `(${getItemsByCategory('shoes').length})`}
         </Text>
       </TouchableOpacity>
     </View>
@@ -2670,11 +2670,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     <View style={styles.gearRow}>
       <TouchableOpacity
         onPress={() => openSlotSelection('jacket')}
-        style={[styles.gearSlot, gearSlots.jacket.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.jacket.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.jacket.itemImage ? (
+        {outfitGeneration.gearSlots.jacket.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.jacket.itemImage} style={styles.gearSlotImage} category="jacket" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.jacket.itemImage} style={styles.gearSlotImage} category="jacket" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('jacket')}
               style={styles.clearSlotButton}
@@ -2686,17 +2686,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>🧥</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          JACKET {gearSlots.jacket.itemImage && `(${getItemsByCategory('jacket').length})`}
+          JACKET {outfitGeneration.gearSlots.jacket.itemImage && `(${getItemsByCategory('jacket').length})`}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => openSlotSelection('hat')}
-        style={[styles.gearSlot, gearSlots.hat.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.hat.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.hat.itemImage ? (
+        {outfitGeneration.gearSlots.hat.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.hat.itemImage} style={styles.gearSlotImage} category="hat" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.hat.itemImage} style={styles.gearSlotImage} category="hat" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('hat')}
               style={styles.clearSlotButton}
@@ -2708,17 +2708,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>🎩</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          HAT {gearSlots.hat.itemImage && `(${getItemsByCategory('hat').length})`}
+          HAT {outfitGeneration.gearSlots.hat.itemImage && `(${getItemsByCategory('hat').length})`}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => openSlotSelection('accessories')}
-        style={[styles.gearSlot, gearSlots.accessories.itemImage && styles.gearSlotFilled]}
+        style={[styles.gearSlot, outfitGeneration.gearSlots.accessories.itemImage && styles.gearSlotFilled]}
       >
-        {gearSlots.accessories.itemImage ? (
+        {outfitGeneration.gearSlots.accessories.itemImage ? (
           <>
-            <SafeImage uri={gearSlots.accessories.itemImage} style={styles.gearSlotImage} category="accessories" placeholder="item" />
+            <SafeImage uri={outfitGeneration.gearSlots.accessories.itemImage} style={styles.gearSlotImage} category="accessories" placeholder="item" />
             <TouchableOpacity
               onPress={() => clearGearSlot('accessories')}
               style={styles.clearSlotButton}
@@ -2730,7 +2730,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <Text style={styles.gearSlotIcon}>💍</Text>
         )}
         <Text style={styles.gearSlotLabel}>
-          ACCESSORIES {gearSlots.accessories.itemImage && `(${getItemsByCategory('accessories').length})`}
+          ACCESSORIES {outfitGeneration.gearSlots.accessories.itemImage && `(${getItemsByCategory('accessories').length})`}
         </Text>
       </TouchableOpacity>
     </View>
@@ -2801,8 +2801,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 {showWardrobe && (
   <WardrobePage
     savedItems={savedItems}
-    showSortFilterModal={showSortFilterModal}
-    setShowSortFilterModal={setShowSortFilterModal}
+    modalState.showSortFilterModal={modalState.showSortFilterModal}
+    modalState.setShowSortFilterModal={modalState.setShowSortFilterModal}
     filterCategory={filterCategory}
     filterLaundryStatus={filterLaundryStatus}
     sortBy={sortBy}
@@ -2814,8 +2814,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     openWardrobeItemView={openWardrobeItemView}
     categorizeItem={categorizeItem}
     generateOutfitSuggestions={generateOutfitSuggestions}
-    showLaundryAnalytics={showLaundryAnalytics}
-    setShowLaundryAnalytics={setShowLaundryAnalytics}
+    modalState.showLaundryAnalytics={modalState.showLaundryAnalytics}
+    modalState.setShowLaundryAnalytics={modalState.setShowLaundryAnalytics}
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
@@ -2891,7 +2891,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     analyzingProfile={analyzingProfile}
     pickProfileImage={pickProfileImage}
     analyzeProfileImage={analyzeProfileImage}
-    setShowGenderSelector={setShowGenderSelector}
+    modalState.setShowGenderSelector={modalState.setShowGenderSelector}
     onUpdateStyleDNA={updateStyleDNA}
     triggerHaptic={triggerHaptic}
     navigateToAvatarCustomization={navigateToAvatarCustomization}
@@ -2964,13 +2964,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
       {/* Gender Selector Modal */}
       <Modal
-        visible={showGenderSelector}
+        visible={modalState.showGenderSelector}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowGenderSelector(false)}
+        onRequestClose={() => modalState.setShowGenderSelector(false)}
       >
         <Pressable
-          onPress={() => setShowGenderSelector(false)}
+          onPress={() => modalState.setShowGenderSelector(false)}
           style={styles.modalOverlay}
         >
           <Pressable style={styles.genderSelectorModal}>
@@ -2979,7 +2979,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 Select Gender Identity
               </Text>
               <TouchableOpacity
-                onPress={() => setShowGenderSelector(false)}
+                onPress={() => modalState.setShowGenderSelector(false)}
                 style={styles.closeGenderButton}
               >
                 <Text style={styles.closeGenderButtonText}>✕</Text>
@@ -2995,7 +2995,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 onPress={() => {
                   setSelectedGender('male');
                   saveSelectedGender('male');
-                  setShowGenderSelector(false);
+                  modalState.setShowGenderSelector(false);
                 }}
                 style={[
                   styles.genderOption,
@@ -3018,7 +3018,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 onPress={() => {
                   setSelectedGender('female');
                   saveSelectedGender('female');
-                  setShowGenderSelector(false);
+                  modalState.setShowGenderSelector(false);
                 }}
                 style={[
                   styles.genderOption,
@@ -3041,7 +3041,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 onPress={() => {
                   setSelectedGender('nonbinary');
                   saveSelectedGender('nonbinary');
-                  setShowGenderSelector(false);
+                  modalState.setShowGenderSelector(false);
                 }}
                 style={[
                   styles.genderOption,
@@ -3164,15 +3164,15 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
       {/* Smart Suggestion Modal */}
       <SmartSuggestionModal
-        visible={showSmartSuggestionModal}
+        visible={modalState.showSmartSuggestionModal}
         onClose={() => setShowSmartSuggestionModal(false)}
         onSuggestionsGenerated={handleSmartSuggestionsGenerated}
       />
 
       {/* Text Item Entry Modal */}
       <TextItemEntryModal
-        visible={showTextItemModal}
-        onClose={() => setShowTextItemModal(false)}
+        visible={modalState.showTextItemModal}
+        onClose={() => modalState.setShowTextItemModal(false)}
         onSave={handleSaveTextItem}
         categories={AVAILABLE_CATEGORIES}
       />
