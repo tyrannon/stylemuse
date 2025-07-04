@@ -1,5 +1,5 @@
 import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -153,7 +153,7 @@ const WardrobeUploadScreen = () => {
   const mainScrollViewRef = useRef<ScrollView>(null);
 
   // Custom navigate to builder with scroll
-  const navigateToBuilderWithScroll = () => {
+  const navigateToBuilderWithScroll = useCallback(() => {
     console.log('🚀 navigateToBuilderWithScroll called');
     console.log('📱 Current navigation state:', {
       showingItemDetail,
@@ -161,19 +161,32 @@ const WardrobeUploadScreen = () => {
       showWardrobe
     });
     
-    // Close any open detail views first
-    console.log('🔄 Closing all details...');
-    navigationState.closeAllDetails();
+    // Close any open detail views first and navigate in a single call
+    console.log('🔄 Closing all details and navigating...');
     
-    console.log('🎯 Navigating to builder...');
-    navigationState.navigateToBuilder();
+    // Ensure state updates happen synchronously
+    navigationState.setShowingItemDetail(false);
+    navigationState.setDetailViewItem(null);
+    navigationState.setShowingOutfitDetail(false);
+    navigationState.setDetailViewOutfit(null);
+    
+    // Navigate to builder
+    navigationState.setShowOutfitBuilder(true);
+    navigationState.setShowWardrobe(false);
+    navigationState.setShowLovedItems(false);
+    navigationState.setShowProfilePage(false);
+    navigationState.setShowOutfitsPage(false);
+    navigationState.setShowAvatarCustomization(false);
+    navigationState.setShowAddItemPage(false);
+    
+    console.log('✅ Navigation state updated');
     
     // Scroll to top after a short delay
     setTimeout(() => {
       console.log('📜 Scrolling to top...');
       mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 150);
-  };
+  }, [showingItemDetail, showOutfitBuilder, showWardrobe, navigationState]);
 
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
