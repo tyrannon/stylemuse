@@ -62,16 +62,11 @@ export const useOutfitGeneration = (
   // Function to generate outfit suggestions based on a selected item
   const generateOutfitSuggestions = async (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => {
     try {
-      console.log('🎨 generateOutfitSuggestions called with item:', selectedItem.title);
-      
       // Navigate to builder page first
       if (navigateToBuilder) {
-        console.log('🚀 Calling navigateToBuilder function...');
         navigateToBuilder();
         // Small delay to let navigation complete
         await new Promise(resolve => setTimeout(resolve, 100));
-      } else {
-        console.log('⚠️ No navigateToBuilder function provided');
       }
       
       // Show loading state for suggestions (separate from outfit generation)

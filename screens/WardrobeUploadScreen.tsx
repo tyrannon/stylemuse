@@ -154,16 +154,6 @@ const WardrobeUploadScreen = () => {
 
   // Custom navigate to builder with scroll
   const navigateToBuilderWithScroll = useCallback(() => {
-    console.log('🚀 navigateToBuilderWithScroll called');
-    console.log('📱 Current navigation state:', {
-      showingItemDetail,
-      showOutfitBuilder,
-      showWardrobe
-    });
-    
-    // Close any open detail views first and navigate in a single call
-    console.log('🔄 Closing all details and navigating...');
-    
     // Ensure state updates happen synchronously
     navigationState.setShowingItemDetail(false);
     navigationState.setDetailViewItem(null);
@@ -179,14 +169,11 @@ const WardrobeUploadScreen = () => {
     navigationState.setShowAvatarCustomization(false);
     navigationState.setShowAddItemPage(false);
     
-    console.log('✅ Navigation state updated');
-    
     // Scroll to top after a short delay
     setTimeout(() => {
-      console.log('📜 Scrolling to top...');
       mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 150);
-  }, [showingItemDetail, showOutfitBuilder, showWardrobe, navigationState]);
+  }, [navigationState]);
 
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
