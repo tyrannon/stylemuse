@@ -42,6 +42,16 @@ export const useNavigationState = () => {
 
   // Navigation functions
   const navigateToBuilder = () => {
+    console.log('🎯 navigateToBuilder called');
+    console.log('📱 Before navigate:', {
+      showOutfitBuilder,
+      showWardrobe,
+      showLovedItems,
+      showProfilePage,
+      showOutfitsPage,
+      showAvatarCustomization,
+      showAddItemPage
+    });
     setShowOutfitBuilder(true);
     setShowWardrobe(false);
     setShowLovedItems(false);
@@ -114,6 +124,13 @@ export const useNavigationState = () => {
 
 
   const closeAllDetails = () => {
+    console.log('🔄 closeAllDetails called');
+    console.log('📱 Before close:', {
+      showingItemDetail,
+      showingOutfitDetail,
+      detailViewItem: !!detailViewItem,
+      detailViewOutfit: !!detailViewOutfit
+    });
     setShowingItemDetail(false);
     setDetailViewItem(null);
     setShowingOutfitDetail(false);

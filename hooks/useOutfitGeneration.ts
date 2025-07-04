@@ -2,6 +2,8 @@ import { useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { WardrobeItem } from './useWardrobeData';
+import { generateIntelligentOutfitSelection } from '../utils/openai';
+import { generateClothingItemImage } from '../utils/openai';
 
 export interface GearSlot {
   itemId: string | null;
@@ -23,23 +25,27 @@ export interface OutfitGenerationState {
   setGeneratedOutfit: (outfit: string | null) => void;
   generatingOutfit: boolean;
   setGeneratingOutfit: (generating: boolean) => void;
+  generatingSuggestions: boolean;
+  setGeneratingSuggestions: (generating: boolean) => void;
   isSelectionMode: boolean;
   setIsSelectionMode: (mode: boolean) => void;
   selectedItemsForOutfit: string[];
   setSelectedItemsForOutfit: (items: string[]) => void;
   gearSlots: GearSlots;
   setGearSlots: (slots: GearSlots) => void;
-  generateOutfitSuggestions: (selectedItem: WardrobeItem) => Promise<void>;
+  generateOutfitSuggestions: (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => Promise<void>;
   clearGearSlots: () => void;
   setGearSlotItem: (slotType: keyof GearSlots, item: WardrobeItem | null) => void;
 }
 
 export const useOutfitGeneration = (
   savedItems: WardrobeItem[],
-  categorizeItem: (item: WardrobeItem) => string
+  categorizeItem: (item: WardrobeItem) => string,
+  navigateToBuilder?: () => void
 ): OutfitGenerationState => {
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
+  const [generatingSuggestions, setGeneratingSuggestions] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedItemsForOutfit, setSelectedItemsForOutfit] = useState<string[]>([]);
   
@@ -54,14 +60,42 @@ export const useOutfitGeneration = (
   });
 
   // Function to generate outfit suggestions based on a selected item
-  const generateOutfitSuggestions = async (selectedItem: WardrobeItem) => {
+  const generateOutfitSuggestions = async (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => {
     try {
-      // Show loading state
-      setGeneratingOutfit(true);
+      console.log('🎨 generateOutfitSuggestions called with item:', selectedItem.title);
+      
+      // Navigate to builder page first
+      if (navigateToBuilder) {
+        console.log('🚀 Calling navigateToBuilder function...');
+        navigateToBuilder();
+        // Small delay to let navigation complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        console.log('⚠️ No navigateToBuilder function provided');
+      }
+      
+      // Show loading state for suggestions (separate from outfit generation)
+      setGeneratingSuggestions(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      // Add a small delay to show the loading state
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('🎨 Generating smart outfit suggestions and opening builder...');
+      
+      // Use AI to generate intelligent outfit selection
+      const outfitContext = context || {
+        occasion: 'casual',
+        location: 'general',
+        weather: 'moderate',
+        time: 'day',
+        style: 'coordinated'
+      };
+      
+      const aiOutfit = await generateIntelligentOutfitSelection(savedItems, outfitContext, styleDNA);
+      
+      if (!aiOutfit) {
+        throw new Error('AI outfit generation failed');
+      }
+      
+      console.log('🤖 AI outfit result:', aiOutfit);
       
       const itemCategory = categorizeItem(selectedItem);
       const suggestions = {
@@ -76,78 +110,68 @@ export const useOutfitGeneration = (
       // Start with the selected item
       suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
       
-      // Get all items in the wardrobe
-      const allItems = [...savedItems];
-      
-      // Remove the selected item from consideration for other slots
-      const remainingItems = allItems.filter(item => item.image !== selectedItem.image);
-      
-      // Suggest items for each category based on style compatibility
-      const suggestItemForCategory = (category: string, excludeItems: WardrobeItem[] = []) => {
-        const categoryItems = remainingItems.filter(item => {
-          const itemCategory = categorizeItem(item);
-          return itemCategory === category && !excludeItems.some(exclude => exclude.image === item.image);
-        });
-        
-        if (categoryItems.length === 0) return null;
-        
-        // Simple scoring system based on style compatibility
-        const scoredItems = categoryItems.map(item => {
-          let score = 0;
-          
-          // Color compatibility
-          if (selectedItem.color && item.color) {
-            const selectedColor = selectedItem.color.toLowerCase();
-            const itemColor = item.color.toLowerCase();
-            
-            // Same color family gets high score
-            if (selectedColor === itemColor) score += 10;
-            // Neutral colors work well together
-            else if ((selectedColor.includes('black') || selectedColor.includes('white') || selectedColor.includes('gray')) &&
-                     (itemColor.includes('black') || itemColor.includes('white') || itemColor.includes('gray'))) score += 8;
-            // Complementary colors
-            else if ((selectedColor.includes('blue') && itemColor.includes('brown')) ||
-                     (selectedColor.includes('brown') && itemColor.includes('blue'))) score += 7;
-          }
-          
-          // Style compatibility
-          if (selectedItem.style && item.style) {
-            const selectedStyle = selectedItem.style.toLowerCase();
-            const itemStyle = item.style.toLowerCase();
-            
-            if (selectedStyle.includes('casual') && itemStyle.includes('casual')) score += 5;
-            if (selectedStyle.includes('formal') && itemStyle.includes('formal')) score += 5;
-            if (selectedStyle.includes('sport') && itemStyle.includes('sport')) score += 5;
-          }
-          
-          // Material compatibility
-          if (selectedItem.material && item.material) {
-            const selectedMaterial = selectedItem.material.toLowerCase();
-            const itemMaterial = item.material.toLowerCase();
-            
-            if (selectedMaterial === itemMaterial) score += 3;
-            if ((selectedMaterial.includes('denim') && itemMaterial.includes('denim')) ||
-                (selectedMaterial.includes('cotton') && itemMaterial.includes('cotton'))) score += 2;
-          }
-          
-          // Random factor to add variety
-          score += Math.random() * 3;
-          
-          return { item, score };
-        });
-        
-        // Sort by score and return the best match
-        scoredItems.sort((a, b) => b.score - a.score);
-        return scoredItems[0]?.item || null;
+      // Use AI suggestions to fill outfit slots
+      const findItemByTitle = (title: string | null) => {
+        if (!title) return null;
+        return savedItems.find(item => item.title === title) || null;
       };
       
-      // Suggest items for each category
-      if (itemCategory !== 'top') suggestions.top = suggestItemForCategory('top');
-      if (itemCategory !== 'bottom') suggestions.bottom = suggestItemForCategory('bottom');
-      if (itemCategory !== 'shoes') suggestions.shoes = suggestItemForCategory('shoes');
-      if (itemCategory !== 'jacket') suggestions.jacket = suggestItemForCategory('jacket');
-      if (itemCategory !== 'hat') suggestions.hat = suggestItemForCategory('hat');
-      if (itemCategory !== 'accessories') suggestions.accessories = suggestItemForCategory('accessories');
+      // Fill suggestions from AI recommendations
+      if (itemCategory !== 'top' && aiOutfit.outfit.top) {
+        suggestions.top = findItemByTitle(aiOutfit.outfit.top);
+      }
+      if (itemCategory !== 'bottom' && aiOutfit.outfit.bottom) {
+        suggestions.bottom = findItemByTitle(aiOutfit.outfit.bottom);
+      }
+      if (itemCategory !== 'shoes' && aiOutfit.outfit.shoes) {
+        suggestions.shoes = findItemByTitle(aiOutfit.outfit.shoes);
+      }
+      if (itemCategory !== 'jacket' && aiOutfit.outfit.jacket) {
+        suggestions.jacket = findItemByTitle(aiOutfit.outfit.jacket);
+      }
+      if (itemCategory !== 'hat' && aiOutfit.outfit.hat) {
+        suggestions.hat = findItemByTitle(aiOutfit.outfit.hat);
+      }
+      if (itemCategory !== 'accessories' && aiOutfit.outfit.accessories) {
+        suggestions.accessories = findItemByTitle(aiOutfit.outfit.accessories);
+      }
+      
+      // Handle AI-suggested items for missing slots
+      const suggestedItems: WardrobeItem[] = [];
+      if (aiOutfit.suggestedItems && aiOutfit.suggestedItems.length > 0) {
+        for (const suggestedItem of aiOutfit.suggestedItems) {
+          try {
+            console.log(`🎨 Creating suggested item: ${suggestedItem.title}`);
+            
+            // Generate image for the suggested item
+            const generatedImageUrl = await generateClothingItemImage(suggestedItem);
+            
+            // Create wardrobe item from AI suggestion
+            const newWardrobeItem: WardrobeItem = {
+              image: generatedImageUrl || 'ai-generated',
+              title: suggestedItem.title,
+              description: suggestedItem.description,
+              color: suggestedItem.color,
+              material: suggestedItem.material,
+              style: suggestedItem.style,
+              fit: suggestedItem.fit,
+              category: suggestedItem.category,
+              tags: [...(suggestedItem.searchTerms || []), 'ai-suggested', `priority-${suggestedItem.priority}`],
+            };
+            
+            suggestedItems.push(newWardrobeItem);
+            
+            // Add to appropriate suggestion slot if empty
+            const category = suggestedItem.category as keyof typeof suggestions;
+            if (!suggestions[category] && category !== itemCategory) {
+              suggestions[category] = newWardrobeItem;
+            }
+            
+          } catch (error) {
+            console.error('Error creating suggested item:', error);
+          }
+        }
+      }
       
       // Update gear slots with suggestions
       const newGearSlots: GearSlots = {
@@ -185,19 +209,30 @@ export const useOutfitGeneration = (
       
       setGearSlots(newGearSlots);
       
-      // Count how many items were suggested
+      // Count existing and suggested items
       const suggestedCount = Object.values(suggestions).filter(item => item !== null).length;
+      const newItemsCount = suggestedItems.length;
       
-      Alert.alert(
-        '✨ Outfit Suggestion Ready!',
-        `I've created an outfit with ${suggestedCount} items that work well with your ${selectedItem.title || 'selected item'}! 🎨`
-      );
+      console.log(`✅ Generated outfit with ${suggestedCount} items (${newItemsCount} AI-suggested)`);
+      
+      // Success haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Log AI reasoning for debugging
+      if (aiOutfit.reasoning) {
+        console.log('🤖 AI Reasoning:', aiOutfit.reasoning);
+      }
+      
+      // Add suggested items to wardrobe if any
+      if (suggestedItems.length > 0) {
+        console.log(`📦 Added ${suggestedItems.length} AI-suggested items to builder`);
+      }
       
     } catch (error) {
       console.error('Error generating outfit suggestions:', error);
       Alert.alert('Failed to generate outfit suggestions. Please try again.');
     } finally {
-      setGeneratingOutfit(false);
+      setGeneratingSuggestions(false);
     }
   };
 
@@ -231,6 +266,8 @@ export const useOutfitGeneration = (
     setGeneratedOutfit,
     generatingOutfit,
     setGeneratingOutfit,
+    generatingSuggestions,
+    setGeneratingSuggestions,
     isSelectionMode,
     setIsSelectionMode,
     selectedItemsForOutfit,

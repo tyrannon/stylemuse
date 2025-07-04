@@ -18,6 +18,7 @@ import { useImageHandling } from '../hooks/useImageHandling';
 import { useAmazonRecommendations } from '../hooks/useAmazonRecommendations';
 import { useModalState } from '../hooks/useModalState';
 import { useOutfitGeneration } from '../hooks/useOutfitGeneration';
+import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
 
 // Components
 import { SafeImage } from '../utils/SafeImage';
@@ -33,6 +34,7 @@ import { AvatarCustomizationPage } from './AvatarCustomizationPage';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionModal } from './components/SmartSuggestionModal';
+import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
@@ -151,7 +153,8 @@ const WardrobeUploadScreen = () => {
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
   const modalState = useModalState();
-  const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem);
+  const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll);
+  const smartSuggestions = useSmartSuggestions();
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
@@ -172,6 +175,29 @@ const WardrobeUploadScreen = () => {
   const [currentScale, setCurrentScale] = useState(1);
   const [builderShakeValue] = useState(new Animated.Value(0));
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
+  
+  // Custom navigate to builder with scroll
+  const navigateToBuilderWithScroll = () => {
+    console.log('🚀 navigateToBuilderWithScroll called');
+    console.log('📱 Current navigation state:', {
+      showingItemDetail,
+      showOutfitBuilder,
+      showWardrobe
+    });
+    
+    // Close any open detail views first
+    console.log('🔄 Closing all details...');
+    navigationState.closeAllDetails();
+    
+    console.log('🎯 Navigating to builder...');
+    navigationState.navigateToBuilder();
+    
+    // Scroll to top after a short delay
+    setTimeout(() => {
+      console.log('📜 Scrolling to top...');
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 150);
+  };
 
   // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -2002,7 +2028,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
-                        generateOutfitSuggestions(item);
+                        generateOutfitSuggestions(item, styleDNA);
                       }}
                       style={styles.slotOutfitSuggestionsButton}
                     >
@@ -2591,10 +2617,21 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 {/* Outfit Builder - Always Show */}
 {showOutfitBuilder && (
-    <View style={{ marginTop: 20 }}>
+    <View style={{ marginTop: 20, position: 'relative' }}>
   <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
     🎮 Outfit Builder
   </Text>
+  
+  {/* AI Loading Overlay */}
+  {outfitGeneration.generatingSuggestions && (
+    <View style={styles.aiLoadingOverlay}>
+      <View style={styles.aiLoadingCard}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={styles.aiLoadingTitle}>🤖 AI Creating Your Outfit...</Text>
+        <Text style={styles.aiLoadingSubtext}>Analyzing your style & wardrobe</Text>
+      </View>
+    </View>
+  )}
   
   {/* Gear Slot Grid */}
   <View style={styles.gearSlotGrid}>
@@ -2820,6 +2857,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
+    // Smart Suggestions props
+    smartSuggestions={smartSuggestions}
+    selectedGender={selectedGender}
+    styleDNA={styleDNA}
   />
 )}
 
@@ -2830,7 +2871,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onBack={goBackToWardrobe}
     onSaveField={(field, value) => saveFieldUpdate(detailViewItem, field, value)}
     onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
-    onGenerateOutfitSuggestions={generateOutfitSuggestions}
+    onGenerateOutfitSuggestions={(item) => generateOutfitSuggestions(item, styleDNA)}
     onDelete={deleteWardrobeItem}
     categorizeItem={categorizeItem}
     editingTitle={editingTitle}
@@ -3176,6 +3217,17 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         onClose={() => modalState.setShowTextItemModal(false)}
         onSave={handleSaveTextItem}
         categories={AVAILABLE_CATEGORIES}
+      />
+
+      {/* Smart Suggestions Modal */}
+      <SmartSuggestionsModal
+        visible={smartSuggestions.showSuggestionsModal}
+        onClose={smartSuggestions.closeSuggestionsModal}
+        suggestions={smartSuggestions.suggestions}
+        currentSuggestion={smartSuggestions.currentSuggestion}
+        onSelectSuggestion={smartSuggestions.selectSuggestion}
+        onAddToWishlist={smartSuggestions.addSuggestedItemToWishlist}
+        isGenerating={smartSuggestions.isGenerating}
       />
     </SafeAreaView>
   );

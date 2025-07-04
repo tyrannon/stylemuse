@@ -902,13 +902,18 @@ STYLING REQUIREMENTS:
 3. Consider weather conditions and practicality
 4. Match the user's style goals and personal preferences
 5. Create a cohesive look that shows fashion expertise
-6. If certain categories are missing better items, note what would improve the outfit
+6. If the wardrobe is limited or missing key pieces, suggest specific items to complete the outfit
 
-For each category (top, bottom, shoes, jacket, hat, accessories), either:
-- Select the BEST item from the wardrobe that fits the context
-- Leave empty if no suitable item exists or if not needed for this outfit
+For each category (top, bottom, shoes, jacket, hat, accessories):
+- First try to select the BEST item from the existing wardrobe that fits the context
+- If no suitable item exists OR if a better item would significantly improve the outfit, suggest a specific item to purchase/add
+- Always prioritize creating a complete, stylish outfit even if it requires suggesting new items
 
-CRITICAL: Only select items that genuinely work well together. Don't force selections if items don't coordinate properly.
+CRITICAL: 
+- Only select existing items that genuinely work well together
+- When suggesting new items, be very specific (exact colors, materials, styles, brands if helpful)
+- Focus on versatile pieces that would work with multiple outfits in their wardrobe
+- Consider the user's budget and provide realistic suggestions
 
 Return ONLY raw JSON in this exact format:
 {
@@ -922,16 +927,26 @@ Return ONLY raw JSON in this exact format:
   },
   "reasoning": "Detailed explanation of why these items work together, addressing color coordination, style harmony, appropriateness for the context, and overall aesthetic appeal",
   "styleScore": 85,
-  "missingItems": [
+  "suggestedItems": [
     {
-      "category": "category name",
-      "description": "specific item that would improve this outfit",
-      "reason": "why this item would enhance the look"
+      "category": "shoes",
+      "title": "White Leather Sneakers", 
+      "description": "Clean white leather sneakers with minimal design",
+      "color": "white",
+      "material": "leather",
+      "style": "minimalist sneakers",
+      "fit": "true to size",
+      "reason": "White sneakers would complete this casual look and work with 80% of your wardrobe",
+      "priority": "high",
+      "estimatedPrice": 75,
+      "searchTerms": ["white leather sneakers", "minimalist white shoes", "clean white trainers"],
+      "replaces": null
     }
   ],
   "colorPalette": ["primary color", "secondary color", "accent color"],
   "formality": "casual/business casual/formal/athletic/etc",
-  "confidence": 92
+  "confidence": 92,
+  "completionStatus": "complete/needs-items/enhanced-with-suggestions"
 }`;
 
   const payload = {

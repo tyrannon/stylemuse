@@ -67,6 +67,17 @@ export interface LovedOutfit {
   nextSuggestedDate?: Date;
 }
 
+// Smart Suggestions Types
+export interface SuggestedWardrobeItem extends WardrobeItem {
+  isSuggested: boolean;
+  amazonUrl?: string;
+  price?: number;
+  reasoning?: string;
+  searchTerms?: string[];
+  dateAdded?: Date;
+  purchaseStatus?: 'wishlist' | 'in_cart' | 'purchased' | 'not_interested';
+}
+
 export const useWardrobeData = () => {
   // Wardrobe items state
   const [savedItems, setSavedItems] = useState<WardrobeItem[]>([]);

@@ -4,6 +4,8 @@ import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import { LaundryAnalytics } from './components/LaundryAnalytics';
 import { TextItemCard } from '../components/TextItemCard';
 import { SafeImage } from '../utils/SafeImage';
+import { SmartSuggestionsState } from '../hooks/useSmartSuggestions';
+import { createUserStyleProfile } from '../utils/smartSuggestionsUtils';
 import * as Haptics from 'expo-haptics';
 
 interface WardrobePageProps {
@@ -27,6 +29,10 @@ interface WardrobePageProps {
   getLaundryStats: () => any;
   getSmartWashSuggestions: () => any;
   getItemsByLaundryStatus: (status: LaundryStatus) => WardrobeItem[];
+  // Smart Suggestions props
+  smartSuggestions: SmartSuggestionsState;
+  selectedGender?: string | null;
+  styleDNA?: any;
 }
 
 // Helper function to get laundry status display info
@@ -70,7 +76,17 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   getLaundryStats,
   getSmartWashSuggestions,
   getItemsByLaundryStatus,
+  // Smart Suggestions props
+  smartSuggestions,
+  selectedGender,
+  styleDNA,
 }) => {
+  // Handle smart suggestions generation
+  const handleSmartSuggestions = async () => {
+    const userProfile = createUserStyleProfile(savedItems, selectedGender, styleDNA);
+    await smartSuggestions.generateSuggestions(userProfile, savedItems, styleDNA);
+  };
+
   if (savedItems.length === 0) {
     return (
       <View style={styles.emptyWardrobeContainer}>
@@ -78,7 +94,35 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           👔 Your Wardrobe Awaits!
         </Text>
         <Text style={styles.emptyWardrobeSubtitle}>
-          Start building your digital wardrobe by adding your first clothing item using the + button below.
+          Don't know where to start? Let AI help you build the perfect wardrobe!
+        </Text>
+        
+        {/* Smart Suggestions Button */}
+        <TouchableOpacity
+          style={styles.smartSuggestionsButton}
+          onPress={handleSmartSuggestions}
+          disabled={smartSuggestions.isGenerating}
+        >
+          {smartSuggestions.isGenerating ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+              <Text style={styles.smartSuggestionsButtonText}>Creating Magic...</Text>
+            </View>
+          ) : (
+            <View style={styles.buttonContent}>
+              <Text style={styles.smartSuggestionsIcon}>🧠✨</Text>
+              <Text style={styles.smartSuggestionsButtonText}>
+                {smartSuggestions.getSmartButtonText(savedItems)}
+              </Text>
+              <Text style={styles.smartSuggestionsSubtext}>AI-powered outfit suggestions</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.orText}>or</Text>
+        
+        <Text style={styles.manualText}>
+          Start manually by adding your first clothing item using the + button below.
         </Text>
       </View>
     );
@@ -137,6 +181,21 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
           👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
         </Text>
+        
+        {/* Smart Suggestions Button */}
+        <TouchableOpacity
+          onPress={handleSmartSuggestions}
+          style={styles.compactSmartButton}
+          disabled={smartSuggestions.isGenerating}
+        >
+          {smartSuggestions.isGenerating ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.compactSmartButtonText}>
+              {smartSuggestions.getSmartButtonIcon(savedItems)} AI
+            </Text>
+          )}
+        </TouchableOpacity>
         
         <TouchableOpacity
           onPress={() => setShowSortFilterModal(true)}
@@ -228,7 +287,7 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                   
                   {/* Outfit Suggestions Button */}
                   <TouchableOpacity
-                    onPress={() => generateOutfitSuggestions(item)}
+                    onPress={() => generateOutfitSuggestions(item, styleDNA)}
                     style={styles.outfitSuggestionsButton}
                   >
                     <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
@@ -285,6 +344,79 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 25,
+  },
+  // Smart Suggestions Button Styles
+  smartSuggestionsButton: {
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    backgroundColor: '#667eea', // Fallback
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonContent: {
+    alignItems: 'center',
+  },
+  smartSuggestionsIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  smartSuggestionsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  smartSuggestionsSubtext: {
+    color: '#E8E8E8',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  // Compact Smart Button for wardrobe header
+  compactSmartButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compactSmartButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // Additional helper text styles
+  orText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    marginVertical: 15,
+    fontWeight: '500',
+  },
+  manualText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   sortFilterButton: {
     backgroundColor: '#007AFF',
