@@ -18,10 +18,26 @@ export interface GearSlots {
   accessories: GearSlot;
 }
 
+export interface OutfitGenerationState {
+  generatedOutfit: string | null;
+  setGeneratedOutfit: (outfit: string | null) => void;
+  generatingOutfit: boolean;
+  setGeneratingOutfit: (generating: boolean) => void;
+  isSelectionMode: boolean;
+  setIsSelectionMode: (mode: boolean) => void;
+  selectedItemsForOutfit: string[];
+  setSelectedItemsForOutfit: (items: string[]) => void;
+  gearSlots: GearSlots;
+  setGearSlots: (slots: GearSlots) => void;
+  generateOutfitSuggestions: (selectedItem: WardrobeItem) => Promise<void>;
+  clearGearSlots: () => void;
+  setGearSlotItem: (slotType: keyof GearSlots, item: WardrobeItem | null) => void;
+}
+
 export const useOutfitGeneration = (
   savedItems: WardrobeItem[],
   categorizeItem: (item: WardrobeItem) => string
-) => {
+): OutfitGenerationState => {
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);

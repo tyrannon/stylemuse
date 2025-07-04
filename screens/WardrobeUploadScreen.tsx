@@ -143,8 +143,6 @@ const WardrobeUploadScreen = () => {
     // Category dropdown
     showCategoryDropdown,
     setShowCategoryDropdown,
-    categoryDropdownVisible,
-    setCategoryDropdownVisible,
     selectedCategory,
     setSelectedCategory,
   } = navigationState;
@@ -338,7 +336,7 @@ const WardrobeUploadScreen = () => {
       // Load cached suggestions for this item
       loadCachedAmazonSuggestions(detailViewItem);
     }
-  }, [showingItemDetail, detailViewItem, loadCachedAmazonSuggestions, amazonRecommendations]);
+  }, [showingItemDetail, detailViewItem, loadCachedAmazonSuggestions]);
 
 
   // Extract image handling functions from our refactored hook
@@ -446,10 +444,10 @@ const WardrobeUploadScreen = () => {
     
     if (outfitGeneration.selectedItemsForOutfit.includes(imageUri)) {
       // Remove from selection
-      outfitGeneration.setSelectedItemsForOutfit(prev => prev.filter(uri => uri !== imageUri));
+      outfitGeneration.setSelectedItemsForOutfit(outfitGeneration.selectedItemsForOutfit.filter(uri => uri !== imageUri));
     } else {
       // Add to selection
-      outfitGeneration.setSelectedItemsForOutfit(prev => [...prev, imageUri]);
+      outfitGeneration.setSelectedItemsForOutfit([...outfitGeneration.selectedItemsForOutfit, imageUri]);
     }
   };
 
@@ -774,27 +772,26 @@ const WardrobeUploadScreen = () => {
         
         // Fallback: create a basic style DNA object
         const fallbackDNA = {
-          appearance: {
-            hair_color: "not specified",
-            hair_style: "not specified", 
-            build: "average",
-            complexion: "medium",
-            facial_features: "general",
-            approximate_age_range: "20s-30s"
-          },
-          style_preferences: {
-            current_style_visible: "casual",
-            preferred_styles: ["casual", "contemporary"],
-            color_palette: ["neutral", "versatile"],
-            fit_preferences: "comfortable"
-          },
-          outfit_generation_notes: "General style preferences",
-          personalization_prompt: "A stylish person with a contemporary casual aesthetic"
+          ai_analysis: {
+            appearance: {
+              hair_color: "not specified",
+              build: "average",
+              complexion: "medium",
+              approximate_age_range: "20s-30s"
+            },
+            style_preferences: {
+              current_style_visible: "casual",
+              preferred_styles: ["casual", "contemporary"],
+              color_palette: ["neutral", "versatile"],
+              fit_preferences: "comfortable"
+            },
+            outfit_generation_notes: "General style preferences"
+          }
         };
         
         setStyleDNA(fallbackDNA);
         // Save to storage
-        saveStyleDNA(fallbackDNA);
+        StorageService.saveStyleDNA(fallbackDNA);
         alert("Style DNA created with basic profile! 🧬 (AI response had formatting issues, but we'll still personalize your outfits!)");
       }
 
@@ -1155,28 +1152,28 @@ const WardrobeUploadScreen = () => {
 
   // Function to assign item to gear slot
   const assignItemToSlot = (slotKey: string, item: any) => {
-    outfitGeneration.setGearSlots(prev => ({
-      ...prev,
+    outfitGeneration.setGearSlots({
+      ...outfitGeneration.gearSlots,
       [slotKey]: {
         itemId: item.image,
         itemImage: item.image,
         itemTitle: item.title || 'Untitled Item',
       }
-    }));
+    });
     modalState.setSlotSelectionModalVisible(false);
     modalState.setSelectedSlot(null);
   };
 
   // Function to clear gear slot
   const clearGearSlot = (slotKey: string) => {
-    outfitGeneration.setGearSlots(prev => ({
-      ...prev,
+    outfitGeneration.setGearSlots({
+      ...outfitGeneration.gearSlots,
       [slotKey]: {
         itemId: null,
         itemImage: null,
         itemTitle: null,
       }
-    }));
+    });
   };
 
   // Function to get all equipped items for outfit generation
@@ -1545,7 +1542,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   ''}`;
     
     alert(feedbackMessage);
-    triggerHaptic('success');
+    triggerHaptic('medium');
   };
 
   // Function to shake animation
@@ -2782,7 +2779,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <View style={{ marginTop: 15, alignItems: 'center' }}>
     <TouchableOpacity
       onPress={() => {
-        setGearSlots({
+        outfitGeneration.setGearSlots({
           top: { itemId: null, itemImage: null, itemTitle: null },
           bottom: { itemId: null, itemImage: null, itemTitle: null },
           shoes: { itemId: null, itemImage: null, itemTitle: null },
@@ -2832,7 +2829,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     item={detailViewItem}
     onBack={goBackToWardrobe}
     onSaveField={(field, value) => saveFieldUpdate(detailViewItem, field, value)}
-    onCategoryPress={() => setCategoryDropdownVisible(true)}
+    onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
     onGenerateOutfitSuggestions={generateOutfitSuggestions}
     onDelete={deleteWardrobeItem}
     categorizeItem={categorizeItem}
@@ -3089,23 +3086,23 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
       {/* Category Selection Modal */}
       <Modal
-        visible={categoryDropdownVisible}
+        visible={modalState.categoryDropdownVisible}
         transparent={false}
         animationType="slide"
-        onRequestClose={() => setCategoryDropdownVisible(false)}
+        onRequestClose={() => modalState.setCategoryDropdownVisible(false)}
       >
         <Pressable
           style={styles.categoryModalOverlay}
-          onPress={() => setCategoryDropdownVisible(false)}
+          onPress={() => modalState.setCategoryDropdownVisible(false)}
         >
           <Pressable style={styles.categoryModalContent} onPress={() => {}}>
             <View style={styles.categoryModalHeader}>
               <Text style={styles.categoryModalTitle}>Select Category</Text>
               <Text style={{ fontSize: 12, color: '#666' }}>
-                Debug: {categoryDropdownVisible ? 'Visible' : 'Hidden'}
+                Debug: {modalState.categoryDropdownVisible ? 'Visible' : 'Hidden'}
               </Text>
               <TouchableOpacity
-                onPress={() => setCategoryDropdownVisible(false)}
+                onPress={() => modalState.setCategoryDropdownVisible(false)}
                 style={styles.closeButton}
               >
                 <Text style={styles.closeButtonText}>✕</Text>
@@ -3118,7 +3115,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                   key={category}
                   onPress={async () => {
                     await updateItemCategory(detailViewItem, category);
-                    setCategoryDropdownVisible(false);
+                    modalState.setCategoryDropdownVisible(false);
                   }}
                   style={[
                     styles.categoryOption,

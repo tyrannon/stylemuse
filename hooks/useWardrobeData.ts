@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
@@ -82,12 +82,8 @@ export const useWardrobeData = () => {
   // Available categories for dropdown
   const AVAILABLE_CATEGORIES = ['top', 'bottom', 'shoes', 'jacket', 'hat', 'accessories'];
 
-  // Load data from AsyncStorage on mount
-  useEffect(() => {
-    loadWardrobeData();
-  }, []);
-
-  const loadWardrobeData = async () => {
+  // Load wardrobe data function
+  const loadWardrobeData = useCallback(async () => {
     try {
       const [items, outfits, dna, gender, profile] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS),
@@ -124,10 +120,15 @@ export const useWardrobeData = () => {
     } catch (error) {
       console.error('Error loading wardrobe data:', error);
     }
-  };
+  }, []);
+
+  // Load data from AsyncStorage on mount
+  useEffect(() => {
+    loadWardrobeData();
+  }, []);
 
   // Function to automatically categorize clothing items
-  const categorizeItem = (item: WardrobeItem): string => {
+  const categorizeItem = useCallback((item: WardrobeItem): string => {
     // Check for explicit category first (from manual selection)
     if (item.category && AVAILABLE_CATEGORIES.includes(item.category)) {
       return item.category;
@@ -188,10 +189,10 @@ export const useWardrobeData = () => {
     
     // Default to top if no clear category found
     return 'top';
-  };
+  }, [AVAILABLE_CATEGORIES]);
 
   // Function to update item category
-  const updateItemCategory = async (item: WardrobeItem, newCategory: string) => {
+  const updateItemCategory = useCallback(async (item: WardrobeItem, newCategory: string) => {
     try {
       console.log('Updating category from', categorizeItem(item), 'to', newCategory);
       
@@ -219,10 +220,10 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [savedItems, categorizeItem, AVAILABLE_CATEGORIES]);
 
   // Function to save field updates
-  const saveFieldUpdate = async (item: WardrobeItem, field: string, value: string | string[]) => {
+  const saveFieldUpdate = useCallback(async (item: WardrobeItem, field: string, value: string | string[]) => {
     try {
       const updatedItem = {
         ...item,
@@ -245,10 +246,10 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [savedItems]);
 
   // Function to toggle outfit love status
-  const toggleOutfitLove = async (outfitId: string) => {
+  const toggleOutfitLove = useCallback(async (outfitId: string) => {
     try {
       const updatedOutfits = lovedOutfits.map(outfit => 
         outfit.id === outfitId 
@@ -262,26 +263,26 @@ export const useWardrobeData = () => {
     } catch (error) {
       console.error('Error toggling outfit love:', error);
     }
-  };
+  }, [lovedOutfits]);
 
   // Function to get unique categories from wardrobe
-  const getUniqueCategories = () => {
+  const getUniqueCategories = useCallback(() => {
     const categories = savedItems.map(item => categorizeItem(item));
     return ['all', ...Array.from(new Set(categories))];
-  };
+  }, [savedItems, categorizeItem]);
 
   // Function to get items filtered by category
-  const getItemsByCategory = (category: string) => {
+  const getItemsByCategory = useCallback((category: string) => {
     return savedItems.filter(item => {
       const itemCategory = categorizeItem(item);
       return itemCategory === category;
     });
-  };
+  }, [savedItems, categorizeItem]);
 
   // OUTFIT MEMORY & RE-SUGGESTION FUNCTIONS
   
   // Function to mark an outfit as worn
-  const markOutfitAsWorn = async (outfitId: string, rating?: number, event?: string, location?: string) => {
+  const markOutfitAsWorn = useCallback(async (outfitId: string, rating?: number, event?: string, location?: string) => {
     try {
       const wearRecord: WearRecord = {
         wornAt: new Date(),
@@ -325,10 +326,10 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [lovedOutfits, calculateNextSuggestionDate, markOutfitItemsAsDirty]);
   
   // Calculate when an outfit should be suggested again
-  const calculateNextSuggestionDate = (timesWorn: number, lastWornDate: Date): Date => {
+  const calculateNextSuggestionDate = useCallback((timesWorn: number, lastWornDate: Date): Date => {
     const now = new Date(lastWornDate);
     let daysToAdd = 7; // Default 1 week
     
@@ -345,10 +346,10 @@ export const useWardrobeData = () => {
     
     now.setDate(now.getDate() + daysToAdd);
     return now;
-  };
+  }, []);
   
   // Get outfits that are ready to be re-suggested
-  const getOutfitsReadyForReSuggestion = (): LovedOutfit[] => {
+  const getOutfitsReadyForReSuggestion = useCallback((): LovedOutfit[] => {
     const now = new Date();
     return lovedOutfits.filter(outfit => {
       // Defensive check for wear tracking fields
@@ -383,10 +384,10 @@ export const useWardrobeData = () => {
       
       return false;
     });
-  };
+  }, [lovedOutfits]);
   
   // Get smart outfit suggestions (avoiding recently worn similar items)
-  const getSmartOutfitSuggestions = (limit: number = 5): LovedOutfit[] => {
+  const getSmartOutfitSuggestions = useCallback((limit: number = 5): LovedOutfit[] => {
     const readyForReSuggestion = getOutfitsReadyForReSuggestion();
     const neverWorn = lovedOutfits.filter(outfit => {
       const timesWorn = typeof outfit.timesWorn === 'number' ? outfit.timesWorn : 0;
@@ -425,10 +426,10 @@ export const useWardrobeData = () => {
       .slice(0, limit);
       
     return suggestions;
-  };
+  }, [lovedOutfits, getOutfitsReadyForReSuggestion]);
   
   // Check if outfit items are similar to recently worn outfits
-  const isOutfitSimilarToRecentlyWorn = (outfitItems: string[], daysBack: number = 7): boolean => {
+  const isOutfitSimilarToRecentlyWorn = useCallback((outfitItems: string[], daysBack: number = 7): boolean => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
     
@@ -456,10 +457,10 @@ export const useWardrobeData = () => {
     }
     
     return false;
-  };
+  }, [lovedOutfits]);
   
   // Get outfit wear statistics
-  const getOutfitWearStats = () => {
+  const getOutfitWearStats = useCallback(() => {
     const totalOutfits = lovedOutfits.length;
     const wornOutfits = lovedOutfits.filter(o => {
       const timesWorn = typeof o.timesWorn === 'number' ? o.timesWorn : 0;
@@ -501,12 +502,12 @@ export const useWardrobeData = () => {
       favoriteOutfits,
       readyForReSuggestion: getOutfitsReadyForReSuggestion().length,
     };
-  };
+  }, [lovedOutfits, getOutfitsReadyForReSuggestion]);
 
   // LAUNDRY MANAGEMENT FUNCTIONS
   
   // Function to update item laundry status
-  const updateLaundryStatus = async (item: WardrobeItem, newStatus: LaundryStatus, washType?: string, dryingMethod?: string, notes?: string) => {
+  const updateLaundryStatus = useCallback(async (item: WardrobeItem, newStatus: LaundryStatus, washType?: string, dryingMethod?: string, notes?: string) => {
     try {
       const laundryRecord: LaundryRecord = {
         status: newStatus,
@@ -544,10 +545,10 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [savedItems]);
 
   // Function to automatically mark items as dirty when outfit is worn
-  const markOutfitItemsAsDirty = async (outfitItems: string[]) => {
+  const markOutfitItemsAsDirty = useCallback(async (outfitItems: string[]) => {
     try {
       const itemsToUpdate = savedItems.filter(item => 
         outfitItems.includes(item.image) && item.laundryStatus !== 'dirty'
@@ -578,15 +579,15 @@ export const useWardrobeData = () => {
     } catch (error) {
       console.error('Error marking outfit items as dirty:', error);
     }
-  };
+  }, [savedItems]);
 
   // Function to get items by laundry status
-  const getItemsByLaundryStatus = (status: LaundryStatus) => {
+  const getItemsByLaundryStatus = useCallback((status: LaundryStatus) => {
     return savedItems.filter(item => (item.laundryStatus || 'clean') === status);
-  };
+  }, [savedItems]);
 
   // Function to get laundry analytics
-  const getLaundryStats = () => {
+  const getLaundryStats = useCallback(() => {
     const totalItems = savedItems.length;
     const cleanItems = getItemsByLaundryStatus('clean').length;
     const dirtyItems = getItemsByLaundryStatus('dirty').length;
@@ -626,10 +627,10 @@ export const useWardrobeData = () => {
       needsWashingSoon: needsWashingSoon.length,
       cleanPercentage: totalItems > 0 ? Math.round((cleanItems / totalItems) * 100) : 0,
     };
-  };
+  }, [savedItems, getItemsByLaundryStatus]);
 
   // Function to get smart wash suggestions
-  const getSmartWashSuggestions = () => {
+  const getSmartWashSuggestions = useCallback(() => {
     const dirtyItems = getItemsByLaundryStatus('dirty');
     
     // Group by wash type recommendations
@@ -652,10 +653,10 @@ export const useWardrobeData = () => {
         ...(dirtyItems.length >= 12 ? ['You have enough for multiple loads - consider sorting by color.'] : []),
       ],
     };
-  };
+  }, [getItemsByLaundryStatus]);
 
   // Delete functions
-  const deleteWardrobeItem = async (itemToDelete: WardrobeItem): Promise<void> => {
+  const deleteWardrobeItem = useCallback(async (itemToDelete: WardrobeItem): Promise<void> => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
@@ -685,9 +686,9 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [savedItems, lovedOutfits]);
 
-  const deleteLovedOutfit = async (outfitId: string): Promise<void> => {
+  const deleteLovedOutfit = useCallback(async (outfitId: string): Promise<void> => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
@@ -706,9 +707,9 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [lovedOutfits]);
 
-  const deleteBulkWardrobeItems = async (itemsToDelete: WardrobeItem[]): Promise<void> => {
+  const deleteBulkWardrobeItems = useCallback(async (itemsToDelete: WardrobeItem[]): Promise<void> => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       
@@ -740,7 +741,7 @@ export const useWardrobeData = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  };
+  }, [savedItems, lovedOutfits]);
 
   return {
     // State

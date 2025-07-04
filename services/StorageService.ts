@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storage';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { EnhancedStyleDNA } from '../types/Avatar';
+import { ensureDateObject } from '../utils/dateUtils';
 
 export class StorageService {
   // Wardrobe items
@@ -37,7 +38,19 @@ export class StorageService {
   static async loadLovedOutfits(): Promise<LovedOutfit[]> {
     try {
       const outfitsJson = await AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS);
-      return outfitsJson ? JSON.parse(outfitsJson) : [];
+      if (!outfitsJson) return [];
+      
+      const rawOutfits = JSON.parse(outfitsJson);
+      return rawOutfits.map((outfit: any) => ({
+        ...outfit,
+        createdAt: ensureDateObject(outfit.createdAt) || new Date(),
+        lastWorn: ensureDateObject(outfit.lastWorn),
+        nextSuggestedDate: ensureDateObject(outfit.nextSuggestedDate),
+        wearHistory: outfit.wearHistory ? outfit.wearHistory.map((record: any) => ({
+          ...record,
+          wornAt: ensureDateObject(record.wornAt) || new Date()
+        })) : [],
+      }));
     } catch (error) {
       console.error('Error loading loved outfits:', error);
       return [];

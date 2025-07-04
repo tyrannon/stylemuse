@@ -5,6 +5,7 @@ import { SmartOutfitSuggestions } from './components/SmartOutfitSuggestions';
 import { OutfitAnalytics } from './components/OutfitAnalytics';
 import { MarkAsWornModal } from './components/MarkAsWornModal';
 import { SafeImage } from '../utils/SafeImage';
+import { formatDate } from '../utils/dateUtils';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
@@ -222,7 +223,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
 
                   {/* Date */}
                   <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
-                    {outfit.createdAt.toLocaleDateString()}
+                    {formatDate(outfit.createdAt)}
                   </Text>
 
                   {/* Items used */}
@@ -301,7 +302,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
 
                   {/* Date */}
                   <Text style={styles.outfitDateText}>
-                    {outfit.createdAt.toLocaleDateString()}
+                    {formatDate(outfit.createdAt)}
                   </Text>
 
                   {/* Items used */}

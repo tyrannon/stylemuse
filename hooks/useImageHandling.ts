@@ -6,7 +6,26 @@ import { Alert } from 'react-native';
 import { WardrobeItem } from './useWardrobeData';
 import { generateClothingItemImage } from '../utils/openai';
 
-export const useImageHandling = () => {
+export interface ImageHandlingState {
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  bulkUploading: boolean;
+  setBulkUploading: (uploading: boolean) => void;
+  bulkProgress: { current: number; total: number };
+  setBulkProgress: (progress: { current: number; total: number }) => void;
+  generatingImageForItem: string | null;
+  setGeneratingImageForItem: (item: string | null) => void;
+  pickImage: () => Promise<string | null>;
+  takePhoto: () => Promise<string | null>;
+  pickMultipleImages: () => Promise<string[]>;
+  generateImageForItem: (item: WardrobeItem) => Promise<string | null>;
+  downloadImage: (imageUrl: string) => Promise<string | null>;
+  openCamera: () => Promise<string | null>;
+  handleGenerateItemImage: (item: WardrobeItem) => Promise<string | null>;
+  downloadAndSaveImage: (imageUrl: string, itemId: string) => Promise<string | null>;
+}
+
+export const useImageHandling = (): ImageHandlingState => {
   const [loading, setLoading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });

@@ -18,7 +18,6 @@ export const useNavigationState = () => {
   
   // Modal states
   const [showGenderSelector, setShowGenderSelector] = useState(false);
-  const [categoryDropdownVisible, setCategoryDropdownVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   
@@ -119,7 +118,6 @@ export const useNavigationState = () => {
     setDetailViewItem(null);
     setShowingOutfitDetail(false);
     setDetailViewOutfit(null);
-    setCategoryDropdownVisible(false);
   };
 
   const openItemDetail = (item: any) => {
@@ -138,7 +136,6 @@ export const useNavigationState = () => {
     setShowingItemDetail(false);
     setDetailViewItem(null);
     setShowWardrobe(true);
-    setCategoryDropdownVisible(false);
   };
 
   const goBackToOutfits = () => {
@@ -181,8 +178,6 @@ export const useNavigationState = () => {
     // Modals
     showGenderSelector,
     setShowGenderSelector,
-    categoryDropdownVisible,
-    setCategoryDropdownVisible,
     selectedCategory,
     setSelectedCategory,
     showCategoryDropdown,
