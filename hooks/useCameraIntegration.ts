@@ -3,6 +3,8 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { Platform, Alert } from 'react-native';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { removeBackgroundEnhanced, BackgroundRemovalResult, cleanupBackgroundRemovalFiles } from '../utils/backgroundRemoval';
+import { assessPhotoQuality as comprehensivePhotoQualityAssessment, PhotoQualityMetrics, quickQualityCheck } from '../utils/photoQualityAssessment';
 
 interface PhotoMetadata {
   originalUri: string;
@@ -12,6 +14,7 @@ interface PhotoMetadata {
   cameraSettings: any;
   editHistory: any[];
   aiAnalysisReady: boolean;
+  qualityMetrics?: PhotoQualityMetrics;
 }
 
 export const useCameraIntegration = () => {
@@ -53,9 +56,9 @@ export const useCameraIntegration = () => {
         }
       );
 
-      // TODO: Add background removal for wardrobe items
+      // Enhanced processing for clothing items with background removal
       if (mode === 'wardrobe') {
-        // Enhanced processing for clothing items
+        console.log('🎯 Processing wardrobe item with background removal...');
         const enhancedPhoto = await enhanceForClothing(processedPhoto.uri);
         return enhancedPhoto;
       }
@@ -72,13 +75,14 @@ export const useCameraIntegration = () => {
 
   const enhanceForClothing = async (photoUri: string): Promise<string> => {
     try {
-      // Apply basic enhancements optimized for clothing photography
-      // Note: expo-image-manipulator has limited adjustment options
-      const enhanced = await manipulateAsync(
+      console.log('🎨 Enhancing image for clothing analysis...');
+      
+      // Step 1: Apply basic image optimizations
+      const basicEnhanced = await manipulateAsync(
         photoUri,
         [
-          // Basic resize and compression for now
-          // More advanced adjustments would require additional libraries
+          // Optimize for clothing photography
+          { resize: { width: 1024 } }, // Ensure optimal size for background removal
         ],
         {
           compress: 0.9,
@@ -86,9 +90,30 @@ export const useCameraIntegration = () => {
         }
       );
 
-      return enhanced.uri;
+      // Step 2: Remove background for better clothing isolation
+      console.log('🔄 Attempting background removal for clothing item...');
+      const bgRemovalResult: BackgroundRemovalResult = await removeBackgroundEnhanced(
+        basicEnhanced.uri,
+        {
+          type: 'product', // Optimized for clothing items
+          size: 'auto',
+          semitransparency: true, // Better for clothing edges
+          crop: false, // Keep full item visible
+          format: 'png', // Preserve transparency
+        }
+      );
+
+      if (bgRemovalResult.success && bgRemovalResult.processedImageUri) {
+        console.log('✅ Background removal successful - using processed image');
+        return bgRemovalResult.processedImageUri;
+      } else {
+        console.warn('⚠️ Background removal failed, using original enhanced image');
+        console.warn('Background removal error:', bgRemovalResult.error);
+        return basicEnhanced.uri;
+      }
+
     } catch (error) {
-      console.error('Clothing enhancement failed:', error);
+      console.error('❌ Clothing enhancement failed:', error);
       return photoUri;
     }
   };
@@ -189,20 +214,38 @@ export const useCameraIntegration = () => {
     }
   };
 
-  const assessPhotoQuality = async (photoUri: string): Promise<number> => {
+  const assessPhotoQuality = async (photoUri: string, mode: 'wardrobe' | 'profile' | 'outfit' = 'wardrobe'): Promise<PhotoQualityMetrics> => {
     try {
-      // TODO: Implement photo quality assessment
-      // This could include:
-      // - Brightness analysis
-      // - Focus detection
-      // - Noise assessment
-      // - Composition analysis
+      console.log('📊 Assessing photo quality...');
       
-      // For now, return a default quality score
-      return 0.8;
+      // Use comprehensive photo quality assessment
+      const qualityMetrics = await comprehensivePhotoQualityAssessment(photoUri, { 
+        mode,
+        strictMode: true,
+        minimumScore: 0.6
+      });
+      
+      console.log('✅ Photo quality assessment completed:', {
+        overall: Math.round(qualityMetrics.overall * 100) + '%',
+        issues: qualityMetrics.issues.length,
+        multipleItems: qualityMetrics.multipleItems
+      });
+      
+      return qualityMetrics;
     } catch (error) {
-      console.error('Photo quality assessment failed:', error);
-      return 0.5;
+      console.error('❌ Photo quality assessment failed:', error);
+      
+      // Return default metrics on error
+      return {
+        overall: 0.5,
+        brightness: 0.5,
+        contrast: 0.5,
+        sharpness: 0.5,
+        composition: 0.5,
+        multipleItems: false,
+        issues: ['Assessment failed'],
+        recommendations: ['Please try taking a new photo'],
+      };
     }
   };
 
@@ -214,6 +257,8 @@ export const useCameraIntegration = () => {
     getPhotoMetadata,
     cleanupTempFiles,
     assessPhotoQuality,
+    quickQualityCheck,
     isProcessing,
+    cleanupBackgroundRemovalFiles,
   };
 }; 

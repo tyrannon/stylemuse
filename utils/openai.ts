@@ -10,31 +10,77 @@ if (!OPENAI_API_KEY) {
 
 export async function describeClothingItem(base64Image: string) {
   const prompt = `
-You are an expert fashion stylist analyzing clothing items. Examine this image carefully and provide a detailed analysis focusing on accuracy for outfit generation.
+You are an expert fashion stylist and clothing analyst with deep expertise in textile identification, color theory, and garment construction. Your task is to analyze clothing items with EXTREME PRECISION for digital wardrobe management and outfit generation.
 
-Pay special attention to:
-- EXACT colors (be specific: "navy blue", "cream white", "burgundy", not just "blue" or "white")
-- Material/texture (cotton, denim, silk, wool, leather, etc.)
-- Specific style details (collar type, sleeve length, cut, fit)
-- Patterns (solid, striped, plaid, floral, etc.)
-- Any unique design elements
+CRITICAL REQUIREMENTS:
+1. Examine EVERY visible detail with microscopic attention
+2. Identify EXACT colors using precise color terminology
+3. Determine EXACT materials/fabrics through visual texture analysis
+4. Describe EXACT style elements, construction details, and fit characteristics
+5. Be so specific that someone could recreate this exact item from your description
+
+COLOR ANALYSIS REQUIREMENTS:
+- Use PRECISE color names: "sage green", "champagne beige", "midnight navy", "burnt orange", "dusty rose", "charcoal gray"
+- NOT generic terms like "blue", "pink", "brown", "gray"
+- Identify undertones: "warm beige with pink undertones", "cool gray with blue undertones"
+- Specify saturation: "muted", "vibrant", "pastel", "deep", "rich"
+- Note color variations: "gradient from light to dark", "ombré effect", "two-toned"
+
+MATERIAL IDENTIFICATION:
+- Identify specific fabric types: "brushed cotton fleece", "stretch denim", "ribbed modal", "ponte knit", "boiled wool"
+- Recognize fabric treatments: "stone-washed", "acid-washed", "pre-shrunk", "mercerized", "brushed"
+- Note fabric weight: "lightweight", "medium-weight", "heavy-weight"
+- Identify weave/knit type: "jersey knit", "french terry", "twill weave", "herringbone"
+- Describe texture: "smooth", "textured", "slubbed", "nubby", "soft-hand"
+
+STYLE ANALYSIS:
+- Identify EXACT garment category: "wrap-style blouse", "A-line midi skirt", "straight-leg trousers", "bomber jacket"
+- Note construction details: "princess seams", "French seams", "flat-fell seams", "blind hem"
+- Describe necklines precisely: "scoop neck", "V-neck", "crew neck", "boat neck", "mock turtleneck"
+- Identify sleeve types: "three-quarter sleeves", "cap sleeves", "bishop sleeves", "raglan sleeves"
+- Note closure details: "button-front", "zip-front", "pullover", "wrap-tie", "snap closure"
+
+FIT ANALYSIS:
+- Describe fit precisely: "slim-fit", "regular-fit", "relaxed-fit", "oversized", "tailored", "straight-cut"
+- Note silhouette: "A-line", "straight", "flared", "tapered", "boxy", "fitted"
+- Identify waist placement: "high-waisted", "mid-rise", "low-rise", "dropped waist"
+- Describe length: "cropped", "full-length", "ankle-length", "knee-length", "midi-length"
+
+PATTERN RECOGNITION:
+- Be specific about patterns: "thin pinstripes", "wide horizontal stripes", "small polka dots", "large floral print"
+- Note pattern scale: "micro-print", "small-scale", "medium-scale", "large-scale", "oversized"
+- Identify pattern type: "geometric", "abstract", "botanical", "animal print", "plaid", "check"
+
+EDGE CASE HANDLING:
+- If multiple items visible: Focus on the PRIMARY/MOST PROMINENT item
+- If unclear quality: State "image quality limits precise identification"
+- If partially visible: Describe only what's clearly visible
+- If brand logos visible: Include in description but don't assume quality
+
+VALIDATION REQUIREMENTS:
+- Every field must be filled with specific, accurate information
+- No generic terms allowed
+- Must be detailed enough for someone to find/recreate the exact item
+- Description must paint a complete picture of the garment
 
 Return ONLY raw JSON in this exact format:
 {
-  "title": "Specific item name with color (e.g., 'Navy Blue Denim Jacket', 'Cream Silk Blouse')",
-  "description": "Detailed description including exact color, material, style details, and how it fits/drapes. Be specific about visual characteristics that would help recreate this item.",
-  "tags": ["exact_color", "material_type", "style_category", "fit_type", "occasion", "pattern_if_any"],
-  "color": "Primary color of the item (be very specific)",
-  "material": "Primary material/fabric",
-  "style": "Specific style category (e.g., 'blazer', 'crop top', 'high-waisted jeans')",
-  "fit": "How it fits (e.g., 'slim fit', 'oversized', 'tailored', 'relaxed')"
+  "title": "Extremely specific item name with precise color and key details (e.g., 'Sage Green Brushed Cotton Oversized Hoodie', 'Midnight Navy Stretch Denim High-Waisted Skinny Jeans')",
+  "description": "Comprehensive description including exact color with undertones, specific material/fabric type, precise style elements, construction details, fit characteristics, and any unique features. Must be detailed enough to recreate this exact item.",
+  "tags": ["exact_color_with_undertones", "specific_material_type", "precise_style_category", "exact_fit_type", "garment_category", "construction_details", "occasion_type", "pattern_if_any"],
+  "color": "Primary color with precise terminology and undertones (e.g., 'sage green with gray undertones', 'warm champagne beige')",
+  "material": "Specific fabric type with texture details (e.g., 'brushed cotton fleece', 'stretch denim with slight fade')",
+  "style": "Precise style category with key details (e.g., 'oversized pullover hoodie', 'high-waisted skinny jeans with ankle length')",
+  "fit": "Exact fit description with silhouette details (e.g., 'oversized relaxed fit with dropped shoulders', 'high-waisted slim fit with tapered leg')"
 }
 
-Examples of good responses:
-- Color: "dusty rose pink" not "pink"
-- Material: "ribbed cotton knit" not "cotton"
-- Style: "oversized boyfriend blazer" not "jacket"
-- Fit: "high-waisted straight leg" not "pants"
+EXAMPLES OF REQUIRED PRECISION:
+❌ WRONG: "blue jeans" → ✅ CORRECT: "medium-wash indigo denim straight-leg jeans"
+❌ WRONG: "white shirt" → ✅ CORRECT: "crisp white cotton poplin button-down shirt"
+❌ WRONG: "black dress" → ✅ CORRECT: "jet black ponte knit sheath dress"
+❌ WRONG: "gray sweater" → ✅ CORRECT: "charcoal heather merino wool crewneck sweater"
+
+CRITICAL: Be so precise that two people analyzing the same item would get nearly identical results. This level of accuracy is essential for the wardrobe app to function properly.
 `;
 
   const payload = {
@@ -53,32 +99,217 @@ Examples of good responses:
         ],
       },
     ],
-    max_tokens: 400, // Increased for more detailed descriptions
+    max_tokens: 800, // Increased for highly detailed precision analysis
   };
 
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+  // Enhanced retry logic with validation
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Clothing analysis attempt ${attempt}/${maxRetries}`);
+      
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("🚨 OpenAI API Error:", res.status, errorText);
-      throw new Error("OpenAI request failed");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`🚨 OpenAI API Error (attempt ${attempt}):`, res.status, errorText);
+        
+        // Don't retry on certain errors
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Invalid API key or insufficient permissions");
+        }
+        
+        if (res.status === 429) {
+          // Rate limited - wait longer before retry
+          const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.log(`⏳ Rate limited, waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        lastError = new Error(`OpenAI request failed with status ${res.status}`);
+        continue; // Try again
+      }
+
+      const json = await res.json();
+      const rawContent = json?.choices?.[0]?.message?.content;
+      
+      if (!rawContent) {
+        lastError = new Error("No content received from OpenAI");
+        continue;
+      }
+      
+      console.log("📋 Raw OpenAI response:", rawContent);
+      
+      // Validate and parse the JSON response
+      const validatedResponse = validateAndParseClothingResponse(rawContent, attempt);
+      
+      if (validatedResponse) {
+        console.log("✅ Clothing analysis completed successfully");
+        return JSON.stringify(validatedResponse);
+      } else {
+        lastError = new Error(`Invalid JSON response on attempt ${attempt}`);
+        
+        // Modify payload for retry to be more explicit about JSON format
+        if (attempt < maxRetries) {
+          payload.messages[0].content[0].text += `\n\nIMPORTANT: Your previous response was not valid JSON. Please ensure you respond with ONLY a valid JSON object, no additional text or markdown formatting.`;
+        }
+        continue;
+      }
+      
+    } catch (error) {
+      console.error(`❌ describeClothingItem Error (attempt ${attempt}):`, error);
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      
+      if (attempt < maxRetries) {
+        const waitTime = Math.pow(2, attempt) * 500; // Exponential backoff
+        console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
-
-    const json = await res.json();
-    console.log("✅ OpenAI response:", json);
-    return json?.choices?.[0]?.message?.content ?? "No description received";
-  } catch (error) {
-    console.error("❌ describeClothingItem Error:", error);
-    throw error;
   }
+  
+  // All attempts failed - return fallback response
+  console.error("🚨 All clothing analysis attempts failed, returning fallback response");
+  const fallbackResponse = generateFallbackResponse(lastError?.message || "Analysis failed");
+  return JSON.stringify(fallbackResponse);
+}
+
+/**
+ * Validate and parse clothing analysis response from AI
+ */
+function validateAndParseClothingResponse(rawContent: string, attempt: number): any | null {
+  try {
+    // Clean the response to extract JSON
+    let cleanedContent = rawContent.trim();
+    
+    // Remove markdown code blocks if present
+    cleanedContent = cleanedContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Remove any leading/trailing text that isn't JSON
+    const jsonStart = cleanedContent.indexOf('{');
+    const jsonEnd = cleanedContent.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      console.warn(`⚠️ No valid JSON structure found in response (attempt ${attempt})`);
+      return null;
+    }
+    
+    cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+    
+    // Parse the JSON
+    const parsed = JSON.parse(cleanedContent);
+    
+    // Validate required fields
+    const requiredFields = ['title', 'description', 'tags', 'color', 'material', 'style', 'fit'];
+    const missingFields = requiredFields.filter(field => !parsed[field] || parsed[field] === '');
+    
+    if (missingFields.length > 0) {
+      console.warn(`⚠️ Missing required fields (attempt ${attempt}):`, missingFields);
+      
+      // Fill in missing fields with defaults
+      if (!parsed.title) parsed.title = 'Unknown Clothing Item';
+      if (!parsed.description) parsed.description = 'Clothing item requiring manual description';
+      if (!parsed.tags || !Array.isArray(parsed.tags)) parsed.tags = ['clothing', 'manual-entry'];
+      if (!parsed.color) parsed.color = 'unknown color';
+      if (!parsed.material) parsed.material = 'unknown material';
+      if (!parsed.style) parsed.style = 'unknown style';
+      if (!parsed.fit) parsed.fit = 'unknown fit';
+    }
+    
+    // Validate field types
+    if (typeof parsed.title !== 'string') parsed.title = String(parsed.title || 'Unknown Item');
+    if (typeof parsed.description !== 'string') parsed.description = String(parsed.description || 'No description');
+    if (!Array.isArray(parsed.tags)) parsed.tags = ['clothing'];
+    if (typeof parsed.color !== 'string') parsed.color = String(parsed.color || 'unknown');
+    if (typeof parsed.material !== 'string') parsed.material = String(parsed.material || 'unknown');
+    if (typeof parsed.style !== 'string') parsed.style = String(parsed.style || 'unknown');
+    if (typeof parsed.fit !== 'string') parsed.fit = String(parsed.fit || 'unknown');
+    
+    // Validate content quality
+    const qualityIssues = validateContentQuality(parsed);
+    if (qualityIssues.length > 0 && attempt === 1) {
+      console.warn(`⚠️ Quality issues detected (attempt ${attempt}):`, qualityIssues);
+      // Allow it but log the issues for first attempt
+    }
+    
+    // Clean up tags array
+    parsed.tags = parsed.tags.filter((tag: any) => typeof tag === 'string' && tag.trim().length > 0);
+    if (parsed.tags.length === 0) {
+      parsed.tags = ['clothing'];
+    }
+    
+    console.log(`✅ Response validation passed (attempt ${attempt})`);
+    return parsed;
+    
+  } catch (parseError) {
+    console.error(`❌ JSON parsing failed (attempt ${attempt}):`, parseError);
+    console.log('Raw content that failed to parse:', rawContent);
+    return null;
+  }
+}
+
+/**
+ * Validate the quality of the content in the response
+ */
+function validateContentQuality(parsed: any): string[] {
+  const issues: string[] = [];
+  
+  // Check for generic responses
+  if (parsed.color && ['blue', 'red', 'green', 'black', 'white', 'gray'].includes(parsed.color.toLowerCase())) {
+    issues.push('Color too generic - needs more specific terminology');
+  }
+  
+  if (parsed.material && ['cotton', 'polyester', 'wool'].includes(parsed.material.toLowerCase())) {
+    issues.push('Material too generic - needs more specific fabric type');
+  }
+  
+  if (parsed.style && ['shirt', 'pants', 'dress', 'jacket'].includes(parsed.style.toLowerCase())) {
+    issues.push('Style too generic - needs more specific style category');
+  }
+  
+  // Check for placeholder text
+  const placeholderTerms = ['unknown', 'n/a', 'not specified', 'unclear', 'unable to determine'];
+  Object.values(parsed).forEach((value: any) => {
+    if (typeof value === 'string' && placeholderTerms.some(term => value.toLowerCase().includes(term))) {
+      issues.push(`Contains placeholder text: ${value}`);
+    }
+  });
+  
+  // Check minimum description length
+  if (parsed.description && parsed.description.length < 50) {
+    issues.push('Description too short - needs more detail for accuracy');
+  }
+  
+  return issues;
+}
+
+/**
+ * Generate fallback response when all attempts fail
+ */
+function generateFallbackResponse(errorMessage: string): any {
+  console.log('🔄 Generating fallback clothing response...');
+  
+  return {
+    title: 'Clothing Item (Manual Review Required)',
+    description: `This clothing item requires manual review due to analysis failure. Error: ${errorMessage}. Please manually edit this item to provide accurate details for better outfit generation.`,
+    tags: ['manual-review-required', 'analysis-failed', 'clothing'],
+    color: 'unknown color (requires manual input)',
+    material: 'unknown material (requires manual input)',
+    style: 'unknown style (requires manual input)',
+    fit: 'unknown fit (requires manual input)',
+    _analysisFailure: true,
+    _errorMessage: errorMessage,
+    _timestamp: new Date().toISOString(),
+  };
 }
 
 
