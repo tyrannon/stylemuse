@@ -149,6 +149,32 @@ const WardrobeUploadScreen = () => {
     setSelectedCategory,
   } = navigationState;
 
+  // Ref for main scroll view to control scrolling
+  const mainScrollViewRef = useRef<ScrollView>(null);
+
+  // Custom navigate to builder with scroll
+  const navigateToBuilderWithScroll = () => {
+    console.log('🚀 navigateToBuilderWithScroll called');
+    console.log('📱 Current navigation state:', {
+      showingItemDetail,
+      showOutfitBuilder,
+      showWardrobe
+    });
+    
+    // Close any open detail views first
+    console.log('🔄 Closing all details...');
+    navigationState.closeAllDetails();
+    
+    console.log('🎯 Navigating to builder...');
+    navigationState.navigateToBuilder();
+    
+    // Scroll to top after a short delay
+    setTimeout(() => {
+      console.log('📜 Scrolling to top...');
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 150);
+  };
+
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
@@ -175,29 +201,6 @@ const WardrobeUploadScreen = () => {
   const [currentScale, setCurrentScale] = useState(1);
   const [builderShakeValue] = useState(new Animated.Value(0));
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
-  
-  // Custom navigate to builder with scroll
-  const navigateToBuilderWithScroll = () => {
-    console.log('🚀 navigateToBuilderWithScroll called');
-    console.log('📱 Current navigation state:', {
-      showingItemDetail,
-      showOutfitBuilder,
-      showWardrobe
-    });
-    
-    // Close any open detail views first
-    console.log('🔄 Closing all details...');
-    navigationState.closeAllDetails();
-    
-    console.log('🎯 Navigating to builder...');
-    navigationState.navigateToBuilder();
-    
-    // Scroll to top after a short delay
-    setTimeout(() => {
-      console.log('📜 Scrolling to top...');
-      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    }, 150);
-  };
 
   // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -217,9 +220,6 @@ const WardrobeUploadScreen = () => {
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [viewingWardrobeItem, setViewingWardrobeItem] = useState<any | null>(null);
   const [wardrobeItemModalVisible, setWardrobeItemModalVisible] = useState(false);
-  
-  // Ref for main scroll view to control scrolling
-  const mainScrollViewRef = useRef<ScrollView>(null);
   
   // Category editing states are now provided by useNavigationState hook
   
