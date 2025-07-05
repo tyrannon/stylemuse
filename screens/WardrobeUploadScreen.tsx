@@ -33,7 +33,6 @@ import { ProfilePage } from './ProfilePage';
 import { AvatarCustomizationPage } from './AvatarCustomizationPage';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
-import { SmartSuggestionModal } from './components/SmartSuggestionModal';
 import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
@@ -1596,11 +1595,7 @@ const WardrobeUploadScreen = () => {
     }
   };
 
-  // Function to suggest smart outfit suggestions
-  const handleSmartOutfitSuggestions = () => {
-    triggerHaptic('medium');
-    modalState.setShowSmartSuggestionModal(true);
-  };
+  // REMOVED: Legacy smart outfit suggestions - now using unified AIOutfitAssistant
 
   const handleSmartSuggestionsGenerated = (suggestion: any) => {
     // Auto-fill the outfit builder with the generated suggestions
@@ -2939,21 +2934,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     </View>
   </View>
 
-  {/* Smart Outfit Suggestions Button */}
-  <View style={{ marginTop: 20, alignItems: 'center' }}>
-    <TouchableOpacity
-      onPress={handleSmartOutfitSuggestions}
-      disabled={savedItems.length < 1}
-      style={[
-        styles.smartSuggestionButton,
-        savedItems.length < 1 && styles.generateOutfitButtonDisabled
-      ]}
-    >
-      <Text style={styles.smartSuggestionButtonText}>
-        {savedItems.length < 1 ? '🚫 Need wardrobe items' : '🧠 Get Smart Suggestions'}
-      </Text>
-    </TouchableOpacity>
-  </View>
+  {/* REMOVED: Legacy Smart Outfit Suggestions Button - now using unified AIOutfitAssistant */}
 
   {/* Generate Outfit Button */}
   <View style={{ marginTop: 10, alignItems: 'center' }}>
@@ -3367,12 +3348,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         </View>
       )}
 
-      {/* Smart Suggestion Modal */}
-      <SmartSuggestionModal
-        visible={modalState.showSmartSuggestionModal}
-        onClose={() => modalState.setShowSmartSuggestionModal(false)}
-        onSuggestionsGenerated={handleSmartSuggestionsGenerated}
-      />
+      {/* REMOVED: Legacy Smart Suggestion Modal - now using unified AIOutfitAssistant + SmartSuggestionsModal */}
 
       {/* Text Item Entry Modal */}
       <TextItemEntryModal

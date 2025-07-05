@@ -94,7 +94,8 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           context="wardrobe"
           size="large"
           onOutfitGenerated={(outfit) => {
-            // Navigate to builder with the generated outfit
+            console.log('✅ Empty wardrobe: AI generated outfit:', outfit?.outfitName);
+            // For empty wardrobe, we can navigate to show the user how to use the builder
             if (onNavigateToBuilder) {
               onNavigateToBuilder();
             }
@@ -166,12 +167,9 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           size="medium"
           onOutfitGenerated={(outfit) => {
             console.log('✅ WardrobePage: AI generated outfit:', outfit?.outfitName);
-            // Navigate to builder with the generated outfit
-            if (onNavigateToBuilder) {
-              onNavigateToBuilder();
-            } else {
-              console.log('⚠️ No navigation function available in WardrobePage context');
-            }
+            // Don't auto-navigate - let user see results and choose to navigate
+            // The Smart Suggestions Modal will show the outfit suggestions
+            console.log('🎭 Outfit suggestions should now be visible in modal');
           }}
         />
       </View>

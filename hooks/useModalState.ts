@@ -15,9 +15,7 @@ export interface ModalState {
   showSortFilterModal: boolean;
   setShowSortFilterModal: (show: boolean) => void;
   
-  // Smart suggestion modal
-  showSmartSuggestionModal: boolean;
-  setShowSmartSuggestionModal: (show: boolean) => void;
+  // REMOVED: Legacy smart suggestion modal - now using unified AIOutfitAssistant
   
   // Text item entry modal
   showTextItemModal: boolean;
@@ -53,8 +51,7 @@ export const useModalState = (): ModalState => {
   // Sort/Filter modal
   const [showSortFilterModal, setShowSortFilterModal] = useState(false);
   
-  // Smart suggestion modal
-  const [showSmartSuggestionModal, setShowSmartSuggestionModal] = useState(false);
+  // REMOVED: Legacy smart suggestion modal state
   
   // Text item entry modal
   const [showTextItemModal, setShowTextItemModal] = useState(false);
@@ -86,9 +83,7 @@ export const useModalState = (): ModalState => {
     showSortFilterModal,
     setShowSortFilterModal,
     
-    // Smart suggestion modal
-    showSmartSuggestionModal,
-    setShowSmartSuggestionModal,
+    // REMOVED: Legacy smart suggestion modal
     
     // Text item entry modal
     showTextItemModal,
