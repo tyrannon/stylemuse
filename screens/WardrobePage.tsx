@@ -165,9 +165,12 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           context="wardrobe"
           size="medium"
           onOutfitGenerated={(outfit) => {
+            console.log('✅ WardrobePage: AI generated outfit:', outfit?.outfitName);
             // Navigate to builder with the generated outfit
             if (onNavigateToBuilder) {
               onNavigateToBuilder();
+            } else {
+              console.log('⚠️ No navigation function available in WardrobePage context');
             }
           }}
         />

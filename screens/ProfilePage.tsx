@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
 import { EnhancedStyleDNA } from '../types/Avatar';
+import { PersistenceService } from '../services/PersistenceService';
+import * as Haptics from 'expo-haptics';
 
 interface ProfilePageProps {
   profileImage: string | null;
@@ -288,6 +290,132 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </View>
       </View>
 
+      {/* Backup & Data Management Section */}
+      <BackupSection />
+
+    </View>
+  );
+};
+
+/**
+ * 💾 BACKUP SECTION: Ultimate data persistence controls
+ */
+const BackupSection: React.FC = () => {
+  const [backupInfo, setBackupInfo] = useState<{
+    hasLocalBackup: boolean;
+    lastBackupDate: Date | null;
+    backupSize: string;
+  }>({
+    hasLocalBackup: false,
+    lastBackupDate: null,
+    backupSize: '0 KB'
+  });
+  const [loading, setLoading] = useState(false);
+
+  // Load backup info on component mount
+  useEffect(() => {
+    loadBackupInfo();
+  }, []);
+
+  const loadBackupInfo = async () => {
+    try {
+      const info = await PersistenceService.getBackupInfo();
+      setBackupInfo(info);
+    } catch (error) {
+      console.error('Error loading backup info:', error);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      setLoading(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await PersistenceService.exportBackup();
+      await loadBackupInfo(); // Refresh backup info
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      setLoading(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await PersistenceService.importBackup();
+      await loadBackupInfo(); // Refresh backup info
+    } catch (error) {
+      console.error('Import failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.backupSection}>
+      <Text style={styles.backupTitle}>💾 Data Backup & Restore</Text>
+      <Text style={styles.backupSubtitle}>
+        Protect your StyleMuse data from app updates and device changes
+      </Text>
+
+      {/* Backup Status */}
+      <View style={styles.backupStatusCard}>
+        <View style={styles.backupStatusHeader}>
+          <Text style={styles.backupStatusTitle}>📊 Backup Status</Text>
+          <Text style={[styles.backupStatusBadge, backupInfo.hasLocalBackup ? styles.backupStatusGood : styles.backupStatusBad]}>
+            {backupInfo.hasLocalBackup ? '✅ Protected' : '⚠️ No Backup'}
+          </Text>
+        </View>
+        
+        <View style={styles.backupStatusDetails}>
+          <Text style={styles.backupStatusText}>
+            Size: {backupInfo.backupSize}
+          </Text>
+          <Text style={styles.backupStatusText}>
+            Last Backup: {backupInfo.lastBackupDate 
+              ? backupInfo.lastBackupDate.toLocaleDateString() 
+              : 'Never'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Backup Actions */}
+      <View style={styles.backupActions}>
+        <TouchableOpacity
+          style={[styles.backupButton, styles.exportButton]}
+          onPress={handleExportBackup}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.backupButtonIcon}>📤</Text>
+              <Text style={styles.backupButtonText}>Export Backup</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.backupButton, styles.importButton]}
+          onPress={handleImportBackup}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.backupButtonIcon}>📥</Text>
+              <Text style={styles.backupButtonText}>Restore Backup</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.backupNote}>
+        💡 Your backups are saved to your device's secure storage and will sync with iCloud (iOS) automatically.
+      </Text>
     </View>
   );
 };
@@ -331,5 +459,101 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#666',
+  },
+  // Backup Section Styles
+  backupSection: {
+    marginTop: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  backupTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  backupSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  backupStatusCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  backupStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  backupStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  backupStatusBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  backupStatusGood: {
+    backgroundColor: '#d4edda',
+    color: '#155724',
+  },
+  backupStatusBad: {
+    backgroundColor: '#f8d7da',
+    color: '#721c24',
+  },
+  backupStatusDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  backupStatusText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  backupActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  backupButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  exportButton: {
+    backgroundColor: '#007bff',
+  },
+  importButton: {
+    backgroundColor: '#28a745',
+  },
+  backupButtonIcon: {
+    fontSize: 16,
+  },
+  backupButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  backupNote: {
+    fontSize: 12,
+    color: '#6c757d',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

@@ -15,6 +15,7 @@ interface ItemDetailViewProps {
   onSaveField: (field: string, value: string | string[]) => Promise<WardrobeItem>;
   onCategoryPress: () => void;
   onDelete: (item: WardrobeItem) => Promise<void>;
+  onNavigateToBuilder?: () => void;
   categorizeItem: (item: WardrobeItem) => string;
   
   // Editing states
@@ -54,6 +55,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onSaveField,
   onCategoryPress,
   onDelete,
+  onNavigateToBuilder,
   categorizeItem,
   editingTitle,
   setEditingTitle,
@@ -561,8 +563,11 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
               context="item"
               size="small"
               onOutfitGenerated={(outfit) => {
-                // Could navigate to builder or show results
                 console.log('Generated outfit for item:', outfit);
+                // Navigate to builder to show the generated outfit
+                if (onNavigateToBuilder) {
+                  onNavigateToBuilder();
+                }
               }}
             />
           </View>

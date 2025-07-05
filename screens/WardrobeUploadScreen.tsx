@@ -43,6 +43,7 @@ import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
+import { PersistenceService } from '../services/PersistenceService';
 import { styles } from './styles/WardrobeUploadScreen.styles';
 
 // Types
@@ -343,6 +344,16 @@ const WardrobeUploadScreen = () => {
         }
 
         console.log('✅ All stored data loaded successfully');
+        
+        // 💾 Initialize automatic backup system
+        try {
+          await PersistenceService.autoBackup();
+          console.log('💾 Auto backup check completed');
+        } catch (error) {
+          console.error('⚠️ Auto backup failed (non-critical):', error);
+          // Don't throw - backup failures shouldn't break app startup
+        }
+        
       } catch (error) {
         console.error('❌ Error loading stored data:', error);
       }
@@ -3012,7 +3023,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
     // Navigation
-    onNavigateToBuilder={() => setCurrentTab('builder')}
+    onNavigateToBuilder={navigateToBuilder}
   />
 )}
 
@@ -3024,6 +3035,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onSaveField={(field, value) => saveFieldUpdate(detailViewItem, field, value)}
     onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
     onDelete={deleteWardrobeItem}
+    onNavigateToBuilder={navigateToBuilder}
     categorizeItem={categorizeItem}
     editingTitle={editingTitle}
     setEditingTitle={setEditingTitle}
