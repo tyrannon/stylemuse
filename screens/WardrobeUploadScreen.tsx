@@ -3023,7 +3023,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onBack={goBackToWardrobe}
     onSaveField={(field, value) => saveFieldUpdate(detailViewItem, field, value)}
     onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
-    onGenerateOutfitSuggestions={(item) => generateOutfitSuggestions(item, styleDNA)}
     onDelete={deleteWardrobeItem}
     categorizeItem={categorizeItem}
     editingTitle={editingTitle}

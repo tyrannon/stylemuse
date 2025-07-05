@@ -4,6 +4,7 @@ import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import { LaundryAnalytics } from './components/LaundryAnalytics';
 import { TextItemCard } from '../components/TextItemCard';
 import { SafeImage } from '../utils/SafeImage';
+import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import * as Haptics from 'expo-haptics';
 
 interface WardrobePageProps {
@@ -76,12 +77,7 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   onNavigateToBuilder,
 }) => {
   // Handle navigation to unified AI Outfit Assistant
-  const handleGoToAIAssistant = () => {
-    if (onNavigateToBuilder) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onNavigateToBuilder();
-    }
-  };
+  // Removed handleGoToAIAssistant - now using unified AIOutfitAssistant component
 
   if (savedItems.length === 0) {
     return (
@@ -93,19 +89,17 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           Don't know where to start? Let AI help you build the perfect wardrobe!
         </Text>
         
-        {/* AI Outfit Assistant CTA */}
-        <TouchableOpacity
-          style={styles.aiAssistantButton}
-          onPress={handleGoToAIAssistant}
-        >
-          <View style={styles.buttonContent}>
-            <Text style={styles.aiAssistantIcon}>🎯✨</Text>
-            <Text style={styles.aiAssistantButtonText}>
-              AI Outfit Assistant
-            </Text>
-            <Text style={styles.aiAssistantSubtext}>Build your perfect wardrobe with AI recommendations</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Unified Smart Outfit Generator */}
+        <AIOutfitAssistant
+          context="wardrobe"
+          size="large"
+          onOutfitGenerated={(outfit) => {
+            // Navigate to builder with the generated outfit
+            if (onNavigateToBuilder) {
+              onNavigateToBuilder();
+            }
+          }}
+        />
 
         <View style={styles.alternativeContainer}>
           <Text style={styles.orText}>or</Text>
@@ -163,6 +157,20 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         >
           <Text style={[styles.tabText, showLaundryAnalytics && styles.activeTabText]}>🧺 Analytics</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Unified Smart Outfit Generator for populated wardrobe */}
+      <View style={styles.smartGeneratorContainer}>
+        <AIOutfitAssistant
+          context="wardrobe"
+          size="medium"
+          onOutfitGenerated={(outfit) => {
+            // Navigate to builder with the generated outfit
+            if (onNavigateToBuilder) {
+              onNavigateToBuilder();
+            }
+          }}
+        />
       </View>
 
       <View style={{ marginTop: 20 }}>
@@ -259,13 +267,7 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                     );
                   })()}
                   
-                  {/* Outfit Suggestions Button */}
-                  <TouchableOpacity
-                    onPress={() => generateOutfitSuggestions(item)}
-                    style={styles.outfitSuggestionsButton}
-                  >
-                    <Text style={styles.outfitSuggestionsButtonText}>🎨 Outfit Ideas</Text>
-                  </TouchableOpacity>
+                  {/* REMOVED: Individual outfit ideas buttons - now using unified Smart Outfit Generator */}
                   
                   {/* Edit indicator */}
                   <View style={styles.editIndicator}>
@@ -283,6 +285,10 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
 };
 
 const styles = StyleSheet.create({
+  smartGeneratorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   wardrobeScrollView: {
     flex: 1,
   },

@@ -5,6 +5,7 @@ import { SafeImage } from '../../utils/SafeImage';
 import { useStyleRecommendations } from '../../hooks/useStyleRecommendations';
 import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../../types/StyleAdvice';
+import { AIOutfitAssistant } from '../../components/AIOutfitAssistant';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
@@ -13,7 +14,6 @@ interface ItemDetailViewProps {
   onBack: () => void;
   onSaveField: (field: string, value: string | string[]) => Promise<WardrobeItem>;
   onCategoryPress: () => void;
-  onGenerateOutfitSuggestions: (item: WardrobeItem) => void;
   onDelete: (item: WardrobeItem) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
   
@@ -53,7 +53,6 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onBack,
   onSaveField,
   onCategoryPress,
-  onGenerateOutfitSuggestions,
   onDelete,
   categorizeItem,
   editingTitle,
@@ -556,12 +555,17 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
 
         {/* Action Buttons */}
         <View style={styles.itemDetailActions}>
-          <TouchableOpacity
-            onPress={() => onGenerateOutfitSuggestions(item)}
-            style={[styles.itemDetailActionButton, { marginRight: 8, flex: 1 }]}
-          >
-            <Text style={styles.itemDetailActionButtonText}>🎨 Outfit Ideas</Text>
-          </TouchableOpacity>
+          {/* Unified Smart Outfit Generator for this specific item */}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <AIOutfitAssistant
+              context="item"
+              size="small"
+              onOutfitGenerated={(outfit) => {
+                // Could navigate to builder or show results
+                console.log('Generated outfit for item:', outfit);
+              }}
+            />
+          </View>
           
           <TouchableOpacity
             onPress={findSimilarOnAmazon}

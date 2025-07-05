@@ -4,6 +4,7 @@ import { LovedOutfit } from '../hooks/useWardrobeData';
 import { SmartOutfitSuggestions } from './components/SmartOutfitSuggestions';
 import { OutfitAnalytics } from './components/OutfitAnalytics';
 import { MarkAsWornModal } from './components/MarkAsWornModal';
+import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { SafeImage } from '../utils/SafeImage';
 import { formatDate } from '../utils/dateUtils';
 
@@ -47,14 +48,16 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
             No Generated Outfits Yet
           </Text>
           <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-            Generate your first outfit using the Outfit Builder!
+            Let AI help you create your first amazing outfit!
           </Text>
-          <TouchableOpacity
-            onPress={navigateToBuilder}
-            style={styles.generateFirstOutfitButton}
-          >
-            <Text style={styles.generateFirstOutfitButtonText}>🎮 Go to Outfit Builder</Text>
-          </TouchableOpacity>
+          <AIOutfitAssistant
+            context="outfits"
+            size="large"
+            onOutfitGenerated={(outfit) => {
+              // Navigate to builder with the generated outfit
+              navigateToBuilder();
+            }}
+          />
         </View>
       </View>
     );
@@ -316,14 +319,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
         </View>
       </View>
       
-        {/* Smart Suggestions Section */}
-        {smartSuggestions.length > 0 && showSuggestions && (
-          <SmartOutfitSuggestions
-            suggestions={smartSuggestions}
-            onOutfitPress={openOutfitDetailView}
-            onMarkAsWorn={handleQuickMarkAsWorn}
-          />
-        )}
+        {/* DEPRECATED: Legacy SmartOutfitSuggestions replaced with unified Smart Outfit Generator */}
       </View>
       
       {/* Mark as Worn Modal */}
