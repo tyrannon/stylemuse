@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { describeClothingItem } from '../utils/openai';
+import { describeClothingItem, detectMultipleClothingItems, cropDetectedItems, analyzeSpecificClothingItem } from '../utils/openai';
 import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
 import * as Location from 'expo-location';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
@@ -37,6 +37,7 @@ import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
+import { MultiItemProgressModal } from '../components/MultiItemProgressModal';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 
 // Utils and Services
@@ -199,7 +200,22 @@ const WardrobeUploadScreen = () => {
   const [weatherData, setWeatherData] = useState<any | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [cameraMode, setCameraMode] = useState<'wardrobe' | 'profile' | 'outfit' | 'multi-item'>('wardrobe');
   const [outfitModalVisible, setOutfitModalVisible] = useState(false);
+  
+  // Multi-item progress tracking
+  const [showMultiItemProgress, setShowMultiItemProgress] = useState(false);
+  const [multiItemDetectedItems, setMultiItemDetectedItems] = useState<any[]>([]);
+  const [multiItemCurrentStep, setMultiItemCurrentStep] = useState(0);
+  const [multiItemLogs, setMultiItemLogs] = useState<string[]>([]);
+
+  // Helper function to add logs to progress modal
+  const addMultiItemLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] ${message}`;
+    setMultiItemLogs(prev => [...prev, logEntry]);
+    console.log(logEntry); // Still log to console for debugging
+  };
   const [outfitScale] = useState(new Animated.Value(1));
   const [outfitTranslateX] = useState(new Animated.Value(0));
   const [outfitTranslateY] = useState(new Animated.Value(0));
@@ -595,6 +611,7 @@ const WardrobeUploadScreen = () => {
   // Function to handle camera capture from add item page
   const handleAddItemCameraPress = async () => {
     // Go to camera screen directly
+    setCameraMode('wardrobe');
     modalState.setShowCamera(true);
   };
 
@@ -650,6 +667,13 @@ const WardrobeUploadScreen = () => {
     await pickMultipleImages();
   };
 
+  // Function to handle multi-item detection from add item page
+  const handleAddItemMultiItemPress = async () => {
+    // Navigate to camera with multi-item mode
+    modalState.setShowCamera(true);
+    setCameraMode('multi-item');
+  };
+
   // Function to handle text entry from add item page
   const handleAddItemTextEntryPress = () => {
     modalState.setShowTextItemModal(true);
@@ -683,8 +707,210 @@ const WardrobeUploadScreen = () => {
     modalState.setShowCamera(false);
     setCapturedPhotoUri(null);
     
-    // Process directly through AI analysis (skip editing screen for now to avoid complexity)
-    await handleAutoDescribeAndSave(photoUri, false);
+    if (cameraMode === 'multi-item') {
+      // Handle multi-item detection
+      await handleMultiItemDetection(photoUri);
+    } else {
+      // Process single item directly through AI analysis
+      await handleAutoDescribeAndSave(photoUri, false);
+    }
+  };
+
+  // Function to handle multi-item detection workflow
+  const handleMultiItemDetection = async (photoUri: string) => {
+    try {
+      // Reset progress state and show modal
+      setMultiItemLogs([]);
+      setMultiItemCurrentStep(0);
+      setMultiItemDetectedItems([]);
+      setShowMultiItemProgress(true);
+      
+      addMultiItemLog('🔍 Starting multi-item detection for photo...');
+      addMultiItemLog('📸 Converting image to base64 for AI analysis...');
+
+      // Convert image to base64 for AI analysis
+      const base64Image = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      addMultiItemLog('🤖 Calling AI detection service...');
+      setMultiItemCurrentStep(0); // Detection step
+
+      // Call AI detection function
+      const detectionResult = await detectMultipleClothingItems(base64Image);
+
+      if (detectionResult.success && detectionResult.itemsFound > 0) {
+        addMultiItemLog(`🎉 Detection complete! Found ${detectionResult.itemsFound} items:`);
+        detectionResult.items.forEach((item: any, index: number) => {
+          addMultiItemLog(`  ${index + 1}. ${item.itemType}: ${item.description}`);
+        });
+        
+        setMultiItemDetectedItems(detectionResult.items);
+        setMultiItemCurrentStep(1); // Move to first item analysis
+        
+        // Auto-start processing
+        setTimeout(() => {
+          processDetectedItems(detectionResult.items, photoUri);
+        }, 1500);
+      } else {
+        addMultiItemLog('❌ No items detected or detection failed');
+        addMultiItemLog(`Error: ${detectionResult.message}`);
+        
+        setTimeout(() => {
+          setShowMultiItemProgress(false);
+          Alert.alert(
+            '😔 No Items Detected',
+            detectionResult.message || 'Could not detect individual clothing items in this photo. Try taking a clearer photo with better lighting, or use the regular camera mode for single items.',
+            [
+              {
+                text: 'Try Again',
+                style: 'default',
+                onPress: () => {
+                  setCameraMode('multi-item');
+                  modalState.setShowCamera(true);
+                }
+              },
+              {
+                text: 'Use Single Mode',
+                style: 'default',
+                onPress: () => handleAutoDescribeAndSave(photoUri, false)
+              }
+            ]
+          );
+        }, 2000);
+      }
+
+    } catch (error) {
+      console.error('❌ Multi-item detection error:', error);
+      Alert.alert(
+        '😔 Detection Failed',
+        'Something went wrong during item detection. You can try again or use single item mode.',
+        [
+          {
+            text: 'Try Again',
+            onPress: () => {
+              setCameraMode('multi-item');
+              modalState.setShowCamera(true);
+            }
+          },
+          {
+            text: 'Use Single Mode',
+            onPress: () => handleAutoDescribeAndSave(photoUri, false)
+          }
+        ]
+      );
+    }
+  };
+
+  // Function to process each detected item individually
+  const processDetectedItems = async (detectedItems: any[], originalPhotoUri: string) => {
+    try {
+      addMultiItemLog(`🔄 Starting processing of ${detectedItems.length} detected items...`);
+      
+      let successCount = 0;
+      let failureCount = 0;
+      const processedItems: any[] = [];
+
+      for (let i = 0; i < detectedItems.length; i++) {
+        const item = detectedItems[i];
+        setMultiItemCurrentStep(i + 1); // Update progress step
+        addMultiItemLog(`📝 Processing item ${i + 1}/${detectedItems.length}: ${item.itemType}`);
+
+        try {
+          // Convert image to base64 for targeted AI analysis
+          const base64Image = await FileSystem.readAsStringAsync(originalPhotoUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          addMultiItemLog(`🎯 Running targeted analysis for ${item.itemType}...`);
+          addMultiItemLog(`📐 Using bounding box: (${item.boundingBox?.top_left?.[0]}, ${item.boundingBox?.top_left?.[1]}) to (${item.boundingBox?.bottom_right?.[0]}, ${item.boundingBox?.bottom_right?.[1]})`);
+          
+          // Use the new targeted analysis function with bounding box context
+          const analysisResult = await analyzeSpecificClothingItem(base64Image, item);
+          const parsedResult = JSON.parse(analysisResult);
+
+          // Create enhanced item data with detection context and bounding box metadata
+          const enhancedItem = {
+            ...parsedResult,
+            title: `${parsedResult.title} (Item ${i + 1})`,
+            description: `${parsedResult.description} [Detected via Multi-Item AI: ${item.description}]`,
+            image: originalPhotoUri,
+            category: categorizeItem(parsedResult),
+            tags: [...(parsedResult.tags || []), 'multi-item-detected', `detected-as-${item.itemType}`],
+            multiItemData: {
+              originalImage: originalPhotoUri,
+              boundingBox: item.boundingBox,
+              detectionId: item.id,
+              confidence: item.confidence,
+              detectedWithItems: detectedItems.map(detectedItem => `item-${detectedItem.id}`),
+              itemType: item.itemType,
+              isFromMultiDetection: true,
+            },
+            detectionInfo: {
+              originalDetection: item,
+              detectionConfidence: item.confidence,
+              detectionPosition: item.position,
+              multiItemBatch: true,
+              batchSize: detectedItems.length,
+              itemIndex: i + 1
+            }
+          };
+
+          // Add to processed items array instead of saving immediately
+          processedItems.push(enhancedItem);
+          successCount++;
+          addMultiItemLog(`✅ Successfully analyzed ${item.itemType}: ${parsedResult.title}`);
+
+        } catch (itemError) {
+          addMultiItemLog(`❌ Failed to process ${item.itemType}: ${itemError.message}`);
+          failureCount++;
+        }
+      }
+
+      // Now save all processed items at once
+      setMultiItemCurrentStep(detectedItems.length + 1); // Move to saving step
+      addMultiItemLog(`💾 Saving ${processedItems.length} processed items to wardrobe...`);
+      
+      if (processedItems.length > 0) {
+        const updatedItems = [...savedItems, ...processedItems];
+        setSavedItems(updatedItems);
+        await AsyncStorage.setItem('stylemuse_wardrobe_items', JSON.stringify(updatedItems));
+        addMultiItemLog(`✅ Successfully saved ${processedItems.length} items to wardrobe!`);
+      }
+
+      // Complete the process
+      setMultiItemCurrentStep(detectedItems.length + 2); // Complete
+      addMultiItemLog(`🎉 Multi-item processing complete!`);
+      addMultiItemLog(`📊 Results: ${successCount} success, ${failureCount} failed`);
+      
+      // Show final results after a delay
+      setTimeout(async () => {
+        setShowMultiItemProgress(false);
+        
+        if (successCount > 0) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert(
+            '🎉 Multi-Item Success!',
+            `Successfully added ${successCount} items to your wardrobe!${failureCount > 0 ? ` (${failureCount} items failed to process)` : ''}`,
+            [{ text: 'Great!', style: 'default' }]
+          );
+        } else {
+          Alert.alert(
+            '😔 Processing Failed',
+            'Unable to process any of the detected items. Please try individual photos or check your image quality.',
+            [{ text: 'OK', style: 'default' }]
+          );
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ Batch processing error:', error);
+      Alert.alert(
+        '😔 Processing Error',
+        'Something went wrong while processing the detected items.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
 
@@ -3015,6 +3241,13 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     wishlistItems={wishlistItems}
     removeFromWishlist={removeFromWishlist}
     updateWishlistPurchaseStatus={updateWishlistPurchaseStatus}
+    addItemToWardrobe={(item) => {
+      console.log('📥 Adding purchased item to wardrobe:', item.title);
+      const updatedItems = [...savedItems, item];
+      setSavedItems(updatedItems);
+      // Save to storage
+      AsyncStorage.setItem('stylemuse_wardrobe_items', JSON.stringify(updatedItems));
+    }}
   />
 )}
 
@@ -3027,6 +3260,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
     onDelete={deleteWardrobeItem}
     onNavigateToBuilder={navigateToBuilder}
+    onGenerateOutfitSuggestions={(item) => generateOutfitSuggestions(item, styleDNA)}
     categorizeItem={categorizeItem}
     editingTitle={editingTitle}
     setEditingTitle={setEditingTitle}
@@ -3125,6 +3359,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onCameraPress={handleAddItemCameraPress}
     onPhotoLibraryPress={handleAddItemPhotoLibraryPress}
     onBulkUploadPress={handleAddItemBulkUploadPress}
+    onMultiItemPress={handleAddItemMultiItemPress}
     onTextEntryPress={handleAddItemTextEntryPress}
   />
 )}
@@ -3340,7 +3575,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           <CameraScreen
             onPhotoTaken={handleCameraPhotoDirect}
             onCancel={() => modalState.setShowCamera(false)}
-            mode="wardrobe"
+            mode={cameraMode}
             showGrid={true}
           />
         </View>
@@ -3366,6 +3601,15 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         onClose={() => modalState.setShowTextItemModal(false)}
         onSave={handleSaveTextItem}
         categories={AVAILABLE_CATEGORIES}
+      />
+
+      {/* Multi-Item Progress Modal */}
+      <MultiItemProgressModal
+        visible={showMultiItemProgress}
+        detectedItems={multiItemDetectedItems}
+        currentStep={multiItemCurrentStep}
+        logs={multiItemLogs}
+        onComplete={() => setShowMultiItemProgress(false)}
       />
 
       {/* Smart Suggestions Modal */}

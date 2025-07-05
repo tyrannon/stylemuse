@@ -6,6 +6,7 @@ interface AddItemPageProps {
   onCameraPress: () => void;
   onPhotoLibraryPress: () => void;
   onBulkUploadPress: () => void;
+  onMultiItemPress: () => void;
   onTextEntryPress: () => void;
 }
 
@@ -13,6 +14,7 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
   onCameraPress,
   onPhotoLibraryPress,
   onBulkUploadPress,
+  onMultiItemPress,
   onTextEntryPress,
 }) => {
   const handleOptionPress = (action: () => void) => {
@@ -38,6 +40,22 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
             <View style={styles.optionText}>
               <Text style={styles.optionTitle}>Camera</Text>
               <Text style={styles.optionSubtitle}>Take a photo of your clothing</Text>
+            </View>
+            <Text style={styles.optionArrow}>›</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.option, styles.featuredOption]}
+            onPress={() => handleOptionPress(onMultiItemPress)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.optionIcon}>
+              <Text style={styles.optionEmoji}>🔍</Text>
+            </View>
+            <View style={styles.optionText}>
+              <Text style={styles.optionTitle}>Multi-Item Detection</Text>
+              <Text style={styles.optionSubtitle}>AI finds multiple items in one photo</Text>
+              <Text style={styles.newFeature}>✨ NEW!</Text>
             </View>
             <Text style={styles.optionArrow}>›</Text>
           </TouchableOpacity>
@@ -92,11 +110,11 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
           <Text style={styles.tipsTitle}>💡 Pro Tips</Text>
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>
-            <Text style={styles.tipText}>Camera gives best AI analysis results</Text>
+            <Text style={styles.tipText}>Multi-Item Detection saves time with outfit photos</Text>
           </View>
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>
-            <Text style={styles.tipText}>Single Photo has "Add Another" convenience</Text>
+            <Text style={styles.tipText}>Camera gives best AI analysis results</Text>
           </View>
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>
@@ -208,5 +226,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     flex: 1,
+  },
+  featuredOption: {
+    borderWidth: 2,
+    borderColor: '#667eea',
+    backgroundColor: '#f0f4ff',
+  },
+  newFeature: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#667eea',
+    marginTop: 4,
   },
 });

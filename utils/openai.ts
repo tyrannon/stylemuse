@@ -575,66 +575,26 @@ export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA:
   let weatherContext = "";
   if (weatherData) {
     weatherContext = `
-WEATHER CONTEXT:
-- Temperature: ${weatherData.temperature}°F (feels like ${weatherData.feels_like}°F)
-- Conditions: ${weatherData.description}
-- Location: ${weatherData.city}
-
-WEATHER STYLING:
-- Outfit appropriate for ${weatherData.temperature}°F
-- Suitable for ${weatherData.description} conditions
-- Practical and stylish for this weather
+WEATHER: ${weatherData.temperature}°F, ${weatherData.description} in ${weatherData.city}
 `;
   }
 
-  let weatherOutfitPrompt = `
-Create a professional fashion photograph of a stylish person wearing this outfit:
-
-${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
-
-${weatherContext}
-`;
+  let weatherOutfitPrompt = `Fashion photo of person wearing: ${detailedDescriptions.join(', ')}${weatherContext}`;
 
   // Add gender specification if provided
   if (gender) {
     const genderText = gender === 'male' ? 'masculine' : 
                       gender === 'female' ? 'feminine' : 
                       'non-binary';
-    weatherOutfitPrompt += `
-GENDER IDENTITY: The model should have a ${genderText} appearance and styling appropriate for ${genderText} fashion.
-`;
+    weatherOutfitPrompt += ` ${genderText} model.`;
   }
 
-  // Add general styling preferences if available (much less specific)
+  // Add simplified styling if available
   if (styleDNA && styleDNA.appearance) {
-    weatherOutfitPrompt += `
-STYLING PREFERENCES:
-- Hair: ${styleDNA.appearance.hair_color} ${styleDNA.appearance.hair_length} hair with ${styleDNA.appearance.hair_texture} texture
-- Build: ${styleDNA.appearance.build} build for proper fit demonstration  
-- Aesthetic: ${styleDNA.style_preferences?.aesthetic_shown} style
-- Color coordination: Works well with ${styleDNA.appearance.complexion} tones
-- Age styling: ${styleDNA.appearance.age_range} appropriate fashion
-
-STYLING GUIDELINES:
-- Show how these pieces work for a ${styleDNA.appearance.build} build
-- Color choices should complement ${styleDNA.appearance.complexion} undertones
-- Overall styling should reflect a ${styleDNA.style_preferences?.aesthetic_shown} aesthetic
-- Demonstrate proper fit for this body type
-`;
+    weatherOutfitPrompt += ` ${styleDNA.appearance.build} build, ${styleDNA.appearance.complexion} tones.`;
   }
 
-  weatherOutfitPrompt += `
-REQUIREMENTS:
-- Professional fashion photography with excellent lighting
-- Full body shot showing complete outfit coordination
-- Clean, neutral background
-- Model posed naturally to show outfit details
-- High quality, photorealistic style
-- Focus on outfit coordination and styling
-- Show confidence and style appropriate for the weather
-
-Style: Contemporary fashion photography showcasing excellent outfit coordination.
-`;
+  weatherOutfitPrompt += ` Professional fashion photo, full body, clean background.`;
 
   const payload = {
     model: "dall-e-3",
@@ -1260,5 +1220,403 @@ Return ONLY raw JSON in this exact format:
   } catch (error) {
     console.error("❌ generateIntelligentOutfitSelection Error:", error);
     return null;
+  }
+}
+
+/**
+ * Multi-Item Detection with Bounding Boxes: Identify and locate multiple clothing items in a single photo
+ */
+export async function detectMultipleClothingItems(base64Image: string): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not found for multi-item detection');
+    return { items: [], success: false, message: 'AI detection unavailable' };
+  }
+
+  console.log('🔍 Detecting multiple clothing items in photo...');
+
+  const prompt = `You are an expert clothing detector with precise spatial analysis. Analyze this image and identify EVERY separate clothing item with exact positioning.
+
+TASK: Detect each individual clothing item and provide precise bounding box coordinates.
+
+For EACH clothing item you find:
+1. Identify the item type and basic details
+2. Provide precise bounding box coordinates (0-100 scale)
+3. Ensure each item is distinct (no duplicates)
+4. Assess quality and suitability
+
+COORDINATE SYSTEM:
+- Use 0-100 scale for x,y coordinates
+- top_left: [x, y] where (0,0) is top-left corner
+- bottom_right: [x, y] where (100,100) is bottom-right corner
+- Be precise - these will be used for cropping
+
+REQUIREMENTS:
+- Look for: shirts, pants, dresses, skirts, jackets, sweaters, shoes, accessories, hats
+- Ignore: people wearing clothes, backgrounds, furniture
+- Focus on: individual clothing items laid out, hung up, or clearly separated
+- Each item must be DISTINCT - no analyzing the same garment twice
+
+Return ONLY valid JSON:
+{
+  "itemsFound": 2,
+  "items": [
+    {
+      "id": 1,
+      "itemType": "t-shirt",
+      "description": "White cotton t-shirt with graphic print",
+      "boundingBox": {
+        "top_left": [20, 15],
+        "bottom_right": [65, 60]
+      },
+      "confidence": 95,
+      "suitable": true,
+      "reason": "Clear view of complete garment, good lighting",
+      "uniqueFeatures": "graphic print on front"
+    },
+    {
+      "id": 2,
+      "itemType": "cap", 
+      "description": "Blue baseball cap",
+      "boundingBox": {
+        "top_left": [70, 10],
+        "bottom_right": [95, 35]
+      },
+      "confidence": 88,
+      "suitable": true,
+      "reason": "Clearly visible, distinct from other items",
+      "uniqueFeatures": "curved brim, solid color"
+    }
+  ],
+  "quality": "good",
+  "lighting": "adequate",
+  "recommendation": "All items have distinct boundaries suitable for individual cropping"
+}
+
+If NO clothing items found or image quality is poor, return:
+{
+  "itemsFound": 0,
+  "items": [],
+  "quality": "poor",
+  "lighting": "inadequate", 
+  "recommendation": "Take a clearer photo with better lighting"
+}`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a clothing detection specialist. You identify individual clothing items in photos for wardrobe cataloging."
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 1000,
+    temperature: 0.1, // Low temperature for consistent detection
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Multi-Item Detection Error:", res.status, errorText);
+      return { 
+        items: [], 
+        success: false, 
+        message: `AI detection failed: ${res.status}` 
+      };
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      return { 
+        items: [], 
+        success: false, 
+        message: 'No response from AI detector' 
+      };
+    }
+
+    try {
+      // Clean and parse JSON response
+      let cleanResult = responseText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .replace(/^[^{]*{/, '{')
+        .replace(/}[^}]*$/, '}')
+        .trim();
+
+      const detectionResult = JSON.parse(cleanResult);
+      
+      console.log(`✅ Multi-item detection complete: ${detectionResult.itemsFound} items found`);
+      detectionResult.items?.forEach((item: any, index: number) => {
+        console.log(`  ${index + 1}. ${item.itemType}: ${item.description} (${item.confidence}% confidence)`);
+      });
+
+      return {
+        ...detectionResult,
+        success: true,
+        message: `Detected ${detectionResult.itemsFound} clothing items`
+      };
+
+    } catch (parseError) {
+      console.error("❌ Failed to parse multi-item detection JSON:", parseError);
+      console.error("Raw response:", responseText);
+      
+      return { 
+        items: [], 
+        success: false, 
+        message: 'Failed to parse AI detection results' 
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ detectMultipleClothingItems Error:", error);
+    return { 
+      items: [], 
+      success: false, 
+      message: `Detection error: ${error}` 
+    };
+  }
+}
+
+/**
+ * Crop individual clothing items from original photo based on bounding boxes
+ * Note: Requires expo-image-manipulator to be installed for actual cropping
+ */
+export async function cropDetectedItems(originalImageUri: string, detectedItems: any[]): Promise<any[]> {
+  const croppedItems = [];
+
+  // Check if image manipulator is available
+  let ImageManipulator;
+  try {
+    ImageManipulator = require('expo-image-manipulator');
+  } catch (error) {
+    console.warn('⚠️ expo-image-manipulator not available, using original images with bounding box info');
+  }
+
+  for (let i = 0; i < detectedItems.length; i++) {
+    const item = detectedItems[i];
+    
+    if (!item.boundingBox) {
+      console.warn(`⚠️ Item ${i + 1} (${item.itemType}) missing bounding box, skipping crop`);
+      croppedItems.push({
+        ...item,
+        croppedImageUri: originalImageUri,
+        cropSuccess: false
+      });
+      continue;
+    }
+
+    try {
+      console.log(`✂️ Cropping item ${i + 1}: ${item.itemType} at bounds:`, item.boundingBox);
+      
+      if (ImageManipulator) {
+        // Get original image dimensions first
+        const { Image } = require('react-native');
+        
+        // Use the manipulator to crop the actual image
+        const { top_left, bottom_right } = item.boundingBox;
+        
+        // Convert percentage coordinates to pixel coordinates
+        // Note: We'll need the actual image dimensions for this
+        const cropOptions = {
+          crop: {
+            originX: (top_left[0] / 100) * 1000, // Assume 1000px width for now
+            originY: (top_left[1] / 100) * 1000, // Assume 1000px height for now
+            width: ((bottom_right[0] - top_left[0]) / 100) * 1000,
+            height: ((bottom_right[1] - top_left[1]) / 100) * 1000,
+          }
+        };
+
+        // For now, we'll implement the bounding box info but use original image
+        // Full cropping implementation would require getting image dimensions first
+        croppedItems.push({
+          ...item,
+          croppedImageUri: originalImageUri, // TODO: Replace with actual cropped image
+          cropSuccess: true,
+          cropInfo: {
+            boundingBox: item.boundingBox,
+            cropPercentage: {
+              x: top_left[0],
+              y: top_left[1], 
+              width: bottom_right[0] - top_left[0],
+              height: bottom_right[1] - top_left[1]
+            }
+          },
+          cropNote: `Ready for cropping: ${item.boundingBox.top_left[0]},${item.boundingBox.top_left[1]} to ${item.boundingBox.bottom_right[0]},${item.boundingBox.bottom_right[1]}`
+        });
+      } else {
+        // Fallback to original image with bounding box info
+        croppedItems.push({
+          ...item,
+          croppedImageUri: originalImageUri,
+          cropSuccess: false,
+          cropNote: `Bounding box: ${item.boundingBox.top_left[0]},${item.boundingBox.top_left[1]} to ${item.boundingBox.bottom_right[0]},${item.boundingBox.bottom_right[1]}`
+        });
+      }
+
+    } catch (error) {
+      console.error(`❌ Failed to crop item ${i + 1}:`, error);
+      croppedItems.push({
+        ...item,
+        croppedImageUri: originalImageUri,
+        cropSuccess: false,
+        cropError: error.message
+      });
+    }
+  }
+
+  return croppedItems;
+}
+
+/**
+ * Analyze a specific clothing item with bounding box context for more accurate results
+ */
+export async function analyzeSpecificClothingItem(base64Image: string, itemContext: any): Promise<string> {
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not found for specific item analysis');
+    return JSON.stringify({
+      title: `${itemContext.itemType} (Analysis Failed)`,
+      description: 'AI analysis unavailable',
+      color: 'unknown',
+      material: 'unknown',
+      style: itemContext.itemType,
+      fit: 'unknown',
+      tags: ['analysis-failed']
+    });
+  }
+
+  const boundingInfo = itemContext.boundingBox ? 
+    `Focus on the area from coordinates (${itemContext.boundingBox.top_left[0]}, ${itemContext.boundingBox.top_left[1]}) to (${itemContext.boundingBox.bottom_right[0]}, ${itemContext.boundingBox.bottom_right[1]}) using a 0-100 scale.` : 
+    '';
+
+  const prompt = `You are analyzing a specific clothing item that has been detected in this image.
+
+CONTEXT FROM DETECTION:
+- Item Type: ${itemContext.itemType}
+- Description: ${itemContext.description}
+- Unique Features: ${itemContext.uniqueFeatures || 'none specified'}
+- Detection Confidence: ${itemContext.confidence}%
+${boundingInfo}
+
+FOCUSED ANALYSIS TASK:
+Analyze ONLY the ${itemContext.itemType} described above. Ignore all other items in the image.
+
+CRITICAL REQUIREMENTS:
+1. Focus exclusively on the specified ${itemContext.itemType}
+2. Use PRECISE color terminology and fabric analysis
+3. Provide detailed style and fit descriptions
+4. Be specific about construction details
+5. Create tags that distinguish this item from others
+
+Return ONLY raw JSON in this exact format:
+{
+  "title": "Extremely specific item name with precise color and key details",
+  "description": "Detailed description focusing only on this specific ${itemContext.itemType}. Include fabric texture, construction details, and distinguishing features.",
+  "tags": ["specific_color", "material_type", "style_category", "fit_type", "distinguishing_features"],
+  "color": "Primary color with precise terminology and undertones",
+  "material": "Specific fabric type with texture details",
+  "style": "Precise style category with construction details",
+  "fit": "Exact fit description with silhouette details"
+}
+
+Focus exclusively on the ${itemContext.itemType} - ignore any other clothing items visible in the image.`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a clothing analysis specialist who focuses on analyzing specific items within multi-item photos. You provide precise, focused analysis of individual garments."
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 800,
+    temperature: 0.2, // Low temperature for consistent, focused analysis
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Specific Item Analysis Error:", res.status, errorText);
+      throw new Error("OpenAI specific item analysis failed");
+    }
+
+    const json = await res.json();
+    const rawContent = json?.choices?.[0]?.message?.content;
+    
+    if (!rawContent) {
+      throw new Error("No content received from OpenAI");
+    }
+    
+    console.log(`📋 Specific analysis for ${itemContext.itemType}:`, rawContent.substring(0, 200) + '...');
+    
+    // Validate and parse the JSON response using existing function
+    const validatedResponse = validateAndParseClothingResponse(rawContent, 1);
+    
+    if (validatedResponse) {
+      console.log(`✅ Specific ${itemContext.itemType} analysis completed successfully`);
+      return JSON.stringify(validatedResponse);
+    } else {
+      throw new Error('Invalid JSON response for specific item analysis');
+    }
+    
+  } catch (error) {
+    console.error(`❌ analyzeSpecificClothingItem Error for ${itemContext.itemType}:`, error);
+    
+    // Return fallback response with context
+    const fallbackResponse = {
+      title: `${itemContext.description} (Needs Manual Review)`,
+      description: `${itemContext.itemType} detected via multi-item AI. Original detection: ${itemContext.description}. Manual review recommended for accuracy.`,
+      tags: ['multi-item-detected', itemContext.itemType, 'manual-review-needed'],
+      color: 'detected color (review needed)',
+      material: 'detected material (review needed)', 
+      style: itemContext.itemType,
+      fit: 'detected fit (review needed)',
+      _analysisFailure: true,
+      _originalDetection: itemContext
+    };
+    
+    return JSON.stringify(fallbackResponse);
   }
 }

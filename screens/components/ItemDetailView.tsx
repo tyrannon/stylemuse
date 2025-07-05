@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Image, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, ActivityIndicator, Modal } from 'react-native';
 import { WardrobeItem } from '../../hooks/useWardrobeData';
 import { SafeImage } from '../../utils/SafeImage';
 import { useStyleRecommendations } from '../../hooks/useStyleRecommendations';
 import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../../types/StyleAdvice';
 import { AIOutfitAssistant } from '../../components/AIOutfitAssistant';
+import { BoundingBoxOverlay } from '../../components/BoundingBoxOverlay';
+import { SafeArea } from '../../utils/SafeArea';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
@@ -16,6 +18,7 @@ interface ItemDetailViewProps {
   onCategoryPress: () => void;
   onDelete: (item: WardrobeItem) => Promise<void>;
   onNavigateToBuilder?: () => void;
+  onGenerateOutfitSuggestions?: (item: WardrobeItem) => void;
   categorizeItem: (item: WardrobeItem) => string;
   
   // Editing states
@@ -56,6 +59,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onCategoryPress,
   onDelete,
   onNavigateToBuilder,
+  onGenerateOutfitSuggestions,
   categorizeItem,
   editingTitle,
   setEditingTitle,
@@ -92,6 +96,9 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   
   // Image state
   const [imageError, setImageError] = useState(false);
+  
+  // Multi-item detection state
+  const [showBoundingBoxModal, setShowBoundingBoxModal] = useState(false);
 
   const { getItemRecommendations } = useStyleRecommendations();
 
@@ -271,14 +278,27 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             <Text style={styles.missingImageText}>No Image Available</Text>
           </View>
         ) : (
-          <SafeImage
-            uri={item.image}
-            style={styles.itemDetailImage}
-            resizeMode="contain"
-            placeholder="item"
-            category={categorizeItem(item)}
-            onError={() => setImageError(true)}
-          />
+          <>
+            <SafeImage
+              uri={item.image}
+              style={styles.itemDetailImage}
+              resizeMode="contain"
+              placeholder="item"
+              category={categorizeItem(item)}
+              onError={() => setImageError(true)}
+            />
+            
+            {/* Multi-item detection button */}
+            {item.multiItemData?.isFromMultiDetection && (
+              <TouchableOpacity
+                style={styles.multiItemButton}
+                onPress={() => setShowBoundingBoxModal(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.multiItemButtonText}>🔍 Show Detection Details</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
 
@@ -557,20 +577,27 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
 
         {/* Action Buttons */}
         <View style={styles.itemDetailActions}>
-          {/* Unified Smart Outfit Generator for this specific item */}
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <AIOutfitAssistant
-              context="item"
-              size="small"
-              onOutfitGenerated={(outfit) => {
-                console.log('Generated outfit for item:', outfit);
-                // Navigate to builder to show the generated outfit
-                if (onNavigateToBuilder) {
-                  onNavigateToBuilder();
-                }
-              }}
-            />
-          </View>
+          {/* Outfit Ideas Button - The beloved button that fills builder slots! */}
+          <TouchableOpacity
+            onPress={() => {
+              console.log('🎨 Outfit Ideas button pressed for item:', item.title);
+              if (onGenerateOutfitSuggestions) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onGenerateOutfitSuggestions(item);
+              } else {
+                console.warn('⚠️ onGenerateOutfitSuggestions not provided');
+              }
+            }}
+            style={[
+              styles.itemDetailActionButton,
+              styles.outfitIdeasButton,
+              { flex: 1, marginRight: 8 }
+            ]}
+          >
+            <Text style={styles.itemDetailActionButtonText}>
+              🎨 Outfit Ideas
+            </Text>
+          </TouchableOpacity>
           
           <TouchableOpacity
             onPress={findSimilarOnAmazon}
@@ -645,6 +672,79 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
           </View>
         )}
       </View>
+
+      {/* Multi-Item Detection Modal */}
+      {item.multiItemData?.isFromMultiDetection && (
+        <Modal
+          visible={showBoundingBoxModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeArea style={styles.boundingBoxModalContainer}>
+            <View style={styles.boundingBoxModalHeader}>
+              <TouchableOpacity
+                style={styles.boundingBoxCloseButton}
+                onPress={() => setShowBoundingBoxModal(false)}
+              >
+                <Text style={styles.boundingBoxCloseButtonText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.boundingBoxModalTitle}>Multi-Item Detection</Text>
+              <View style={styles.boundingBoxPlaceholder} />
+            </View>
+
+            <View style={styles.boundingBoxModalContent}>
+              <Text style={styles.boundingBoxDescription}>
+                This item was detected using AI multi-item analysis. Here's exactly where it was found in the original photo:
+              </Text>
+              
+              <BoundingBoxOverlay
+                imageUri={item.multiItemData.originalImage}
+                boundingBoxes={[{
+                  id: item.multiItemData.detectionId,
+                  itemType: item.multiItemData.itemType,
+                  description: item.title || 'Detected item',
+                  boundingBox: item.multiItemData.boundingBox,
+                  confidence: item.multiItemData.confidence,
+                  color: '#FF6B6B', // Highlight this item
+                }]}
+                imageWidth={300}
+                imageHeight={250}
+                showLabels={true}
+              />
+
+              <View style={styles.detectionDetailsCard}>
+                <Text style={styles.detectionDetailsTitle}>🎯 Detection Details</Text>
+                <View style={styles.detectionDetailRow}>
+                  <Text style={styles.detectionDetailLabel}>Item Type:</Text>
+                  <Text style={styles.detectionDetailValue}>{item.multiItemData.itemType}</Text>
+                </View>
+                <View style={styles.detectionDetailRow}>
+                  <Text style={styles.detectionDetailLabel}>Confidence:</Text>
+                  <Text style={styles.detectionDetailValue}>{item.multiItemData.confidence}%</Text>
+                </View>
+                <View style={styles.detectionDetailRow}>
+                  <Text style={styles.detectionDetailLabel}>Position:</Text>
+                  <Text style={styles.detectionDetailValue}>
+                    ({item.multiItemData.boundingBox.top_left[0]}, {item.multiItemData.boundingBox.top_left[1]}) to ({item.multiItemData.boundingBox.bottom_right[0]}, {item.multiItemData.boundingBox.bottom_right[1]})
+                  </Text>
+                </View>
+                {item.multiItemData.detectedWithItems && item.multiItemData.detectedWithItems.length > 1 && (
+                  <View style={styles.detectionDetailRow}>
+                    <Text style={styles.detectionDetailLabel}>Related Items:</Text>
+                    <Text style={styles.detectionDetailValue}>
+                      {item.multiItemData.detectedWithItems.length - 1} other item{item.multiItemData.detectedWithItems.length - 1 !== 1 ? 's' : ''} detected
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.boundingBoxInstructions}>
+                This precise detection allows for potential future features like automatic image cropping and enhanced item organization.
+              </Text>
+            </View>
+          </SafeArea>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -896,6 +996,9 @@ const styles = StyleSheet.create({
   amazonButton: {
     backgroundColor: '#FF9500',
   },
+  outfitIdeasButton: {
+    backgroundColor: '#6366f1', // Purple color for outfit ideas
+  },
   disabledButton: {
     backgroundColor: '#999',
     opacity: 0.6,
@@ -957,13 +1060,16 @@ const styles = StyleSheet.create({
   },
   amazonSuggestionsScroll: {
     marginHorizontal: -20,
+    paddingVertical: 8,
   },
   amazonSuggestionsContent: {
     paddingHorizontal: 20,
+    paddingRight: 40, // Extra padding at end for better scroll experience
   },
   amazonSuggestionCard: {
     marginRight: 16,
-    width: 180,
+    width: 200, // Slightly wider for better content display
+    minHeight: 280, // Ensure consistent height
   },
   // Text-only item styles
   textOnlyImagePlaceholder: {
@@ -1048,5 +1154,107 @@ const styles = StyleSheet.create({
   },
   generateOverlayButtonText: {
     fontSize: 20,
+  },
+  // Multi-item detection styles
+  multiItemButton: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: '#667eea',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  multiItemButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  boundingBoxModalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  boundingBoxModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: 'white',
+  },
+  boundingBoxCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  boundingBoxCloseButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  boundingBoxModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  boundingBoxPlaceholder: {
+    width: 32,
+  },
+  boundingBoxModalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  boundingBoxDescription: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  detectionDetailsCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  detectionDetailsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  detectionDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  detectionDetailLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  detectionDetailValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  boundingBoxInstructions: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
 });

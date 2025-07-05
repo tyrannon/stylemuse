@@ -19,7 +19,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 interface CameraScreenProps {
   onPhotoTaken: (photoUri: string) => void;
   onCancel: () => void;
-  mode: 'wardrobe' | 'profile' | 'outfit';
+  mode: 'wardrobe' | 'profile' | 'outfit' | 'multi-item';
   showGrid?: boolean;
   flashMode?: 'on' | 'off' | 'auto';
 }

@@ -44,6 +44,19 @@ export interface WardrobeItem {
   timesWashed?: number;
   washFrequency?: number; // days between typical washes
   needsSpecialCare?: boolean;
+  // Multi-item detection metadata
+  multiItemData?: {
+    originalImage: string; // URI of the original multi-item photo
+    boundingBox: {
+      top_left: [number, number];
+      bottom_right: [number, number];
+    };
+    detectionId: number;
+    confidence: number;
+    detectedWithItems?: string[]; // IDs of other items detected in the same photo
+    itemType: string;
+    isFromMultiDetection: boolean;
+  };
 }
 
 export interface WearRecord {
