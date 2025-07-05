@@ -1130,10 +1130,30 @@ ${styleDNA ? `USER'S STYLE DNA:
 STYLING REQUIREMENTS:
 1. Select items that work together harmoniously in terms of color, style, and formality level
 2. Ensure the outfit is appropriate for the specified occasion and location
-3. Consider weather conditions and practicality
+3. Apply CONTEXT-AWARE WEATHER LOGIC (see detailed guidelines below)
 4. Match the user's style goals and personal preferences
 5. Create a cohesive look that shows fashion expertise
 6. If the wardrobe is limited or missing key pieces, suggest specific items to complete the outfit
+
+🧥 CONTEXT-AWARE JACKET/OUTERWEAR RULES (CRITICAL):
+- INDOOR LOCATIONS (office, restaurant, home, club/bar): DO NOT require jackets/outerwear unless:
+  * Temperature below 35°F (extremely cold, might need light layer even indoors)
+  * Work occasion + temperature below 45°F (professional blazer for cold commute)
+  * The jacket is purely for style (blazer, cardigan) not warmth
+- OUTDOOR LOCATIONS (outdoors, city walk, beach, park): Consider jackets/outerwear when:
+  * Temperature below 65°F for outdoor activities
+  * Rain or snow conditions (weather protection needed)
+  * Extended outdoor exposure
+- GENERAL/MIXED LOCATIONS: Use moderate approach:
+  * Temperature below 55°F or rain/snow conditions
+
+🌡️ ENHANCED TEMPERATURE GUIDELINES:
+- Under 40°F: Heavy winter gear (wool, down, thermal layers)
+- 40-55°F: Light layers, cardigans, light jackets
+- 55-68°F: Versatile pieces, optional light cardigan
+- 68-78°F: Most versatile range, all options available
+- 78-85°F: Light, breathable fabrics (cotton, linen, silk)
+- 85°F+: Minimal, ultra-light clothing only
 
 For each category (top, bottom, shoes, jacket, hat, accessories):
 - First try to select the BEST item from the existing wardrobe that fits the context

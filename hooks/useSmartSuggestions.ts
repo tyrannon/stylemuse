@@ -9,7 +9,7 @@ import {
   SuggestedItem, 
   UserStyleProfile 
 } from '../services/SmartSuggestionsService';
-import { WardrobeItem } from './useWardrobeData';
+import { WardrobeItem, useWardrobeData } from './useWardrobeData';
 
 export interface SmartSuggestionsState {
   // State
@@ -24,7 +24,7 @@ export interface SmartSuggestionsState {
   } | null;
   
   // Actions
-  generateSuggestions: (userProfile: UserStyleProfile, existingItems: WardrobeItem[], styleDNA?: any) => Promise<void>;
+  generateSuggestions: (userProfile: UserStyleProfile, existingItems: WardrobeItem[], styleDNA?: any) => Promise<SmartSuggestion | null>;
   selectSuggestion: (suggestion: SmartSuggestion) => void;
   closeSuggestionsModal: () => void;
   addSuggestedItemToWishlist: (item: SuggestedItem) => void;
@@ -47,6 +47,9 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
     recommendations: SuggestedItem[];
     priorities: { category: string; priority: number; reasoning: string }[];
   } | null>(null);
+
+  // Access wardrobe data for storage functionality
+  const { addSuggestedItem, moveToWishlistFromSuggestions } = useWardrobeData();
 
   // Determine if smart button should be shown
   const shouldShowSmartButton = useCallback((wardrobeItems: WardrobeItem[]): boolean => {
@@ -85,7 +88,7 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
     userProfile: UserStyleProfile,
     existingItems: WardrobeItem[],
     styleDNA?: any
-  ): Promise<void> => {
+  ): Promise<SmartSuggestion | null> => {
     try {
       setIsGenerating(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -109,6 +112,10 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         
         console.log('✅ Generated', newSuggestions.length, 'smart suggestions');
+        console.log('🎭 Smart Suggestions Modal should now be visible:', true);
+        console.log('📋 Current suggestion:', newSuggestions[0]?.outfitName);
+        
+        return newSuggestions[0]; // Return the first suggestion
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert(
@@ -116,6 +123,7 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
           'I couldn\'t generate outfit suggestions right now. Please check your internet connection and try again.',
           [{ text: 'OK' }]
         );
+        return null;
       }
 
     } catch (error) {
@@ -127,6 +135,7 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
         'Something went wrong while generating your outfit suggestions. Please try again in a moment.',
         [{ text: 'OK' }]
       );
+      return null;
     } finally {
       setIsGenerating(false);
     }
@@ -147,17 +156,31 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
 
   // Add a suggested item to wishlist/wardrobe
   const addSuggestedItemToWishlist = useCallback((item: SuggestedItem) => {
-    // This would integrate with wardrobe data to add as a "suggested" item
     console.log('Adding suggested item to wishlist:', item.title);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
-    // Show confirmation
-    Alert.alert(
-      '✅ Added to Wishlist!',
-      `"${item.title}" has been added to your wishlist. You can view Amazon purchase options in your wardrobe.`,
-      [{ text: 'Great!' }]
-    );
-  }, []);
+    try {
+      // Actually save the item to persistent storage
+      addSuggestedItem(item);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Show confirmation
+      Alert.alert(
+        '✅ Added to Wishlist!',
+        `"${item.title}" has been saved to your wishlist. You can view and purchase it in your wardrobe.`,
+        [{ text: 'Great!' }]
+      );
+    } catch (error) {
+      console.error('Failed to save suggested item:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      Alert.alert(
+        '❌ Save Failed',
+        'Sorry, we couldn\'t save this item to your wishlist. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  }, [addSuggestedItem]);
 
   // Generate specific items for a category
   const generateItemsForCategory = useCallback(async (

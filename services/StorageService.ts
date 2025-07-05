@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storage';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { EnhancedStyleDNA } from '../types/Avatar';
+import { WishlistItem } from '../types/StyleAdvice';
+import { SuggestedItem } from '../services/SmartSuggestionsService';
 import { ensureDateObject } from '../utils/dateUtils';
 
 export class StorageService {
@@ -120,6 +122,57 @@ export class StorageService {
     } catch (error) {
       console.error('Error loading profile image:', error);
       return null;
+    }
+  }
+
+  // Wishlist items
+  static async saveWishlistItems(items: WishlistItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.WISHLIST_ITEMS, JSON.stringify(items));
+    } catch (error) {
+      console.error('Error saving wishlist items:', error);
+      throw error;
+    }
+  }
+
+  static async loadWishlistItems(): Promise<WishlistItem[]> {
+    try {
+      const itemsJson = await AsyncStorage.getItem(STORAGE_KEYS.WISHLIST_ITEMS);
+      if (!itemsJson) return [];
+      
+      const rawItems = JSON.parse(itemsJson);
+      return rawItems.map((item: any) => ({
+        ...item,
+        savedAt: ensureDateObject(item.savedAt) || new Date(),
+        purchaseDate: ensureDateObject(item.purchaseDate),
+        priceHistory: item.priceHistory ? item.priceHistory.map((point: any) => ({
+          ...point,
+          timestamp: ensureDateObject(point.timestamp) || new Date()
+        })) : [],
+      }));
+    } catch (error) {
+      console.error('Error loading wishlist items:', error);
+      return [];
+    }
+  }
+
+  // Suggested items
+  static async saveSuggestedItems(items: SuggestedItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SUGGESTED_ITEMS, JSON.stringify(items));
+    } catch (error) {
+      console.error('Error saving suggested items:', error);
+      throw error;
+    }
+  }
+
+  static async loadSuggestedItems(): Promise<SuggestedItem[]> {
+    try {
+      const itemsJson = await AsyncStorage.getItem(STORAGE_KEYS.SUGGESTED_ITEMS);
+      return itemsJson ? JSON.parse(itemsJson) : [];
+    } catch (error) {
+      console.error('Error loading suggested items:', error);
+      return [];
     }
   }
 

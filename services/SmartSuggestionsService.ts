@@ -91,12 +91,13 @@ ${styleDNA ? `USER'S STYLE DNA:
 ` : ''}
 
 TASK: Generate 3 complete outfit suggestions that:
-1. Build upon existing items (if any) or start fresh for empty wardrobes
-2. Focus on versatile, high-quality pieces that work in multiple combinations
-3. Stay within the specified budget range
-4. Match the user's style preferences and lifestyle needs
-5. Provide maximum outfit possibilities with minimum items
-6. Include specific purchase recommendations for missing pieces
+1. PRIORITIZE existing wardrobe items - use as many items from the existing wardrobe as possible
+2. Create complete outfits with at least 4-5 items (top, bottom, shoes, outerwear/accessories)
+3. Build upon existing items and suggest new pieces only when necessary to complete the look
+4. Focus on versatile, high-quality pieces that work in multiple combinations
+5. Stay within the specified budget range
+6. Match the user's style preferences and lifestyle needs
+7. Ensure each outfit has proper layering and accessories for a complete look
 
 For each outfit, recommend specific items with:
 - Exact titles and descriptions for Amazon search
@@ -119,15 +120,54 @@ Return ONLY raw JSON in this exact format:
       "items": [
         {
           "category": "top",
-          "title": "White Cotton Button-Down Shirt",
-          "description": "Classic white cotton button-down shirt with relaxed fit",
-          "color": "white",
+          "title": "Black V-Neck T-Shirt",
+          "description": "Sleek black cotton v-neck t-shirt for a modern look",
+          "color": "black",
           "material": "cotton",
-          "style": "classic button-down",
+          "style": "v-neck t-shirt",
+          "fit": "modern",
+          "reasoning": "Using an existing wardrobe piece as the foundation - versatile and pairs well with multiple bottoms",
+          "searchTerms": [],
+          "estimatedPrice": 0,
+          "isFromWardrobe": true
+        },
+        {
+          "category": "bottom", 
+          "title": "Black Jeans",
+          "description": "Classic black jeans",
+          "color": "black",
+          "material": "denim",
+          "style": "straight leg",
+          "fit": "regular",
+          "reasoning": "Perfect existing wardrobe staple that pairs with the top",
+          "searchTerms": [],
+          "estimatedPrice": 0,
+          "isFromWardrobe": true
+        },
+        {
+          "category": "shoes",
+          "title": "Crisp White Leather Sneakers", 
+          "description": "Clean white leather sneakers with classic design",
+          "color": "white",
+          "material": "leather",
+          "style": "sneakers",
+          "fit": "standard",
+          "reasoning": "Existing comfortable sneakers that complete the casual look",
+          "searchTerms": [],
+          "estimatedPrice": 0,
+          "isFromWardrobe": true
+        },
+        {
+          "category": "outerwear",
+          "title": "Light Wash Denim Jacket",
+          "description": "Classic light wash denim jacket for layering",
+          "color": "light blue",
+          "material": "denim", 
+          "style": "classic denim jacket",
           "fit": "relaxed",
-          "reasoning": "A white button-down is the most versatile piece - works for casual, business casual, and can be layered",
-          "searchTerms": ["white cotton button down shirt women", "classic white blouse", "relaxed fit white shirt"],
-          "estimatedPrice": 35,
+          "reasoning": "Adds texture and completes the outfit - suggest only if not in wardrobe",
+          "searchTerms": ["light wash denim jacket women", "classic jean jacket", "casual denim outerwear"],
+          "estimatedPrice": 50,
           "isFromWardrobe": false
         }
       ]
@@ -149,7 +189,7 @@ Focus on building a smart, versatile wardrobe that maximizes outfit combinations
         content: prompt
       }
     ],
-    max_tokens: 2000,
+    max_tokens: 4000, // Increased for complete outfit suggestions
     temperature: 0.4, // Balanced creativity with practical suggestions
   };
 
@@ -177,14 +217,26 @@ Focus on building a smart, versatile wardrobe that maximizes outfit combinations
     }
 
     try {
-      // Clean the response
+      // Clean and repair the response
       let cleanResult = responseText
         .replace(/```json/g, '')
         .replace(/```/g, '')
         .replace(/^[^{]*{/, '{')
-        .replace(/}[^}]*$/, '}')
         .trim();
 
+      // Handle truncated responses - if it doesn't end with }, try to fix it
+      if (!cleanResult.endsWith('}')) {
+        // Find the last complete suggestion
+        const lastCompleteMatch = cleanResult.lastIndexOf('    }');
+        if (lastCompleteMatch > -1) {
+          cleanResult = cleanResult.substring(0, lastCompleteMatch + 5) + '\n  ]\n}';
+        } else {
+          // If we can't salvage it, throw an error
+          throw new Error('Response appears truncated and cannot be repaired');
+        }
+      }
+
+      console.log('📝 Cleaned AI response:', cleanResult.substring(0, 500) + '...');
       const suggestionsData = JSON.parse(cleanResult);
       
       // Transform the response into SmartSuggestion format

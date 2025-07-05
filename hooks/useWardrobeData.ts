@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { StorageService } from '../services/StorageService';
+import { WishlistItem } from '../types/StyleAdvice';
+import { SuggestedItem } from '../services/SmartSuggestionsService';
 
-// Storage keys for AsyncStorage
+// Storage keys for AsyncStorage (legacy - migrating to StorageService)
 const STORAGE_KEYS = {
   WARDROBE_ITEMS: 'stylemuse_wardrobe_items',
   LOVED_OUTFITS: 'stylemuse_loved_outfits',
@@ -85,6 +88,10 @@ export const useWardrobeData = () => {
   // Outfit state
   const [lovedOutfits, setLovedOutfits] = useState<LovedOutfit[]>([]);
   
+  // Wishlist and suggestions state
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [suggestedItems, setSuggestedItems] = useState<SuggestedItem[]>([]);
+  
   // Profile state
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [styleDNA, setStyleDNA] = useState<any | null>(null);
@@ -96,12 +103,14 @@ export const useWardrobeData = () => {
   // Load wardrobe data function
   const loadWardrobeData = useCallback(async () => {
     try {
-      const [items, outfits, dna, gender, profile] = await Promise.all([
+      const [items, outfits, dna, gender, profile, wishlist, suggestions] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS),
         AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS),
         AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA),
         AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER),
         AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE),
+        StorageService.loadWishlistItems(),
+        StorageService.loadSuggestedItems(),
       ]);
 
       if (items) setSavedItems(JSON.parse(items));
@@ -128,6 +137,10 @@ export const useWardrobeData = () => {
       if (dna) setStyleDNA(JSON.parse(dna));
       if (gender) setSelectedGender(gender as any);
       if (profile) setProfileImage(profile);
+      
+      // Load wishlist and suggested items
+      setWishlistItems(wishlist);
+      setSuggestedItems(suggestions);
     } catch (error) {
       console.error('Error loading wardrobe data:', error);
     }
@@ -754,12 +767,188 @@ export const useWardrobeData = () => {
     }
   }, [savedItems, lovedOutfits]);
 
+  // WISHLIST MANAGEMENT FUNCTIONS
+  
+  // Function to add item to wishlist
+  const addToWishlist = useCallback(async (item: WishlistItem): Promise<void> => {
+    try {
+      const updatedWishlist = [...wishlistItems, item];
+      setWishlistItems(updatedWishlist);
+      await StorageService.saveWishlistItems(updatedWishlist);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.log('✅ Item added to wishlist:', item.onlineItem.title);
+    } catch (error) {
+      console.error('❌ Error adding to wishlist:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  }, [wishlistItems]);
+
+  // Function to remove item from wishlist
+  const removeFromWishlist = useCallback(async (itemId: string): Promise<void> => {
+    try {
+      const updatedWishlist = wishlistItems.filter(item => item.id !== itemId);
+      setWishlistItems(updatedWishlist);
+      await StorageService.saveWishlistItems(updatedWishlist);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.log('✅ Item removed from wishlist');
+    } catch (error) {
+      console.error('❌ Error removing from wishlist:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  }, [wishlistItems]);
+
+  // Function to update wishlist item purchase status
+  const updateWishlistPurchaseStatus = useCallback(async (
+    itemId: string, 
+    status: 'saved' | 'purchased' | 'out_of_stock',
+    purchaseDate?: Date
+  ): Promise<void> => {
+    try {
+      const updatedWishlist = wishlistItems.map(item => 
+        item.id === itemId 
+          ? { ...item, purchaseStatus: status, purchaseDate }
+          : item
+      );
+      setWishlistItems(updatedWishlist);
+      await StorageService.saveWishlistItems(updatedWishlist);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('❌ Error updating wishlist purchase status:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  }, [wishlistItems]);
+
+  // SUGGESTED ITEMS MANAGEMENT FUNCTIONS
+  
+  // Function to add suggested item
+  const addSuggestedItem = useCallback(async (item: SuggestedItem): Promise<void> => {
+    try {
+      // Check if item already exists
+      const exists = suggestedItems.some(existingItem => existingItem.id === item.id);
+      if (exists) {
+        console.log('Item already in suggestions:', item.title);
+        return;
+      }
+
+      const updatedSuggestions = [...suggestedItems, item];
+      setSuggestedItems(updatedSuggestions);
+      await StorageService.saveSuggestedItems(updatedSuggestions);
+      console.log('✅ Suggested item added:', item.title);
+    } catch (error) {
+      console.error('❌ Error adding suggested item:', error);
+      throw error;
+    }
+  }, [suggestedItems]);
+
+  // Function to remove suggested item
+  const removeSuggestedItem = useCallback(async (itemId: string): Promise<void> => {
+    try {
+      const updatedSuggestions = suggestedItems.filter(item => item.id !== itemId);
+      setSuggestedItems(updatedSuggestions);
+      await StorageService.saveSuggestedItems(updatedSuggestions);
+      console.log('✅ Suggested item removed');
+    } catch (error) {
+      console.error('❌ Error removing suggested item:', error);
+      throw error;
+    }
+  }, [suggestedItems]);
+
+  // Function to convert suggested item to wishlist item
+  const moveToWishlistFromSuggestions = useCallback(async (
+    suggestedItem: SuggestedItem,
+    wardrobeContext: any
+  ): Promise<void> => {
+    try {
+      // Create wishlist item from suggested item
+      const wishlistItem: WishlistItem = {
+        id: `wishlist_${suggestedItem.id}_${Date.now()}`,
+        onlineItem: {
+          id: suggestedItem.id,
+          title: suggestedItem.title,
+          description: suggestedItem.description,
+          imageUrl: suggestedItem.imageUrl,
+          price: suggestedItem.price,
+          currency: 'USD',
+          merchant: {
+            id: 'amazon',
+            name: 'Amazon',
+            logoUrl: '',
+            baseUrl: 'https://amazon.com',
+            affiliateProgram: true,
+            supportedCategories: ['clothing']
+          },
+          rating: 4.0,
+          reviewCount: 100,
+          category: suggestedItem.category,
+          sizes: [],
+          colors: [suggestedItem.color],
+          affiliateUrl: suggestedItem.amazonUrl,
+          productUrl: suggestedItem.amazonUrl,
+        },
+        savedAt: new Date(),
+        context: wardrobeContext,
+        priceHistory: [{
+          price: suggestedItem.price,
+          currency: 'USD',
+          timestamp: new Date(),
+          merchant: 'Amazon'
+        }],
+        purchaseStatus: 'saved',
+      };
+
+      // Add to wishlist and remove from suggestions
+      await addToWishlist(wishlistItem);
+      await removeSuggestedItem(suggestedItem.id);
+      
+      console.log('✅ Item moved from suggestions to wishlist');
+    } catch (error) {
+      console.error('❌ Error moving to wishlist:', error);
+      throw error;
+    }
+  }, [addToWishlist, removeSuggestedItem]);
+
+  // Function to clear old suggested items (older than 30 days)
+  const clearOldSuggestions = useCallback(async (): Promise<void> => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentSuggestions = suggestedItems.filter(item => {
+        // If no creation date, keep it (safety)
+        if (!item.id.includes('_')) return true;
+        
+        try {
+          const timestamp = parseInt(item.id.split('_').pop() || '0');
+          const createdDate = new Date(timestamp);
+          return createdDate > thirtyDaysAgo;
+        } catch {
+          return true; // Keep if can't parse date
+        }
+      });
+
+      if (recentSuggestions.length !== suggestedItems.length) {
+        setSuggestedItems(recentSuggestions);
+        await StorageService.saveSuggestedItems(recentSuggestions);
+        console.log(`✅ Cleared ${suggestedItems.length - recentSuggestions.length} old suggestions`);
+      }
+    } catch (error) {
+      console.error('❌ Error clearing old suggestions:', error);
+    }
+  }, [suggestedItems]);
+
   return {
     // State
     savedItems,
     setSavedItems,
     lovedOutfits,
     setLovedOutfits,
+    wishlistItems,
+    setWishlistItems,
+    suggestedItems,
+    setSuggestedItems,
     profileImage,
     setProfileImage,
     styleDNA,
@@ -799,5 +988,16 @@ export const useWardrobeData = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    
+    // Wishlist Management Functions
+    addToWishlist,
+    removeFromWishlist,
+    updateWishlistPurchaseStatus,
+    moveToWishlistFromSuggestions,
+    
+    // Suggested Items Management Functions
+    addSuggestedItem,
+    removeSuggestedItem,
+    clearOldSuggestions,
   };
 };

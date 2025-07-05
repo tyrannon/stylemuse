@@ -38,6 +38,7 @@ import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
+import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -921,12 +922,19 @@ const WardrobeUploadScreen = () => {
     }
   };
 
-  // Function to select weather-appropriate items based on current weather
-  // This function will categorize items and filter them based on the weather conditions
-  const selectWeatherAppropriateItems = (items: any[], weather: any) => {
+  // Enhanced function to select weather-appropriate items with context awareness
+  // This function considers location context (indoor/outdoor) and improved weather logic
+  const selectWeatherAppropriateItems = (items: any[], weather: any, location: string = 'general', occasion: string = 'casual') => {
     const temp = weather.temperature;
+    const feelsLike = weather.feels_like || temp; // Use feels_like if available
     const isRaining = weather.description.includes('rain');
     const isSnowing = weather.description.includes('snow');
+    
+    // Determine if location is primarily indoor or outdoor
+    const indoorLocations = ['office', 'restaurant', 'home', 'club'];
+    const outdoorLocations = ['outdoors', 'city', 'beach'];
+    const isIndoorContext = indoorLocations.some(loc => location.includes(loc));
+    const isOutdoorContext = outdoorLocations.some(loc => location.includes(loc));
     
     // Categorize items by type
     const categorizedItems = {
@@ -961,37 +969,64 @@ const WardrobeUploadScreen = () => {
       }
     });
     
-    // Filter by weather appropriateness within each category
+    // Enhanced weather filtering with improved temperature thresholds
     const filterByWeather = (categoryItems) => {
       return categoryItems.filter(item => {
         const tags = item.tags || [];
         const material = item.material?.toLowerCase() || '';
         const style = item.style?.toLowerCase() || '';
         
-        // Cold weather (under 50°F)
-        if (temp < 50) {
+        // Use feels_like temperature for more accurate comfort assessment
+        const effectiveTemp = feelsLike;
+        
+        // Very cold weather (under 40°F) - Heavy winter gear
+        if (effectiveTemp < 40) {
           return tags.some(tag => 
-            ['warm', 'winter', 'long-sleeve', 'pants', 'jeans', 'boots', 'coat', 'jacket', 'sweater'].includes(tag.toLowerCase())
-          ) || ['wool', 'fleece', 'down', 'cashmere', 'denim'].includes(material) ||
-             style.includes('long') || style.includes('jeans') || style.includes('pants');
+            ['winter', 'heavy', 'wool', 'down', 'thermal', 'long-sleeve', 'pants', 'jeans', 'boots', 'coat', 'jacket', 'sweater', 'scarf', 'gloves'].includes(tag.toLowerCase())
+          ) || ['wool', 'fleece', 'down', 'cashmere', 'denim', 'thermal'].includes(material) ||
+             style.includes('winter') || style.includes('heavy') || style.includes('warm');
         }
         
-        // Mild weather (50-70°F)
-        if (temp >= 50 && temp <= 70) {
+        // Cold weather (40-55°F) - Layers recommended
+        if (effectiveTemp >= 40 && effectiveTemp < 55) {
           return tags.some(tag => 
-            ['light', 'layer', 'jeans', 'pants', 'long-sleeve', 'short-sleeve'].includes(tag.toLowerCase())
-          ) || style.includes('jeans') || style.includes('pants') || !style.includes('shorts');
+            ['warm', 'layer', 'long-sleeve', 'pants', 'jeans', 'boots', 'cardigan', 'sweater', 'light-jacket'].includes(tag.toLowerCase())
+          ) || ['wool', 'fleece', 'cotton', 'denim'].includes(material) ||
+             style.includes('long') || style.includes('jeans') || style.includes('pants') || style.includes('layer');
         }
         
-        // Warm weather (over 70°F)
-        if (temp > 70) {
+        // Cool weather (55-68°F) - Light layers, versatile pieces
+        if (effectiveTemp >= 55 && effectiveTemp < 68) {
           return tags.some(tag => 
-            ['summer', 'light', 'short', 'shorts', 'skirt', 'dress', 't-shirt', 'tank', 'sandals'].includes(tag.toLowerCase())
-          ) || ['cotton', 'linen', 'silk'].includes(material) ||
-             style.includes('short') || style.includes('skirt') || style.includes('dress') || style.includes('t-shirt');
+            ['light', 'layer', 'versatile', 'jeans', 'pants', 'long-sleeve', 'short-sleeve', 'light-cardigan'].includes(tag.toLowerCase())
+          ) || style.includes('jeans') || style.includes('pants') || style.includes('layer') || 
+             (!style.includes('shorts') && !style.includes('tank'));
         }
         
-        return true; // Include if no specific weather rules
+        // Comfortable weather (68-78°F) - Most versatile range
+        if (effectiveTemp >= 68 && effectiveTemp < 78) {
+          return tags.some(tag => 
+            ['comfortable', 'versatile', 'light', 'short-sleeve', 'long-sleeve', 'jeans', 'pants', 'shorts', 'skirt', 'dress'].includes(tag.toLowerCase())
+          ) || !style.includes('heavy') && !style.includes('winter');
+        }
+        
+        // Warm weather (78-85°F) - Light, breathable fabrics
+        if (effectiveTemp >= 78 && effectiveTemp < 85) {
+          return tags.some(tag => 
+            ['summer', 'light', 'breathable', 'short', 'shorts', 'skirt', 'dress', 't-shirt', 'tank', 'sandals'].includes(tag.toLowerCase())
+          ) || ['cotton', 'linen', 'silk', 'bamboo'].includes(material) ||
+             style.includes('short') || style.includes('light') || style.includes('summer');
+        }
+        
+        // Hot weather (85°F+) - Minimal, ultra-light clothing
+        if (effectiveTemp >= 85) {
+          return tags.some(tag => 
+            ['hot-weather', 'ultra-light', 'minimal', 'shorts', 'tank', 'sundress', 'sandals', 'flip-flops'].includes(tag.toLowerCase())
+          ) || ['linen', 'silk', 'cotton', 'bamboo'].includes(material) ||
+             style.includes('tank') || style.includes('shorts') || style.includes('minimal');
+        }
+        
+        return true; // Include if no specific weather rules apply
       });
     };
     
@@ -1038,11 +1073,48 @@ const WardrobeUploadScreen = () => {
       }
     }
     
-    // Add outerwear for cold weather or if available slots
-    if (temp < 60 && weatherOuterwear.length > 0) {
+    // Context-aware outerwear logic - NO mandatory jackets for indoor occasions!
+    const effectiveTemp = feelsLike; // Define effectiveTemp for this context
+    
+    const shouldAddOuterwear = () => {
+      // For indoor contexts, only add outerwear if it's very cold or if it's part of the style
+      if (isIndoorContext) {
+        // Indoor spaces are typically climate controlled
+        // Only add outerwear for style (blazers, cardigans) or if extremely cold outside
+        if (effectiveTemp < 45 && occasion === 'work') {
+          return true; // Professional blazer for very cold commute to work
+        }
+        if (effectiveTemp < 35) {
+          return true; // Extremely cold, might need layer even indoors
+        }
+        // For restaurants, clubs, home - no outerwear needed regardless of outside temp
+        return false;
+      }
+      
+      // For outdoor contexts, consider weather more seriously
+      if (isOutdoorContext) {
+        if (effectiveTemp < 65) return true; // Outdoor activities need warmth
+        if (isRaining || isSnowing) return true; // Weather protection
+        return false;
+      }
+      
+      // For general/mixed contexts, use moderate thresholds
+      if (effectiveTemp < 55) return true; // Cooler weather
+      if (isRaining || isSnowing) return true; // Weather protection
+      
+      return false;
+    };
+
+    // Apply the context-aware outerwear logic
+    if (shouldAddOuterwear() && weatherOuterwear.length > 0) {
       selectedItems.push(weatherOuterwear[0]);
-    } else if (selectedItems.length < 3 && categorizedItems.outerwear.length > 0) {
+      console.log(`🧥 Added outerwear for ${isIndoorContext ? 'indoor' : isOutdoorContext ? 'outdoor' : 'general'} context at ${effectiveTemp}°F`);
+    } else if (selectedItems.length < 3 && categorizedItems.outerwear.length > 0 && !isIndoorContext) {
+      // Only add optional outerwear for non-indoor contexts
       selectedItems.push(categorizedItems.outerwear[0]);
+      console.log(`👔 Added optional outerwear for non-indoor context`);
+    } else {
+      console.log(`🚫 No outerwear needed - ${isIndoorContext ? 'indoor' : isOutdoorContext ? 'outdoor' : 'general'} context at ${effectiveTemp}°F`);
     }
     
     // Add shoes if available and slots remain
@@ -2622,6 +2694,88 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     🎮 Outfit Builder
   </Text>
   
+  {/* AI Outfit Assistant - Unified Smart Suggestions */}
+  <View style={{ marginBottom: 20 }}>
+    <AIOutfitAssistant
+      userProfile={{
+        gender: selectedGender,
+        stylePreference: 'versatile',
+      }}
+      styleDNA={styleDNA}
+      context="builder"
+      size="large"
+      onOutfitGenerated={(outfit) => {
+        console.log('✅ AI Outfit Assistant generated outfit:', outfit);
+        
+        // Fill the gear slots with the AI-generated outfit
+        if (outfit && outfit.items) {
+          const updatedSlots = { ...outfitGeneration.gearSlots };
+          
+          outfit.items.forEach((item: any) => {
+            let slotKey = item.category;
+            
+            // Map AI categories to gear slot keys
+            if (slotKey === 'outerwear') slotKey = 'jacket';
+            
+            if (['top', 'bottom', 'shoes', 'jacket', 'hat', 'accessories'].includes(slotKey)) {
+              // For existing wardrobe items, use their image
+              if (item.isFromWardrobe && !item.isPlaceholder) {
+                // Try exact match first
+                let wardrobeItem = savedItems.find(w => w.title === item.title);
+                
+                // If exact match fails, try fuzzy matching
+                if (!wardrobeItem) {
+                  const itemLower = item.title.toLowerCase();
+                  wardrobeItem = savedItems.find(w => {
+                    const titleLower = (w.title || '').toLowerCase();
+                    return titleLower.includes(itemLower.split(' ')[0]) || // Match first word
+                           itemLower.includes(titleLower.split(' ')[0]) ||  // Or vice versa
+                           (item.color && titleLower.includes(item.color.toLowerCase())) || // Match by color
+                           (item.style && titleLower.includes(item.style.toLowerCase()));   // Match by style
+                  });
+                  
+                  if (wardrobeItem) {
+                    console.log(`🔄 Found fuzzy match: "${item.title}" → "${wardrobeItem.title}"`);
+                  }
+                }
+                
+                if (wardrobeItem) {
+                  console.log(`🎯 Adding ${slotKey}: ${item.title} to gear slot`);
+                  updatedSlots[slotKey as keyof typeof updatedSlots] = {
+                    itemId: wardrobeItem.image,
+                    itemImage: wardrobeItem.image,
+                    itemTitle: wardrobeItem.title || 'Untitled Item',
+                  };
+                } else {
+                  console.log(`❌ Could not find wardrobe item: ${item.title} (category: ${slotKey})`);
+                  console.log(`💡 Available ${slotKey} items:`, savedItems.filter(w => w.category === slotKey || w.tags?.includes(slotKey)).map(w => w.title));
+                }
+              } else {
+                console.log(`⏭️ Skipping ${slotKey}: ${item.title} (isFromWardrobe: ${item.isFromWardrobe}, isPlaceholder: ${item.isPlaceholder})`);
+              }
+              // For suggested items, we'll show them in the Smart Suggestions modal
+            }
+          });
+          
+          // Update all gear slots at once
+          outfitGeneration.setGearSlots(updatedSlots);
+          
+          // Show success message with a delay to not conflict with Smart Suggestions modal
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          
+          // Delay the alert to let the Smart Suggestions modal appear first
+          setTimeout(() => {
+            Alert.alert(
+              '✨ Outfit Generated!',
+              `"${outfit.outfitName}" has been created! Your gear slots have been filled with existing wardrobe items.`,
+              [{ text: 'Great!' }]
+            );
+          }, 500);
+        }
+      }}
+    />
+  </View>
+  
   {/* AI Loading Overlay */}
   {outfitGeneration.generatingSuggestions && (
     <View style={styles.aiLoadingOverlay}>
@@ -2857,10 +3011,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getLaundryStats={getLaundryStats}
     getSmartWashSuggestions={getSmartWashSuggestions}
     getItemsByLaundryStatus={getItemsByLaundryStatus}
-    // Smart Suggestions props
-    smartSuggestions={smartSuggestions}
-    selectedGender={selectedGender}
-    styleDNA={styleDNA}
+    // Navigation
+    onNavigateToBuilder={() => setCurrentTab('builder')}
   />
 )}
 

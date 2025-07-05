@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Animated } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
+import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 
 interface BuilderPageProps {
   savedItems: WardrobeItem[];
@@ -8,7 +9,6 @@ interface BuilderPageProps {
   onSetShowGenderSelector: (show: boolean) => void;
   onGenerateOutfit: () => void;
   onGenerateWeatherOutfit: () => void;
-  onSuggestSmartOutfit: () => void;
   generatingOutfit: boolean;
   generatedOutfit: string | null;
   isSelectionMode: boolean;
@@ -17,6 +17,8 @@ interface BuilderPageProps {
   setSelectedItemsForOutfit: (items: string[]) => void;
   spinValue: Animated.Value;
   onToggleItemSelection: (imageUri: string) => void;
+  userProfile?: any;
+  styleDNA?: any;
 }
 
 export const BuilderPage: React.FC<BuilderPageProps> = ({
@@ -25,7 +27,6 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
   onSetShowGenderSelector,
   onGenerateOutfit,
   onGenerateWeatherOutfit,
-  onSuggestSmartOutfit,
   generatingOutfit,
   generatedOutfit,
   isSelectionMode,
@@ -34,6 +35,8 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
   setSelectedItemsForOutfit,
   spinValue,
   onToggleItemSelection,
+  userProfile,
+  styleDNA,
 }) => {
   return (
     <View style={{ marginTop: 20 }}>
@@ -61,27 +64,20 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
       {/* Show outfit builder only after gender is selected */}
       {selectedGender && (
         <>
-          {/* Smart Outfit Suggestions */}
-          <View style={styles.smartSuggestionSection}>
-            <Text style={styles.smartSuggestionTitle}>
-              🧠 Smart Outfit Suggestions
-            </Text>
-            <Text style={styles.smartSuggestionSubtitle}>
-              Get personalized suggestions based on your wear history
-            </Text>
-            
-            <TouchableOpacity
-              onPress={onSuggestSmartOutfit}
-              disabled={generatingOutfit || savedItems.length < 1}
-              style={[
-                styles.smartSuggestionButton,
-                (generatingOutfit || savedItems.length < 1) && styles.disabledButton
-              ]}
-            >
-              <Text style={styles.smartSuggestionButtonText}>
-                {savedItems.length < 1 ? '🚫 Need wardrobe items' : '🧠 Get Smart Suggestions'}
-              </Text>
-            </TouchableOpacity>
+          {/* AI Outfit Assistant - Unified Smart Suggestions */}
+          <View style={styles.aiAssistantSection}>
+            <AIOutfitAssistant
+              userProfile={{
+                ...userProfile,
+                gender: selectedGender,
+              }}
+              styleDNA={styleDNA}
+              context="builder"
+              size="large"
+              onOutfitGenerated={(outfit) => {
+                console.log('✅ AI Outfit Assistant generated outfit:', outfit);
+              }}
+            />
           </View>
 
           {/* Weather-Based Outfit Generation */}
@@ -282,41 +278,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  smartSuggestionSection: {
-    backgroundColor: '#f3e5f5',
-    borderRadius: 16,
-    padding: 20,
-    margin: 20,
-    alignItems: 'center',
-  },
-  smartSuggestionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#6a1b99',
-    marginBottom: 8,
-  },
-  smartSuggestionSubtitle: {
-    fontSize: 14,
-    color: '#8e24aa',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  smartSuggestionButton: {
-    backgroundColor: '#8e24aa',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  smartSuggestionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  aiAssistantSection: {
+    marginVertical: 8,
   },
   weatherOutfitSection: {
     backgroundColor: '#e8f5e8',
