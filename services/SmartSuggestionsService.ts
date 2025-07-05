@@ -91,19 +91,22 @@ ${styleDNA ? `USER'S STYLE DNA:
 ` : ''}
 
 TASK: Generate 3 complete outfit suggestions that:
-1. PRIORITIZE existing wardrobe items - use as many items from the existing wardrobe as possible
-2. Create complete outfits with at least 4-5 items (top, bottom, shoes, outerwear/accessories)
-3. Build upon existing items and suggest new pieces only when necessary to complete the look
-4. Focus on versatile, high-quality pieces that work in multiple combinations
-5. Stay within the specified budget range
-6. Match the user's style preferences and lifestyle needs
-7. Ensure each outfit has proper layering and accessories for a complete look
+1. CREATE BALANCED OUTFITS mixing existing wardrobe items with 1-3 new suggested items per outfit
+2. Use 2-3 existing wardrobe items as the foundation for each outfit
+3. Suggest 1-3 new complementary pieces to enhance and complete each look
+4. Create complete outfits with at least 4-5 items (top, bottom, shoes, outerwear/accessories)
+5. Focus on versatile, high-quality new pieces that work in multiple combinations
+6. Stay within the specified budget range
+7. Match the user's style preferences and lifestyle needs
+8. Ensure each outfit has proper layering and accessories for a complete look
 
 For each outfit, recommend specific items with:
 - Exact titles and descriptions for Amazon search
 - Why each piece was chosen (reasoning)
-- How it coordinates with other pieces
+- How it coordinates with other pieces  
 - Price estimates in their budget range
+- IMPORTANT: Mark "isFromWardrobe": true for existing items, "isFromWardrobe": false for new suggestions
+- EACH OUTFIT MUST INCLUDE AT LEAST 1-2 NEW ITEMS TO PURCHASE (isFromWardrobe: false)
 
 Return ONLY raw JSON in this exact format:
 {
@@ -240,25 +243,31 @@ Focus on building a smart, versatile wardrobe that maximizes outfit combinations
       const suggestionsData = JSON.parse(cleanResult);
       
       // Transform the response into SmartSuggestion format
-      const smartSuggestions: SmartSuggestion[] = suggestionsData.suggestions.map((suggestion: any) => ({
-        id: `smart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        outfitName: suggestion.outfitName,
-        occasion: suggestion.occasion,
-        explanation: suggestion.explanation,
-        confidence: suggestion.confidence,
-        styleTips: suggestion.styleTips || [],
-        createdAt: new Date(),
-        items: suggestion.items.map((item: any) => ({
-          ...item,
-          id: `suggested-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          isPlaceholder: !item.isFromWardrobe,
-          amazonUrl: '', // Will be filled in by Amazon integration
-          price: item.estimatedPrice || 0,
-          imageUrl: '', // Will be filled in by image generation
-          tags: item.searchTerms || []
-        })),
-        missingItems: suggestion.items.filter((item: any) => !item.isFromWardrobe)
-      }));
+      const smartSuggestions: SmartSuggestion[] = suggestionsData.suggestions.map((suggestion: any) => {
+        const missingItems = suggestion.items.filter((item: any) => !item.isFromWardrobe);
+        console.log(`🛍️ Outfit "${suggestion.outfitName}": ${missingItems.length} new items to purchase`);
+        missingItems.forEach((item: any) => console.log(`  - ${item.title} ($${item.estimatedPrice})`));
+        
+        return {
+          id: `smart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          outfitName: suggestion.outfitName,
+          occasion: suggestion.occasion,
+          explanation: suggestion.explanation,
+          confidence: suggestion.confidence,
+          styleTips: suggestion.styleTips || [],
+          createdAt: new Date(),
+          items: suggestion.items.map((item: any) => ({
+            ...item,
+            id: `suggested-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            isPlaceholder: !item.isFromWardrobe,
+            amazonUrl: '', // Will be filled in by Amazon integration
+            price: item.estimatedPrice || 0,
+            imageUrl: '', // Will be filled in by image generation
+            tags: item.searchTerms || []
+          })),
+          missingItems
+        };
+      });
 
       console.log("✅ Generated smart outfit suggestions:", smartSuggestions.length, "outfits");
       return smartSuggestions;

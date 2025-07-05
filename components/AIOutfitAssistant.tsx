@@ -22,6 +22,7 @@ interface AIOutfitAssistantProps {
   context?: 'wardrobe' | 'builder' | 'standalone';
   size?: 'large' | 'medium' | 'small';
   onOutfitGenerated?: (outfit: any) => void;
+  smartSuggestionsHook?: any; // Optional: use parent's hook instance for modal coordination
 }
 
 export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
@@ -30,9 +31,10 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   context = 'standalone',
   size = 'medium',
   onOutfitGenerated,
+  smartSuggestionsHook,
 }) => {
-  // Smart suggestions state
-  const smartSuggestions = useSmartSuggestions();
+  // Smart suggestions state - use provided hook or create new instance
+  const smartSuggestions = smartSuggestionsHook || useSmartSuggestions();
   const { savedItems } = useWardrobeData();
   
   // Modal state

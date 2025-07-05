@@ -155,24 +155,29 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
   }, []);
 
   // Add a suggested item to wishlist/wardrobe
-  const addSuggestedItemToWishlist = useCallback((item: SuggestedItem) => {
-    console.log('Adding suggested item to wishlist:', item.title);
+  const addSuggestedItemToWishlist = useCallback(async (item: SuggestedItem) => {
+    console.log('💖 Adding suggested item to wishlist:', item.title);
     
     try {
-      // Actually save the item to persistent storage
-      addSuggestedItem(item);
+      // Convert suggested item to wishlist item and save properly
+      await moveToWishlistFromSuggestions(item, {
+        source: 'smart_suggestions',
+        outfitName: currentSuggestion?.outfitName,
+        occasion: currentSuggestion?.occasion,
+        addedAt: new Date()
+      });
       
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
       // Show confirmation
       Alert.alert(
         '✅ Added to Wishlist!',
-        `"${item.title}" has been saved to your wishlist. You can view and purchase it in your wardrobe.`,
+        `"${item.title}" has been saved to your wishlist. You can view and purchase it in the 💖 Wishlist tab.`,
         [{ text: 'Great!' }]
       );
     } catch (error) {
-      console.error('Failed to save suggested item:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('❌ Failed to save suggested item to wishlist:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
       Alert.alert(
         '❌ Save Failed',
@@ -180,7 +185,7 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
         [{ text: 'OK' }]
       );
     }
-  }, [addSuggestedItem]);
+  }, [moveToWishlistFromSuggestions, currentSuggestion]);
 
   // Generate specific items for a category
   const generateItemsForCategory = useCallback(async (

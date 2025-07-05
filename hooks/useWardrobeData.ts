@@ -139,7 +139,9 @@ export const useWardrobeData = () => {
       if (profile) setProfileImage(profile);
       
       // Load wishlist and suggested items
+      console.log('💖 Setting wishlist items in state:', wishlist.length, 'items');
       setWishlistItems(wishlist);
+      console.log('🧠 Setting suggested items in state:', suggestions.length, 'items');
       setSuggestedItems(suggestions);
     } catch (error) {
       console.error('Error loading wardrobe data:', error);
@@ -772,11 +774,16 @@ export const useWardrobeData = () => {
   // Function to add item to wishlist
   const addToWishlist = useCallback(async (item: WishlistItem): Promise<void> => {
     try {
+      console.log('💖 Adding item to wishlist:', item.onlineItem.title);
+      console.log('💖 Current wishlist length:', wishlistItems.length);
+      
       const updatedWishlist = [...wishlistItems, item];
+      console.log('💖 Updated wishlist length:', updatedWishlist.length);
+      
       setWishlistItems(updatedWishlist);
       await StorageService.saveWishlistItems(updatedWishlist);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      console.log('✅ Item added to wishlist:', item.onlineItem.title);
+      console.log('✅ Item added to wishlist successfully:', item.onlineItem.title);
     } catch (error) {
       console.error('❌ Error adding to wishlist:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -862,6 +869,8 @@ export const useWardrobeData = () => {
     wardrobeContext: any
   ): Promise<void> => {
     try {
+      console.log('💖 Moving suggested item to wishlist:', suggestedItem.title);
+      
       // Create wishlist item from suggested item
       const wishlistItem: WishlistItem = {
         id: `wishlist_${suggestedItem.id}_${Date.now()}`,

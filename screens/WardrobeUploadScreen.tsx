@@ -84,6 +84,10 @@ const WardrobeUploadScreen = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    // Wishlist functions
+    wishlistItems,
+    removeFromWishlist,
+    updateWishlistPurchaseStatus,
   } = wardrobeData;
   
   const {
@@ -3005,6 +3009,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getItemsByLaundryStatus={getItemsByLaundryStatus}
     // Navigation
     onNavigateToBuilder={navigateToBuilder}
+    // Smart suggestions hook for modal coordination
+    smartSuggestionsHook={smartSuggestions}
+    // Wishlist data and functions
+    wishlistItems={wishlistItems}
+    removeFromWishlist={removeFromWishlist}
+    updateWishlistPurchaseStatus={updateWishlistPurchaseStatus}
   />
 )}
 

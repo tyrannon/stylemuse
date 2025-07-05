@@ -128,9 +128,11 @@ export class StorageService {
   // Wishlist items
   static async saveWishlistItems(items: WishlistItem[]): Promise<void> {
     try {
+      console.log('💖 Saving', items.length, 'wishlist items to storage');
       await AsyncStorage.setItem(STORAGE_KEYS.WISHLIST_ITEMS, JSON.stringify(items));
+      console.log('💖 Successfully saved wishlist items to storage');
     } catch (error) {
-      console.error('Error saving wishlist items:', error);
+      console.error('❌ Error saving wishlist items:', error);
       throw error;
     }
   }
@@ -138,9 +140,16 @@ export class StorageService {
   static async loadWishlistItems(): Promise<WishlistItem[]> {
     try {
       const itemsJson = await AsyncStorage.getItem(STORAGE_KEYS.WISHLIST_ITEMS);
-      if (!itemsJson) return [];
+      console.log('💖 Loading wishlist items from storage:', itemsJson ? 'found data' : 'no data found');
+      
+      if (!itemsJson) {
+        console.log('💖 No wishlist items found in storage');
+        return [];
+      }
       
       const rawItems = JSON.parse(itemsJson);
+      console.log('💖 Loaded', rawItems.length, 'wishlist items from storage');
+      
       return rawItems.map((item: any) => ({
         ...item,
         savedAt: ensureDateObject(item.savedAt) || new Date(),
@@ -151,7 +160,7 @@ export class StorageService {
         })) : [],
       }));
     } catch (error) {
-      console.error('Error loading wishlist items:', error);
+      console.error('❌ Error loading wishlist items:', error);
       return [];
     }
   }

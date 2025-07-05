@@ -60,6 +60,8 @@ export const SmartSuggestionsModal: React.FC<SmartSuggestionsModalProps> = ({
   };
 
   const handleAddToWishlist = (item: SuggestedItem) => {
+    console.log('💖 Individual item "Add to Wishlist" button pressed:', item.title);
+    console.log('💖 onAddToWishlist function available:', typeof onAddToWishlist === 'function');
     onAddToWishlist(item);
     setSelectedItemDetail(null);
   };
@@ -224,8 +226,21 @@ export const SmartSuggestionsModal: React.FC<SmartSuggestionsModalProps> = ({
                     <TouchableOpacity
                       style={styles.primaryButton}
                       onPress={() => {
+                        console.log('🎯 "Add All to Wishlist" button pressed!');
+                        console.log('💖 Current suggestion:', currentSuggestion?.outfitName);
+                        console.log('💖 Missing items count:', currentSuggestion?.missingItems?.length || 0);
+                        console.log('💖 onAddToWishlist function available:', typeof onAddToWishlist === 'function');
+                        
                         // Add all suggested items to wishlist
-                        currentSuggestion.missingItems.forEach(item => onAddToWishlist(item));
+                        if (currentSuggestion?.missingItems) {
+                          currentSuggestion.missingItems.forEach((item, index) => {
+                            console.log(`💖 Adding item ${index + 1}/${currentSuggestion.missingItems.length}:`, item.title);
+                            onAddToWishlist(item);
+                          });
+                        } else {
+                          console.log('❌ No missing items found to add to wishlist');
+                        }
+                        
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       }}
                     >
