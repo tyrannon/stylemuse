@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeImage } from '../utils/SafeImage';
 import { WardrobeItem } from '../hooks/useWardrobeData';
+import { getColorFamilyEmoji } from '../utils/colorIntelligence';
 
 // Get screen width for responsive design
 const { width: screenWidth } = Dimensions.get('window');
@@ -89,6 +90,13 @@ export const UnifiedWardrobeCard: React.FC<UnifiedWardrobeCardProps> = ({
           {isMultiItem && (
             <View style={styles.multiItemBadge}>
               <Text style={styles.badgeText}>🔍</Text>
+            </View>
+          )}
+          {item.colorIntelligence && (
+            <View style={styles.colorIntelligenceBadge}>
+              <Text style={styles.badgeText}>
+                {getColorFamilyEmoji(item.colorIntelligence.colorFamily)}
+              </Text>
             </View>
           )}
         </View>
@@ -196,6 +204,18 @@ const styles = StyleSheet.create({
     borderRadius: GRID_UNIT * 1.5,
     marginRight: GRID_UNIT / 2,
     shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  colorIntelligenceBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.9)', // Gold background for color intelligence
+    paddingHorizontal: GRID_UNIT,
+    paddingVertical: GRID_UNIT / 2,
+    borderRadius: GRID_UNIT * 1.5,
+    marginRight: GRID_UNIT / 2,
+    shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

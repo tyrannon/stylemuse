@@ -21,12 +21,20 @@ interface WardrobePageProps {
   setShowSortFilterModal: (show: boolean) => void;
   filterCategory: string;
   filterLaundryStatus: string;
+  filterColorFamily: string;
+  filterSeason: string;
+  filterTemperature: string;
+  filterCoordination: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
   getSortedAndFilteredItems: () => WardrobeItem[];
   getCategoryDisplayName: (category: string) => string;
   getLaundryStatusDisplayName: (status: string) => string;
   getSortDisplayName: (sortType: string) => string;
+  getColorFamilyDisplayName: (colorFamily: string) => string;
+  getSeasonDisplayName: (season: string) => string;
+  getTemperatureDisplayName: (temperature: string) => string;
+  getCoordinationDisplayName: (coordination: string) => string;
   openWardrobeItemView: (item: WardrobeItem) => void;
   categorizeItem: (item: WardrobeItem) => string;
   generateOutfitSuggestions: (item: WardrobeItem) => void;
@@ -75,12 +83,20 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   setShowSortFilterModal,
   filterCategory,
   filterLaundryStatus,
+  filterColorFamily,
+  filterSeason,
+  filterTemperature,
+  filterCoordination,
   sortBy,
   sortOrder,
   getSortedAndFilteredItems,
   getCategoryDisplayName,
   getLaundryStatusDisplayName,
   getSortDisplayName,
+  getColorFamilyDisplayName,
+  getSeasonDisplayName,
+  getTemperatureDisplayName,
+  getCoordinationDisplayName,
   openWardrobeItemView,
   categorizeItem,
   generateOutfitSuggestions,
@@ -204,11 +220,19 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           savedItems={savedItems}
           filterCategory={filterCategory}
           filterLaundryStatus={filterLaundryStatus}
+          filterColorFamily={filterColorFamily}
+          filterSeason={filterSeason}
+          filterTemperature={filterTemperature}
+          filterCoordination={filterCoordination}
           sortBy={sortBy}
           sortOrder={sortOrder}
           getCategoryDisplayName={getCategoryDisplayName}
           getLaundryStatusDisplayName={getLaundryStatusDisplayName}
           getSortDisplayName={getSortDisplayName}
+          getColorFamilyDisplayName={getColorFamilyDisplayName}
+          getSeasonDisplayName={getSeasonDisplayName}
+          getTemperatureDisplayName={getTemperatureDisplayName}
+          getCoordinationDisplayName={getCoordinationDisplayName}
           setShowSortFilterModal={setShowSortFilterModal}
           openWardrobeItemView={openWardrobeItemView}
           categorizeItem={categorizeItem}
@@ -243,11 +267,19 @@ const WardrobeTabContent: React.FC<{
   savedItems: WardrobeItem[];
   filterCategory: string;
   filterLaundryStatus: string;
+  filterColorFamily: string;
+  filterSeason: string;
+  filterTemperature: string;
+  filterCoordination: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
   getCategoryDisplayName: (category: string) => string;
   getLaundryStatusDisplayName: (status: string) => string;
   getSortDisplayName: (sortType: string) => string;
+  getColorFamilyDisplayName: (colorFamily: string) => string;
+  getSeasonDisplayName: (season: string) => string;
+  getTemperatureDisplayName: (temperature: string) => string;
+  getCoordinationDisplayName: (coordination: string) => string;
   setShowSortFilterModal: (show: boolean) => void;
   openWardrobeItemView: (item: WardrobeItem) => void;
   categorizeItem: (item: WardrobeItem) => string;
@@ -256,11 +288,19 @@ const WardrobeTabContent: React.FC<{
   savedItems,
   filterCategory,
   filterLaundryStatus,
+  filterColorFamily,
+  filterSeason,
+  filterTemperature,
+  filterCoordination,
   sortBy,
   sortOrder,
   getCategoryDisplayName,
   getLaundryStatusDisplayName,
   getSortDisplayName,
+  getColorFamilyDisplayName,
+  getSeasonDisplayName,
+  getTemperatureDisplayName,
+  getCoordinationDisplayName,
   setShowSortFilterModal,
   openWardrobeItemView,
   categorizeItem,
@@ -282,10 +322,15 @@ const WardrobeTabContent: React.FC<{
         </View>
         
         {/* Current filter display */}
-        {(filterCategory !== 'all' || filterLaundryStatus !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
+        {(filterCategory !== 'all' || filterLaundryStatus !== 'all' || filterColorFamily !== 'all' || filterSeason !== 'all' || filterTemperature !== 'all' || filterCoordination !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
           <View style={styles.currentFilterContainer}>
             <Text style={styles.currentFilterText}>
-              📊 {getCategoryDisplayName(filterCategory)} • {getLaundryStatusDisplayName(filterLaundryStatus)} • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
+              📊 {getCategoryDisplayName(filterCategory)} • {getLaundryStatusDisplayName(filterLaundryStatus)}
+              {filterColorFamily !== 'all' && ` • ${getColorFamilyDisplayName(filterColorFamily)}`}
+              {filterSeason !== 'all' && ` • ${getSeasonDisplayName(filterSeason)}`}
+              {filterTemperature !== 'all' && ` • ${getTemperatureDisplayName(filterTemperature)}`}
+              {filterCoordination !== 'all' && ` • ${getCoordinationDisplayName(filterCoordination)}`}
+              • {getSortDisplayName(sortBy)} • {sortOrder === 'asc' ? '↑' : '↓'}
             </Text>
           </View>
         )}

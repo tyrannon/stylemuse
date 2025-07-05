@@ -45,6 +45,14 @@ import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
 import { styles } from './styles/WardrobeUploadScreen.styles';
+import { 
+  getItemsByColorFamily, 
+  getItemsBySeason, 
+  getItemsByTemperature, 
+  getItemsByCoordinationPotential, 
+  getColorFamilyEmoji, 
+  getSeasonalEmoji 
+} from '../utils/colorIntelligence';
 
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
@@ -236,6 +244,18 @@ const WardrobeUploadScreen = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterLaundryStatus, setFilterLaundryStatus] = useState<string>('all');
+  
+  // Color-based filtering state variables
+  const [filterColorFamily, setFilterColorFamily] = useState<string>('all');
+  const [filterSeason, setFilterSeason] = useState<string>('all');
+  const [filterTemperature, setFilterTemperature] = useState<string>('all');
+  const [filterCoordination, setFilterCoordination] = useState<string>('all');
+
+  // Slot selection modal sorting state
+  const [slotSortBy, setSlotSortBy] = useState<'recent-newest' | 'recent-oldest' | 'category' | 'name'>('recent-newest');
+  const [showSlotSortOptions, setShowSlotSortOptions] = useState(false);
+  const slotSortAnimationValue = useRef(new Animated.Value(0)).current;
+  const [isSlotSortAnimating, setIsSlotSortAnimating] = useState(false);
 
   // Camera integration states
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
@@ -1540,6 +1560,71 @@ const WardrobeUploadScreen = () => {
     });
   };
 
+  // Function to get sorted slot items
+  const getSortedSlotItems = (category: string) => {
+    let categoryItems = getItemsByCategory(category);
+    
+    switch (slotSortBy) {
+      case 'recent-newest':
+        // Since we don't have timestamps, use array order (newest items are typically added last)
+        categoryItems = [...categoryItems].reverse();
+        break;
+      case 'recent-oldest':
+        // Original array order (oldest first)
+        categoryItems = [...categoryItems];
+        break;
+      case 'category':
+        categoryItems.sort((a, b) => categorizeItem(a).localeCompare(categorizeItem(b)));
+        break;
+      case 'name':
+        categoryItems.sort((a, b) => (a.title || 'Untitled').localeCompare(b.title || 'Untitled'));
+        break;
+    }
+    
+    return categoryItems;
+  };
+
+  // Function to get slot sort display name
+  const getSlotSortDisplayName = (sortType: string) => {
+    const displayNames: { [key: string]: string } = {
+      'recent-newest': 'Recently Added (Newest First)',
+      'recent-oldest': 'Recently Added (Oldest First)',
+      'category': 'Category',
+      'name': 'Name'
+    };
+    return displayNames[sortType] || sortType;
+  };
+
+  // Function to toggle slot sort options with animation
+  const toggleSlotSortOptions = () => {
+    if (isSlotSortAnimating) return; // Prevent rapid tapping
+    
+    setIsSlotSortAnimating(true);
+    const toValue = showSlotSortOptions ? 0 : 1;
+    
+    Animated.timing(slotSortAnimationValue, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => {
+      setIsSlotSortAnimating(false);
+    });
+    
+    setShowSlotSortOptions(!showSlotSortOptions);
+  };
+
+  // Function to handle slot sort selection
+  const handleSlotSortSelection = (sortType: 'recent-newest' | 'recent-oldest' | 'category' | 'name') => {
+    if (isSlotSortAnimating) return; // Prevent selection during animation
+    
+    setSlotSortBy(sortType);
+    
+    // Close sort options with animation
+    setTimeout(() => {
+      toggleSlotSortOptions();
+    }, 150); // Small delay to show selection feedback
+  };
+
   // updateItemCategory function is now provided by useWardrobeData hook
 
   // Function to edit wardrobe item
@@ -1735,6 +1820,34 @@ const WardrobeUploadScreen = () => {
       filteredItems = filteredItems.filter(item => (item.laundryStatus || 'clean') === filterLaundryStatus);
     }
     
+    // Apply color family filter
+    if (filterColorFamily !== 'all') {
+      filteredItems = filteredItems.filter(item => 
+        item.colorIntelligence?.colorFamily?.toLowerCase() === filterColorFamily.toLowerCase()
+      );
+    }
+    
+    // Apply seasonal filter
+    if (filterSeason !== 'all') {
+      filteredItems = filteredItems.filter(item => 
+        item.colorIntelligence?.seasonalMapping?.toLowerCase() === filterSeason.toLowerCase()
+      );
+    }
+    
+    // Apply temperature filter
+    if (filterTemperature !== 'all') {
+      filteredItems = filteredItems.filter(item => 
+        item.colorIntelligence?.colorTemperature?.toLowerCase().includes(filterTemperature.toLowerCase())
+      );
+    }
+    
+    // Apply coordination potential filter
+    if (filterCoordination !== 'all') {
+      filteredItems = filteredItems.filter(item => 
+        item.colorIntelligence?.coordinationPotential?.toLowerCase().includes(filterCoordination.toLowerCase())
+      );
+    }
+    
     // Apply sorting
     filteredItems.sort((a, b) => {
       let comparison = 0;
@@ -1769,6 +1882,35 @@ const WardrobeUploadScreen = () => {
   const getUniqueLaundryStatuses = () => {
     const statuses = savedItems.map(item => item.laundryStatus || 'clean');
     return ['all', ...Array.from(new Set(statuses))];
+  };
+
+  // Color intelligence helper functions
+  const getUniqueColorFamilies = () => {
+    const colorFamilies = savedItems
+      .map(item => item.colorIntelligence?.colorFamily)
+      .filter(Boolean);
+    return ['all', ...Array.from(new Set(colorFamilies))];
+  };
+
+  const getUniqueSeasons = () => {
+    const seasons = savedItems
+      .map(item => item.colorIntelligence?.seasonalMapping)
+      .filter(Boolean);
+    return ['all', ...Array.from(new Set(seasons))];
+  };
+
+  const getUniqueTemperatures = () => {
+    const temperatures = savedItems
+      .map(item => item.colorIntelligence?.colorTemperature)
+      .filter(Boolean);
+    return ['all', ...Array.from(new Set(temperatures))];
+  };
+
+  const getUniqueCoordinations = () => {
+    const coordinations = savedItems
+      .map(item => item.colorIntelligence?.coordinationPotential)
+      .filter(Boolean);
+    return ['all', ...Array.from(new Set(coordinations))];
   };
 
   // Function to get category display name
@@ -1807,6 +1949,54 @@ const WardrobeUploadScreen = () => {
       'name': 'Name'
     };
     return displayNames[sortType] || sortType;
+  };
+
+  // Color intelligence display name functions
+  const getColorFamilyDisplayName = (colorFamily: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Colors',
+      'reds': `${getColorFamilyEmoji('reds')} Reds`,
+      'blues': `${getColorFamilyEmoji('blues')} Blues`,
+      'greens': `${getColorFamilyEmoji('greens')} Greens`,
+      'neutrals': `${getColorFamilyEmoji('neutrals')} Neutrals`,
+      'pastels': `${getColorFamilyEmoji('pastels')} Pastels`,
+      'earth': `${getColorFamilyEmoji('earth')} Earth Tones`,
+      'jewel': `${getColorFamilyEmoji('jewel')} Jewel Tones`,
+    };
+    return displayNames[colorFamily] || `${getColorFamilyEmoji(colorFamily)} ${colorFamily}`;
+  };
+
+  const getSeasonDisplayName = (season: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Seasons',
+      'spring': `${getSeasonalEmoji('spring')} Spring`,
+      'summer': `${getSeasonalEmoji('summer')} Summer`,
+      'autumn': `${getSeasonalEmoji('autumn')} Autumn`,
+      'winter': `${getSeasonalEmoji('winter')} Winter`,
+      'year-round': `${getSeasonalEmoji('year-round')} Year-Round`,
+    };
+    return displayNames[season] || `${getSeasonalEmoji(season)} ${season}`;
+  };
+
+  const getTemperatureDisplayName = (temperature: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Temperatures',
+      'warm-toned': '🔥 Warm Tones',
+      'cool-toned': '❄️ Cool Tones',
+      'neutral-temperature': '🌡️ Neutral',
+    };
+    return displayNames[temperature] || `🌡️ ${temperature}`;
+  };
+
+  const getCoordinationDisplayName = (coordination: string) => {
+    const displayNames: { [key: string]: string } = {
+      'all': 'All Types',
+      'neutral base': '🤍 Neutral Base',
+      'statement piece': '✨ Statement Piece',
+      'monochromatic friendly': '🎨 Mono-Friendly',
+      'accent piece': '💫 Accent Piece',
+    };
+    return displayNames[coordination] || `🎯 ${coordination}`;
   };
 
   // openWardrobeItemView and goBackToWardrobe functions are now provided by useNavigationState hook
@@ -2297,11 +2487,101 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
               Select {modalState.selectedSlot?.toUpperCase()} Item
             </Text>
             <Text style={styles.slotSelectionSubtitle}>
-              Showing {getItemsByCategory(modalState.selectedSlot || '').length} {modalState.selectedSlot} items
+              Showing {getSortedSlotItems(modalState.selectedSlot || '').length} {modalState.selectedSlot} items
             </Text>
             
+            {/* Sorting Controls */}
+            <View style={styles.slotSelectionHeader}>
+              <Text style={styles.slotSelectionSortLabel}>
+                📊 {getSlotSortDisplayName(slotSortBy)}
+              </Text>
+              <TouchableOpacity
+                onPress={toggleSlotSortOptions}
+                style={[
+                  styles.slotSortButton,
+                  showSlotSortOptions && styles.slotSortButtonActive
+                ]}
+                disabled={isSlotSortAnimating}
+              >
+                <Animated.View style={{
+                  transform: [{
+                    rotate: slotSortAnimationValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '180deg']
+                    })
+                  }]
+                }}>
+                  <Text style={[styles.slotSortButtonText, showSlotSortOptions && styles.slotSortButtonTextActive]}>🔍</Text>
+                </Animated.View>
+                <Text style={[styles.slotSortButtonText, showSlotSortOptions && styles.slotSortButtonTextActive]}>Sort</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Slot Sort Options */}
+            {showSlotSortOptions && (
+              <Animated.View 
+                style={[
+                  styles.slotSortOptionsContainer,
+                  {
+                    opacity: slotSortAnimationValue,
+                    transform: [{
+                      scaleY: slotSortAnimationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <View style={styles.slotSortOptionsHeader}>
+                  <Text style={styles.slotSortOptionsTitle}>Sort by:</Text>
+                </View>
+                
+                <View style={styles.slotSortOptionsList}>
+                  {[
+                    { key: 'recent-newest', icon: '🕐', label: 'Recently Added (Newest First)' },
+                    { key: 'recent-oldest', icon: '🕑', label: 'Recently Added (Oldest First)' },
+                    { key: 'category', icon: '📂', label: 'Category' },
+                    { key: 'name', icon: '🔤', label: 'Name' }
+                  ].map(({ key, icon, label }) => (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => handleSlotSortSelection(key as any)}
+                      style={[
+                        styles.slotSortOption,
+                        slotSortBy === key && styles.slotSortOptionActive
+                      ]}
+                      disabled={isSlotSortAnimating}
+                    >
+                      <View style={styles.slotSortOptionContent}>
+                        <Text style={styles.slotSortOptionIcon}>{icon}</Text>
+                        <Text style={[
+                          styles.slotSortOptionText,
+                          slotSortBy === key && styles.slotSortOptionTextActive
+                        ]}>
+                          {label}
+                        </Text>
+                      </View>
+                      {slotSortBy === key && (
+                        <Animated.View style={{
+                          transform: [{
+                            scale: slotSortAnimationValue.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.5, 1]
+                            })
+                          }]
+                        }}>
+                          <Text style={styles.slotSortOptionCheck}>✓</Text>
+                        </Animated.View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+            
             <ScrollView style={styles.slotSelectionScroll}>
-              {getItemsByCategory(modalState.selectedSlot || '').map((item, index) => (
+              {getSortedSlotItems(modalState.selectedSlot || '').map((item, index) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => assignItemToSlot(modalState.selectedSlot!, item)}
@@ -2346,7 +2626,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 </TouchableOpacity>
               ))}
               
-              {getItemsByCategory(modalState.selectedSlot || '').length === 0 && (
+              {getSortedSlotItems(modalState.selectedSlot || '').length === 0 && (
                 <View style={styles.noItemsContainer}>
                   <Text style={styles.noItemsText}>
                     No {modalState.selectedSlot} items found
@@ -2824,6 +3104,102 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 </View>
               </View>
 
+              {/* Filter by Color Family */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Color Family:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueColorFamilies().map((colorFamily) => (
+                    <TouchableOpacity
+                      key={colorFamily}
+                      onPress={() => setFilterColorFamily(colorFamily)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterColorFamily === colorFamily && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterColorFamily === colorFamily && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getColorFamilyDisplayName(colorFamily)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Filter by Season */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Season:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueSeasons().map((season) => (
+                    <TouchableOpacity
+                      key={season}
+                      onPress={() => setFilterSeason(season)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterSeason === season && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterSeason === season && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getSeasonDisplayName(season)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Filter by Temperature */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Temperature:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueTemperatures().map((temperature) => (
+                    <TouchableOpacity
+                      key={temperature}
+                      onPress={() => setFilterTemperature(temperature)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterTemperature === temperature && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterTemperature === temperature && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getTemperatureDisplayName(temperature)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Filter by Coordination */}
+              <View style={styles.filterSection}>
+                <Text style={styles.sortSectionTitle}>Filter by Coordination:</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {getUniqueCoordinations().map((coordination) => (
+                    <TouchableOpacity
+                      key={coordination}
+                      onPress={() => setFilterCoordination(coordination)}
+                      style={[
+                        styles.filterOptionButton,
+                        filterCoordination === coordination && styles.filterOptionButtonActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionButtonText,
+                        filterCoordination === coordination && styles.filterOptionButtonTextActive
+                      ]}>
+                        {getCoordinationDisplayName(coordination)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {/* Results Preview */}
               <View style={styles.resultsPreviewSection}>
                 <Text style={styles.sortSectionTitle}>Results:</Text>
@@ -2835,7 +3211,15 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                     {filterCategory !== 'all' && `Category: ${getCategoryDisplayName(filterCategory)}`}
                     {filterLaundryStatus !== 'all' && (filterCategory !== 'all' ? ' • ' : '')}
                     {filterLaundryStatus !== 'all' && `Status: ${getLaundryStatusDisplayName(filterLaundryStatus)}`}
-                    {(filterCategory !== 'all' || filterLaundryStatus !== 'all') && sortBy !== 'recent' && ' • '}
+                    {filterColorFamily !== 'all' && ((filterCategory !== 'all' || filterLaundryStatus !== 'all') ? ' • ' : '')}
+                    {filterColorFamily !== 'all' && `Color: ${getColorFamilyDisplayName(filterColorFamily)}`}
+                    {filterSeason !== 'all' && ((filterCategory !== 'all' || filterLaundryStatus !== 'all' || filterColorFamily !== 'all') ? ' • ' : '')}
+                    {filterSeason !== 'all' && `Season: ${getSeasonDisplayName(filterSeason)}`}
+                    {filterTemperature !== 'all' && ((filterCategory !== 'all' || filterLaundryStatus !== 'all' || filterColorFamily !== 'all' || filterSeason !== 'all') ? ' • ' : '')}
+                    {filterTemperature !== 'all' && `Temp: ${getTemperatureDisplayName(filterTemperature)}`}
+                    {filterCoordination !== 'all' && ((filterCategory !== 'all' || filterLaundryStatus !== 'all' || filterColorFamily !== 'all' || filterSeason !== 'all' || filterTemperature !== 'all') ? ' • ' : '')}
+                    {filterCoordination !== 'all' && `Coord: ${getCoordinationDisplayName(filterCoordination)}`}
+                    {(filterCategory !== 'all' || filterLaundryStatus !== 'all' || filterColorFamily !== 'all' || filterSeason !== 'all' || filterTemperature !== 'all' || filterCoordination !== 'all') && sortBy !== 'recent' && ' • '}
                     {sortBy !== 'recent' && `Sorted by: ${getSortDisplayName(sortBy)} (${sortOrder === 'asc' ? '↑' : '↓'})`}
                   </Text>
                 </View>
@@ -2850,6 +3234,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                   setSortOrder('desc');
                   setFilterCategory('all');
                   setFilterLaundryStatus('all');
+                  setFilterColorFamily('all');
+                  setFilterSeason('all');
+                  setFilterTemperature('all');
+                  setFilterCoordination('all');
                 }}
                 style={styles.resetButton}
               >
@@ -3219,12 +3607,20 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     setShowSortFilterModal={modalState.setShowSortFilterModal}
     filterCategory={filterCategory}
     filterLaundryStatus={filterLaundryStatus}
+    filterColorFamily={filterColorFamily}
+    filterSeason={filterSeason}
+    filterTemperature={filterTemperature}
+    filterCoordination={filterCoordination}
     sortBy={sortBy}
     sortOrder={sortOrder}
     getSortedAndFilteredItems={getSortedAndFilteredItems}
     getCategoryDisplayName={getCategoryDisplayName}
     getLaundryStatusDisplayName={getLaundryStatusDisplayName}
     getSortDisplayName={getSortDisplayName}
+    getColorFamilyDisplayName={getColorFamilyDisplayName}
+    getSeasonDisplayName={getSeasonDisplayName}
+    getTemperatureDisplayName={getTemperatureDisplayName}
+    getCoordinationDisplayName={getCoordinationDisplayName}
     openWardrobeItemView={openWardrobeItemView}
     categorizeItem={categorizeItem}
     generateOutfitSuggestions={generateOutfitSuggestions}

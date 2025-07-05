@@ -27,6 +27,19 @@ export interface LaundryRecord {
   notes?: string;
 }
 
+// Advanced Color Intelligence Interface
+export interface ColorIntelligence {
+  primaryColor: string; // e.g., 'sage green', 'midnight navy', 'burgundy wine'
+  undertones: string; // e.g., 'cool gray undertones', 'warm golden undertones'
+  colorFamily: string; // e.g., 'greens', 'blues', 'neutrals', 'reds', 'pastels'
+  seasonalMapping: string; // e.g., 'autumn', 'spring', 'winter', 'summer', 'year-round'
+  coordinationPotential: string; // e.g., 'monochromatic friendly', 'neutral base', 'statement piece'
+  colorTemperature: string; // e.g., 'warm-toned', 'cool-toned', 'neutral-temperature'
+  accentColors?: string[]; // Secondary colors for multi-colored items
+  saturation: string; // e.g., 'muted', 'vibrant', 'pastel', 'deep', 'rich'
+  mixingPotential: string; // e.g., 'pairs beautifully with cream and navy'
+}
+
 export interface WardrobeItem {
   image: string;
   title?: string;
@@ -37,6 +50,8 @@ export interface WardrobeItem {
   style?: string;
   fit?: string;
   category?: string;
+  // Advanced Color Intelligence System
+  colorIntelligence?: ColorIntelligence;
   // Laundry tracking fields
   laundryStatus?: LaundryStatus;
   laundryHistory?: LaundryRecord[];

@@ -19,12 +19,41 @@ CRITICAL REQUIREMENTS:
 4. Describe EXACT style elements, construction details, and fit characteristics
 5. Be so specific that someone could recreate this exact item from your description
 
-COLOR ANALYSIS REQUIREMENTS:
-- Use PRECISE color names: "sage green", "champagne beige", "midnight navy", "burnt orange", "dusty rose", "charcoal gray"
-- NOT generic terms like "blue", "pink", "brown", "gray"
-- Identify undertones: "warm beige with pink undertones", "cool gray with blue undertones"
-- Specify saturation: "muted", "vibrant", "pastel", "deep", "rich"
-- Note color variations: "gradient from light to dark", "ombré effect", "two-toned"
+ADVANCED COLOR INTELLIGENCE REQUIREMENTS:
+🎨 PRIMARY COLOR ANALYSIS:
+- Use SOPHISTICATED color names with precision: "sage green", "champagne beige", "midnight navy", "burnt orange", "dusty rose", "charcoal gray", "ivory cream", "burgundy wine", "forest hunter green", "slate blue", "camel tan", "blush pink", "espresso brown"
+- NEVER use generic terms like "blue", "pink", "brown", "gray", "red", "green"
+- Include color depth: "deep", "rich", "saturated", "muted", "pale", "vibrant", "soft", "intense"
+
+🌡️ UNDERTONE DETECTION (CRITICAL FOR COORDINATION):
+- Warm undertones: "golden", "yellow-based", "peach", "coral", "honey", "bronze"
+- Cool undertones: "blue-based", "purple", "pink", "silver", "ashy", "icy"
+- Neutral undertones: "balanced", "true", "neither warm nor cool"
+- Examples: "dusty rose with cool pink undertones", "camel with warm golden undertones"
+
+🎭 COLOR FAMILY CLASSIFICATION:
+- Reds: "crimson", "burgundy", "cherry", "wine", "brick", "coral", "rose", "blush"
+- Blues: "navy", "royal", "sky", "powder", "teal", "periwinkle", "slate", "denim"
+- Greens: "forest", "sage", "mint", "olive", "emerald", "lime", "seafoam", "hunter"
+- Neutrals: "ivory", "cream", "beige", "taupe", "camel", "chocolate", "charcoal", "stone"
+- Pastels: "baby blue", "lavender", "peach", "mint green", "powder pink", "buttercream"
+
+🌈 SEASONAL COLOR MAPPING:
+- Spring colors: "coral", "peach", "mint", "lavender", "buttercream yellow", "bright navy"
+- Summer colors: "powder blue", "rose pink", "sage green", "dove gray", "soft white"
+- Autumn colors: "burnt orange", "deep burgundy", "forest green", "chocolate brown", "mustard"
+- Winter colors: "true red", "royal blue", "emerald", "black", "pure white", "hot pink"
+
+⚡ COLOR COORDINATION INTELLIGENCE:
+- Identify dominant vs accent colors in patterns
+- Note color harmony potential: "monochromatic friendly", "complementary pairing ready", "neutral base"
+- Specify mixing potential: "pairs beautifully with cream and navy", "perfect base for bright accents"
+- Color temperature: "warm-toned piece", "cool-toned garment", "neutral temperature"
+
+🔍 ADVANCED COLOR VARIATIONS:
+- Multi-color items: "navy base with white polka dots", "burgundy plaid with green and gold accents"
+- Color effects: "ombré from pink to coral", "gradient navy to light blue", "color-blocked sections"
+- Metallic elements: "rose gold hardware", "silver zipper", "brass buttons", "gunmetal details"
 
 MATERIAL IDENTIFICATION:
 - Identify specific fabric types: "brushed cotton fleece", "stretch denim", "ribbed modal", "ponte knit", "boiled wool"
@@ -71,14 +100,51 @@ Return ONLY raw JSON in this exact format:
   "color": "Primary color with precise terminology and undertones (e.g., 'sage green with gray undertones', 'warm champagne beige')",
   "material": "Specific fabric type with texture details (e.g., 'brushed cotton fleece', 'stretch denim with slight fade')",
   "style": "Precise style category with key details (e.g., 'oversized pullover hoodie', 'high-waisted skinny jeans with ankle length')",
-  "fit": "Exact fit description with silhouette details (e.g., 'oversized relaxed fit with dropped shoulders', 'high-waisted slim fit with tapered leg')"
+  "fit": "Exact fit description with silhouette details (e.g., 'oversized relaxed fit with dropped shoulders', 'high-waisted slim fit with tapered leg')",
+  "colorIntelligence": {
+    "primaryColor": "Most dominant color with sophisticated naming (e.g., 'sage green', 'midnight navy', 'burgundy wine')",
+    "undertones": "Specific undertone classification (e.g., 'cool gray undertones', 'warm golden undertones', 'neutral balanced')",
+    "colorFamily": "Broad color family (e.g., 'greens', 'blues', 'neutrals', 'reds', 'pastels')",
+    "seasonalMapping": "Seasonal color category (e.g., 'autumn', 'spring', 'winter', 'summer', 'year-round')",
+    "coordinationPotential": "How this color works with others (e.g., 'monochromatic friendly', 'neutral base', 'statement piece')",
+    "colorTemperature": "Temperature classification (e.g., 'warm-toned', 'cool-toned', 'neutral-temperature')",
+    "accentColors": "Secondary/accent colors if multi-colored (e.g., ['white', 'gold'] for navy with white stripes and gold buttons)",
+    "saturation": "Color intensity level (e.g., 'muted', 'vibrant', 'pastel', 'deep', 'rich', 'saturated')",
+    "mixingPotential": "Specific coordination suggestions (e.g., 'pairs beautifully with cream and navy', 'perfect base for bright accents')"
+  }
 }
 
-EXAMPLES OF REQUIRED PRECISION:
-❌ WRONG: "blue jeans" → ✅ CORRECT: "medium-wash indigo denim straight-leg jeans"
-❌ WRONG: "white shirt" → ✅ CORRECT: "crisp white cotton poplin button-down shirt"
-❌ WRONG: "black dress" → ✅ CORRECT: "jet black ponte knit sheath dress"
-❌ WRONG: "gray sweater" → ✅ CORRECT: "charcoal heather merino wool crewneck sweater"
+EXAMPLES OF REQUIRED PRECISION WITH COLOR INTELLIGENCE:
+
+❌ WRONG: "blue jeans" 
+✅ CORRECT: "medium-wash indigo denim straight-leg jeans" with colorIntelligence: {
+  "primaryColor": "indigo denim", 
+  "undertones": "cool blue undertones", 
+  "colorFamily": "blues", 
+  "seasonalMapping": "year-round",
+  "coordinationPotential": "neutral base",
+  "colorTemperature": "cool-toned"
+}
+
+❌ WRONG: "white shirt" 
+✅ CORRECT: "crisp ivory cotton poplin button-down shirt" with colorIntelligence: {
+  "primaryColor": "ivory white", 
+  "undertones": "warm cream undertones", 
+  "colorFamily": "neutrals", 
+  "seasonalMapping": "year-round",
+  "coordinationPotential": "universal base",
+  "mixingPotential": "pairs with any color beautifully"
+}
+
+❌ WRONG: "black dress" 
+✅ CORRECT: "jet black ponte knit sheath dress" with colorIntelligence: {
+  "primaryColor": "jet black", 
+  "undertones": "true black no undertones", 
+  "colorFamily": "neutrals", 
+  "seasonalMapping": "winter",
+  "coordinationPotential": "statement piece",
+  "colorTemperature": "neutral-temperature"
+}
 
 CRITICAL: Be so precise that two people analyzing the same item would get nearly identical results. This level of accuracy is essential for the wardrobe app to function properly.
 `;
@@ -1522,9 +1588,19 @@ ${boundingInfo}
 FOCUSED ANALYSIS TASK:
 Analyze ONLY the ${itemContext.itemType} described above. Ignore all other items in the image.
 
+ADVANCED COLOR INTELLIGENCE REQUIREMENTS:
+🎨 Apply the same sophisticated color analysis from the main system:
+- Use PRECISE color names: "sage green", "midnight navy", "burgundy wine", "champagne beige"
+- Identify undertones: "cool gray undertones", "warm golden undertones"
+- Classify color family: "blues", "neutrals", "greens", "reds", "pastels"
+- Determine seasonal mapping: "autumn", "spring", "winter", "summer", "year-round"
+- Assess coordination potential: "neutral base", "statement piece", "monochromatic friendly"
+- Note color temperature: "warm-toned", "cool-toned", "neutral-temperature"
+- Specify saturation: "muted", "vibrant", "deep", "rich", "pastel"
+
 CRITICAL REQUIREMENTS:
 1. Focus exclusively on the specified ${itemContext.itemType}
-2. Use PRECISE color terminology and fabric analysis
+2. Apply ADVANCED color intelligence analysis
 3. Provide detailed style and fit descriptions
 4. Be specific about construction details
 5. Create tags that distinguish this item from others
@@ -1537,7 +1613,18 @@ Return ONLY raw JSON in this exact format:
   "color": "Primary color with precise terminology and undertones",
   "material": "Specific fabric type with texture details",
   "style": "Precise style category with construction details",
-  "fit": "Exact fit description with silhouette details"
+  "fit": "Exact fit description with silhouette details",
+  "colorIntelligence": {
+    "primaryColor": "Most dominant color with sophisticated naming",
+    "undertones": "Specific undertone classification",
+    "colorFamily": "Broad color family classification",
+    "seasonalMapping": "Seasonal color category",
+    "coordinationPotential": "How this color works with others",
+    "colorTemperature": "Temperature classification",
+    "accentColors": "Secondary colors if multi-colored (array)",
+    "saturation": "Color intensity level",
+    "mixingPotential": "Specific coordination suggestions"
+  }
 }
 
 Focus exclusively on the ${itemContext.itemType} - ignore any other clothing items visible in the image.`;
