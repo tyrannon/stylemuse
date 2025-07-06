@@ -358,8 +358,15 @@ const WardrobeUploadScreen = () => {
         try {
           const storedProfileImage = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE);
           if (storedProfileImage) {
-            const parsedProfileImage = JSON.parse(storedProfileImage);
-            setProfileImage(parsedProfileImage);
+            // Profile image is likely stored as a plain string URI, not JSON
+            // Try parsing first, but fallback to using as string
+            try {
+              const parsedProfileImage = JSON.parse(storedProfileImage);
+              setProfileImage(parsedProfileImage);
+            } catch (parseError) {
+              // If JSON parse fails, it's probably a plain string URI
+              setProfileImage(storedProfileImage);
+            }
             console.log('✅ Loaded profile image');
           }
         } catch (error) {
