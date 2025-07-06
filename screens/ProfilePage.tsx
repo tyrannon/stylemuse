@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
 import { EnhancedStyleDNA } from '../types/Avatar';
 import { PersistenceService } from '../services/PersistenceService';
+import { useTheme } from '../contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 interface ProfilePageProps {
@@ -35,6 +36,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   triggerHaptic,
   navigateToAvatarCustomization,
 }) => {
+  const { theme, themeMode, isDark, setThemeMode, toggleTheme } = useTheme();
   return (
     <View style={{ marginTop: 20 }}>
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
@@ -290,6 +292,87 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </View>
       </View>
 
+      {/* App Settings Section */}
+      <View style={[styles.settingsSection, { backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.settingsSectionTitle, { color: theme.colors.text }]}>
+          ⚙️ App Settings
+        </Text>
+        <Text style={[styles.settingsSectionSubtitle, { color: theme.colors.textSecondary }]}>
+          Customize your StyleMuse experience
+        </Text>
+
+        {/* Dark Mode Toggle */}
+        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.settingHeader}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
+                🌙 Dark Mode
+              </Text>
+              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+                {themeMode === 'system' 
+                  ? `Auto (Currently ${isDark ? 'Dark' : 'Light'})`
+                  : themeMode === 'dark' 
+                    ? 'Always Dark' 
+                    : 'Always Light'
+                }
+              </Text>
+            </View>
+          </View>
+          
+          {/* Theme Mode Options */}
+          <View style={styles.themeOptions}>
+            {(['light', 'dark', 'system'] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.themeOption,
+                  {
+                    backgroundColor: themeMode === mode ? theme.colors.primary : theme.colors.surface,
+                    borderColor: themeMode === mode ? theme.colors.primary : theme.colors.border,
+                  }
+                ]}
+                onPress={async () => {
+                  await triggerHaptic('light');
+                  setThemeMode(mode);
+                }}
+              >
+                <Text style={styles.themeOptionIcon}>
+                  {mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '🔄'}
+                </Text>
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    {
+                      color: themeMode === mode ? '#FFFFFF' : theme.colors.text,
+                    }
+                  ]}
+                >
+                  {mode === 'light' ? 'Light' : mode === 'dark' ? 'Dark' : 'Auto'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
+            💡 Auto mode follows your device's appearance settings. Perfect for sensitive eyes during late-night outfit planning!
+          </Text>
+        </View>
+
+        {/* Future Settings Placeholder */}
+        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.settingHeader}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
+                🔮 More Settings Coming Soon
+              </Text>
+              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+                Notifications, export options, and more personalization features
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
       {/* Backup & Data Management Section */}
       <BackupSection />
 
@@ -459,6 +542,78 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#666',
+  },
+  // App Settings Section Styles
+  settingsSection: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    padding: 16,
+  },
+  settingsSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  settingsSectionSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  settingCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  settingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    gap: 6,
+  },
+  themeOptionIcon: {
+    fontSize: 16,
+  },
+  themeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  settingNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
   // Backup Section Styles
   backupSection: {

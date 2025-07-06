@@ -39,6 +39,7 @@ import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -183,6 +184,7 @@ const WardrobeUploadScreen = () => {
   const modalState = useModalState();
   const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll);
   const smartSuggestions = useSmartSuggestions();
+  const styleDNALoading = useUnifiedLoading(); // For Style DNA analysis
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
@@ -866,6 +868,7 @@ const WardrobeUploadScreen = () => {
   // Function to analyze profile image and extract style DNA
   const analyzeProfileImage = async (imageUri: string) => {
     setAnalyzingProfile(true);
+    styleDNALoading.showLoading(LOADING_CONFIGS.STYLE_DNA_ANALYSIS);
     
     try {
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
@@ -927,6 +930,7 @@ const WardrobeUploadScreen = () => {
       alert("Failed to analyze your style. Please try again.");
     } finally {
       setAnalyzingProfile(false);
+      styleDNALoading.hideLoading();
     }
   };
 
@@ -2872,13 +2876,22 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     />
   </View>
   
-  {/* Unified Loading Overlay */}
+  {/* Unified Loading Overlay - Outfit Generation */}
   <UnifiedLoadingOverlay
     visible={outfitGeneration.unifiedLoading.isLoading}
     title={outfitGeneration.unifiedLoading.loadingConfig?.title || ''}
     subtitle={outfitGeneration.unifiedLoading.loadingConfig?.subtitle}
     steps={outfitGeneration.unifiedLoading.loadingConfig?.steps}
     style={outfitGeneration.unifiedLoading.loadingConfig?.style}
+  />
+
+  {/* Unified Loading Overlay - Style DNA Analysis */}
+  <UnifiedLoadingOverlay
+    visible={styleDNALoading.isLoading}
+    title={styleDNALoading.loadingConfig?.title || ''}
+    subtitle={styleDNALoading.loadingConfig?.subtitle}
+    steps={styleDNALoading.loadingConfig?.steps}
+    style={styleDNALoading.loadingConfig?.style}
   />
   
   {/* Gear Slot Grid */}

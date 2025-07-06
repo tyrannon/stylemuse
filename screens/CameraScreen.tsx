@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCameraControls } from '../hooks/useCameraControls';
 import { detectMultipleClothingItems } from '../utils/openai';
+import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -46,6 +48,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     takePicture,
   } = useCameraControls();
 
+  const unifiedLoading = useUnifiedLoading();
   const [isInitializing, setIsInitializing] = useState(true);
   const [multiItemMode, setMultiItemMode] = useState(false);
   const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
@@ -103,6 +106,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   const handleMultiItemDetection = async (photoUri: string) => {
     setIsProcessingMultiItem(true);
+    unifiedLoading.showLoading(LOADING_CONFIGS.MULTI_ITEM_DETECTION);
     try {
       // Convert image to base64 for AI analysis
       const response = await fetch(photoUri);
@@ -150,6 +154,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       );
     } finally {
       setIsProcessingMultiItem(false);
+      unifiedLoading.hideLoading();
     }
   };
 
@@ -320,6 +325,15 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           )}
         </View>
       )}
+
+      {/* Unified Loading Overlay */}
+      <UnifiedLoadingOverlay
+        visible={unifiedLoading.isLoading}
+        title={unifiedLoading.loadingConfig?.title || ''}
+        subtitle={unifiedLoading.loadingConfig?.subtitle}
+        steps={unifiedLoading.loadingConfig?.steps}
+        style={unifiedLoading.loadingConfig?.style}
+      />
     </View>
   );
 };
