@@ -202,6 +202,9 @@ const WardrobeUploadScreen = () => {
   const [currentScale, setCurrentScale] = useState(1);
   const [builderShakeValue] = useState(new Animated.Value(0));
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
+  
+  // Multi-item detection state
+  const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
 
   // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -695,6 +698,7 @@ const WardrobeUploadScreen = () => {
   const handlePhotoEditingSave = async (editedPhotoUri: string) => {
     modalState.setShowPhotoEditing(false);
     setCapturedPhotoUri(null);
+    setDetectedItemsState([]);
     
     // Process the edited photo through AI analysis
     await handleAutoDescribeAndSave(editedPhotoUri, false);
@@ -703,6 +707,8 @@ const WardrobeUploadScreen = () => {
   // Function to handle photo editing cancel/retake
   const handlePhotoEditingRetake = () => {
     modalState.setShowPhotoEditing(false);
+    setCapturedPhotoUri(null);
+    setDetectedItemsState([]);
     modalState.setShowCamera(true);
   };
 
@@ -713,6 +719,48 @@ const WardrobeUploadScreen = () => {
     
     // Process directly through AI analysis (skip editing screen for now to avoid complexity)
     await handleAutoDescribeAndSave(photoUri, false);
+  };
+
+  // Function to handle multi-item detection from camera
+  const handleMultiItemDetected = async (detectedItems: any[]) => {
+    modalState.setShowCamera(false);
+    
+    if (detectedItems.length === 0) {
+      Alert.alert('No Items Detected', 'No clothing items were detected in the photo.');
+      return;
+    }
+
+    // Navigate to photo editing with multi-item mode
+    const photoUri = detectedItems[0].originalImageUri;
+    setCapturedPhotoUri(photoUri);
+    modalState.setShowPhotoEditing(true);
+    
+    // Store detected items for photo editing screen
+    setDetectedItemsState(detectedItems);
+  };
+
+  // Function to handle multi-item save from photo editing
+  const handleMultiItemSave = async (croppedItems: any[]) => {
+    try {
+      modalState.setShowPhotoEditing(false);
+      setCapturedPhotoUri(null);
+      setDetectedItemsState([]);
+      
+      console.log(`🔍 Processing ${croppedItems.length} cropped items for wardrobe save...`);
+      
+      // Use the bulk save function from wardrobe data hook
+      await saveBulkWardrobeItems(croppedItems);
+      
+      Alert.alert(
+        'Success!', 
+        `${croppedItems.length} items have been added to your wardrobe.`,
+        [{ text: 'OK', onPress: () => navigateToWardrobe() }]
+      );
+      
+    } catch (error) {
+      console.error('❌ Error saving multi-item detection results:', error);
+      Alert.alert('Error', 'Failed to save items to wardrobe. Please try again.');
+    }
   };
 
 
@@ -3364,6 +3412,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
             onCancel={() => modalState.setShowCamera(false)}
             mode="wardrobe"
             showGrid={true}
+            onMultiItemDetected={handleMultiItemDetected}
           />
         </View>
       )}
@@ -3376,6 +3425,9 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
             onSave={handlePhotoEditingSave}
             onRetake={handlePhotoEditingRetake}
             mode="wardrobe"
+            multiItemMode={detectedItemsState.length > 0}
+            detectedItems={detectedItemsState}
+            onMultiItemSave={handleMultiItemSave}
           />
         </View>
       )}
