@@ -74,24 +74,34 @@ Examples:
 
 ## 🔄 Development Workflow
 
+### Normal Development Mode (Current) ✅
+**We're on `main-stable` with `main` as our safety net!**
+
 ### Before Any Changes
 ```bash
 # 1. Verify current state
 git status
 git branch  # Should be on main-stable
 
-# 2. Create backup
-git checkout -b backup-before-[change-description]
+# 2. For major changes, create feature branch (optional)
+git checkout -b feature-[description]  # Only for big features
 
-# 3. Document intention
-# Update relevant docs with planned changes
+# 3. For normal development, work directly on main-stable
+# Safe because we have main branch as golden backup
 ```
 
 ### Making Changes
 1. **One Change At A Time**: Single feature/component per session
 2. **Test Immediately**: Verify change works without breaking existing
-3. **Document Changes**: Update architecture docs if patterns change
-4. **Commit Frequently**: Small, descriptive commits
+3. **Commit Frequently**: Claude can suggest commits on main-stable
+4. **Push Regularly**: Keep remote backup of main-stable updated
+5. **Document Changes**: Update architecture docs if patterns change
+
+### Commit Strategy (RESTORED)
+- ✅ Claude can suggest commits during development
+- ✅ Regular commits to track progress
+- ✅ Push to origin/main-stable for backup
+- ✅ Descriptive commit messages with co-author
 
 ### Testing Requirements
 - ✅ Test on actual device (not just simulator)
@@ -273,10 +283,32 @@ console.log('✅ Success [Operation]:', result);
 
 ## 🎯 Quick Reference
 
-### Branches
-- **Stable Branch**: `main-stable`
-- **Emergency Branch**: `main-stable-backup`
-- **Refactor Archive**: `refactor-save-attempt`
+### Branch Strategy & Git Workflow 🌿
+
+**Current Working Branch**: `main-stable` ✅
+- This is our **active development branch** where all new work happens
+- Safe to commit, push, and make changes
+- Contains all latest improvements and fixes
+- Claude is authorized to suggest commits on this branch
+
+**Safety Net Branches**:
+- **`main`**: Original stable codebase (commit `b80907c`) - NEVER TOUCH
+  - This is our "golden backup" of the last known working state
+  - Emergency fallback if everything goes wrong
+- **`main-stable-backup`**: Backup of main-stable branch
+- **`refactor-save-attempt`**: Archive of previous refactor attempt
+
+**Git Permissions for Claude**:
+- ✅ **ALLOWED**: Commits on `main-stable` branch
+- ✅ **ALLOWED**: Push suggestions for `main-stable` 
+- ❌ **FORBIDDEN**: Any changes to `main` branch
+- ❌ **FORBIDDEN**: Force pushes or destructive operations
+
+**Recovery Strategy**: If something breaks badly:
+```bash
+git checkout main  # Return to golden backup
+git checkout -b main-stable-recovery  # Create new working branch
+```
 
 ### Core Documentation
 - **Architecture**: `WORKING_ARCHITECTURE.md`
