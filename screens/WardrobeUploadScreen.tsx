@@ -40,6 +40,7 @@ import { AddItemPage } from './AddItemPage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -58,6 +59,7 @@ const WardrobeUploadScreen = () => {
   // Use our custom hooks for data and navigation state
   const wardrobeData = useWardrobeData();
   const navigationState = useNavigationState();
+  const { theme, isDark } = useTheme();
   
   // Extract data and functions from hooks
   const {
@@ -1786,22 +1788,22 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   // View for the Wardrobe Upload Screen 
   // This is the main component that renders the wardrobe upload screen
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Main Content */}
       <View style={{ flex: 1 }}>
         <ScrollView 
           ref={mainScrollViewRef}
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: theme.colors.background }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.container}>
+          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
 
 {/* App Title */}
 <View style={{ marginBottom: 20, alignItems: 'center' }}>
-  <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: '#333' }}>
+  <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: theme.colors.text }}>
     StyleMuse
   </Text>
-  <Text style={{ fontSize: 14, color: '#666', textAlign: 'center' }}>
+  <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
     AI-Powered Virtual Closet ✨
   </Text>
 </View>
@@ -1849,37 +1851,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   </View>
 )}
 
-{/* Style DNA Analysis Progress */}
-{analyzingProfile && (
-  <View style={{ marginBottom: 20, alignItems: 'center', padding: 15, backgroundColor: '#f0f8f0', borderRadius: 12, marginHorizontal: 20 }}>
-    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#4CAF50' }}>
-      Analyzing Style DNA... 🧬
-    </Text>
-    <View style={{
-      width: 250,
-      height: 8,
-      backgroundColor: '#e0e0e0',
-      borderRadius: 4,
-      overflow: 'hidden',
-    }}>
-      <Animated.View style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#4CAF50',
-        borderRadius: 4,
-        transform: [{
-          translateX: spinValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [-250, 250]
-          })
-        }]
-      }} />
-    </View>
-    <Text style={{ fontSize: 12, color: '#666', marginTop: 8, textAlign: 'center' }}>
-      AI is analyzing your style preferences and appearance
-    </Text>
-  </View>
-)}
+{/* Style DNA Analysis now uses Unified Loading Overlay */}
 
 {/* Spinning animation and loading text for outfit generation */}
 {outfitGeneration.generatingOutfit && (

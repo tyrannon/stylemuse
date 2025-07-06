@@ -123,6 +123,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       console.log('🔍 Starting multi-item detection...');
       const result = await detectMultipleClothingItems(base64);
       
+      console.log('📊 Multi-item detection result:', result);
+      console.log('🔢 Items found:', result.items?.length || 0);
+      
       if (result.success !== false && result.items && result.items.length > 0) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onMultiItemDetected!(result.items.map((item: any) => ({

@@ -1059,27 +1059,30 @@ export async function detectMultipleClothingItems(base64Image: string): Promise<
 
   console.log('🔍 Detecting multiple clothing items in photo...');
 
-  const prompt = `You are an expert clothing detector with precise spatial analysis. Analyze this image and identify EVERY separate clothing item with exact positioning.
+  const prompt = `You are an AGGRESSIVE clothing detector who must find EVERY single clothing item in the image. Your job is to identify ALL separate clothing items, even if they're partially visible or overlapping.
 
-TASK: Detect each individual clothing item and provide precise bounding box coordinates.
+🔍 CRITICAL MISSION: Find EVERY piece of clothing in this image!
 
-For EACH clothing item you find:
-1. Identify the item type and basic details
-2. Provide precise bounding box coordinates (0-100 scale)
-3. Ensure each item is distinct (no duplicates)
-4. Assess quality and suitability
+DETECTION STRATEGY:
+- Scan the ENTIRE image systematically from left to right, top to bottom
+- Look for ANY clothing item, even if partially visible or small
+- Different pairs of shoes = 2 separate items (left shoe + right shoe, OR different shoe types)
+- Different clothing pieces = separate items (shirt + pants = 2 items)
+- Be LIBERAL with detection - when in doubt, include it!
 
-COORDINATE SYSTEM:
-- Use 0-100 scale for x,y coordinates
-- top_left: [x, y] where (0,0) is top-left corner
-- bottom_right: [x, y] where (100,100) is bottom-right corner
-- Be precise - these will be used for cropping
+WHAT TO DETECT (be aggressive):
+✅ SHOES: sneakers, boots, heels, sandals, slippers (each pair or individual shoe)
+✅ TOPS: shirts, t-shirts, tanks, blouses, sweaters, jackets, hoodies
+✅ BOTTOMS: pants, jeans, shorts, skirts, leggings
+✅ DRESSES: any type of dress or romper
+✅ ACCESSORIES: hats, bags, belts, scarves, jewelry
+✅ UNDERGARMENTS: bras, underwear if visible
+✅ ACTIVEWEAR: sports bras, athletic shorts, gym clothes
 
-REQUIREMENTS:
-- Look for: shirts, pants, dresses, skirts, jackets, sweaters, shoes, accessories, hats
-- Ignore: people wearing clothes, backgrounds, furniture
-- Focus on: individual clothing items laid out, hung up, or clearly separated
-- Each item must be DISTINCT - no analyzing the same garment twice
+COORDINATE SYSTEM (0-100 scale):
+- top_left: [x, y] where (0,0) = top-left corner
+- bottom_right: [x, y] where (100,100) = bottom-right corner
+- Be generous with bounding boxes to capture the full item
 
 Return ONLY valid JSON:
 {

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface BottomNavigationProps {
   // Page states
@@ -52,6 +53,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   builderShakeValue,
   wardrobeShakeValue,
 }) => {
+  const { theme } = useTheme();
   const shakeButton = (animatedValue: Animated.Value) => {
     Animated.sequence([
       Animated.timing(animatedValue, {
@@ -78,7 +80,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   return (
-    <View style={styles.bottomNavigation}>
+    <View style={[styles.bottomNavigation, { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>
       {/* Outfit Builder Toggle Button */}
       <Animated.View style={{
         transform: [{
@@ -98,10 +100,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, showOutfitBuilder && styles.bottomNavIconActive]}>
+          <Text style={[styles.bottomNavIcon, { color: showOutfitBuilder ? theme.colors.primary : theme.colors.textSecondary }]}>
             🎮
           </Text>
-          <Text style={[styles.bottomNavLabel, showOutfitBuilder && styles.bottomNavLabelActive]}>
+          <Text style={[styles.bottomNavLabel, { color: showOutfitBuilder ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitBuilder ? 'bold' : '500' }]}>
             Builder
           </Text>
         </TouchableOpacity>
@@ -126,10 +128,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, showWardrobe && styles.bottomNavIconActive]}>
+          <Text style={[styles.bottomNavIcon, { color: showWardrobe ? theme.colors.primary : theme.colors.textSecondary }]}>
             👔
           </Text>
-          <Text style={[styles.bottomNavLabel, showWardrobe && styles.bottomNavLabelActive]}>
+          <Text style={[styles.bottomNavLabel, { color: showWardrobe ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showWardrobe ? 'bold' : '500' }]}>
             Wardrobe
           </Text>
         </TouchableOpacity>
@@ -162,10 +164,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         }}
         style={styles.bottomNavButton}
       >
-        <Text style={[styles.bottomNavIcon, showOutfitsPage && styles.bottomNavIconActive]}>
+        <Text style={[styles.bottomNavIcon, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary }]}>
           👗
         </Text>
-        <Text style={[styles.bottomNavLabel, showOutfitsPage && styles.bottomNavLabelActive]}>
+        <Text style={[styles.bottomNavLabel, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitsPage ? 'bold' : '500' }]}>
           Outfits
         </Text>
       </TouchableOpacity>
@@ -184,10 +186,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         }}
         style={styles.bottomNavButton}
       >
-        <Text style={[styles.bottomNavIcon, showProfilePage && styles.bottomNavIconActive]}>
+        <Text style={[styles.bottomNavIcon, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary }]}>
           🧬
         </Text>
-        <Text style={[styles.bottomNavLabel, showProfilePage && styles.bottomNavLabelActive]}>
+        <Text style={[styles.bottomNavLabel, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showProfilePage ? 'bold' : '500' }]}>
           Profile
         </Text>
       </TouchableOpacity>
