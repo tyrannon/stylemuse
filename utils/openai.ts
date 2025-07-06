@@ -1092,6 +1092,182 @@ Respond in JSON format:
   }
 }
 
+/**
+ * Multi-Item Detection with Bounding Boxes: Identify and locate multiple clothing items in a single photo
+ */
+export async function detectMultipleClothingItems(base64Image: string): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not found for multi-item detection');
+    return { items: [], success: false, message: 'AI detection unavailable' };
+  }
+
+  console.log('🔍 Detecting multiple clothing items in photo...');
+
+  const prompt = `You are an expert clothing detector with precise spatial analysis. Analyze this image and identify EVERY separate clothing item with exact positioning.
+
+TASK: Detect each individual clothing item and provide precise bounding box coordinates.
+
+For EACH clothing item you find:
+1. Identify the item type and basic details
+2. Provide precise bounding box coordinates (0-100 scale)
+3. Ensure each item is distinct (no duplicates)
+4. Assess quality and suitability
+
+COORDINATE SYSTEM:
+- Use 0-100 scale for x,y coordinates
+- top_left: [x, y] where (0,0) is top-left corner
+- bottom_right: [x, y] where (100,100) is bottom-right corner
+- Be precise - these will be used for cropping
+
+REQUIREMENTS:
+- Look for: shirts, pants, dresses, skirts, jackets, sweaters, shoes, accessories, hats
+- Ignore: people wearing clothes, backgrounds, furniture
+- Focus on: individual clothing items laid out, hung up, or clearly separated
+- Each item must be DISTINCT - no analyzing the same garment twice
+
+Return ONLY valid JSON:
+{
+  "itemsFound": 2,
+  "items": [
+    {
+      "id": 1,
+      "itemType": "t-shirt",
+      "description": "White cotton t-shirt with graphic print",
+      "boundingBox": {
+        "top_left": [20, 15],
+        "bottom_right": [65, 60]
+      },
+      "confidence": 95,
+      "suitable": true,
+      "reason": "Clear view of complete garment, good lighting",
+      "uniqueFeatures": "graphic print on front"
+    },
+    {
+      "id": 2,
+      "itemType": "cap", 
+      "description": "Blue baseball cap",
+      "boundingBox": {
+        "top_left": [70, 10],
+        "bottom_right": [95, 35]
+      },
+      "confidence": 88,
+      "suitable": true,
+      "reason": "Clearly visible, distinct from other items",
+      "uniqueFeatures": "curved brim, solid color"
+    }
+  ],
+  "quality": "good",
+  "lighting": "adequate",
+  "recommendation": "All items have distinct boundaries suitable for individual cropping"
+}
+
+If NO clothing items found or image quality is poor, return:
+{
+  "itemsFound": 0,
+  "items": [],
+  "quality": "poor",
+  "lighting": "inadequate", 
+  "recommendation": "Take a clearer photo with better lighting"
+}`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a clothing detection specialist. You identify individual clothing items in photos for wardrobe cataloging."
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 1000,
+    temperature: 0.1, // Low temperature for consistent detection
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("🚨 OpenAI Multi-Item Detection Error:", res.status, errorText);
+      return { 
+        items: [], 
+        success: false, 
+        message: `AI detection failed: ${res.status}` 
+      };
+    }
+
+    const json = await res.json();
+    const responseText = json?.choices?.[0]?.message?.content;
+
+    if (!responseText) {
+      return { 
+        items: [], 
+        success: false, 
+        message: 'No response from AI detector' 
+      };
+    }
+
+    try {
+      // Clean and parse JSON response
+      let cleanResult = responseText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .replace(/^[^{]*{/, '{')
+        .replace(/}[^}]*$/, '}')
+        .trim();
+
+      const detectionResult = JSON.parse(cleanResult);
+      
+      console.log(`✅ Multi-item detection complete: ${detectionResult.itemsFound} items found`);
+      detectionResult.items?.forEach((item: any, index: number) => {
+        console.log(`  ${index + 1}. ${item.itemType}: ${item.description} (${item.confidence}% confidence)`);
+      });
+
+      return {
+        ...detectionResult,
+        success: true,
+        message: `Detected ${detectionResult.itemsFound} clothing items`
+      };
+
+    } catch (parseError) {
+      console.error("❌ Failed to parse multi-item detection JSON:", parseError);
+      console.error("Raw response:", responseText);
+      
+      return { 
+        items: [], 
+        success: false, 
+        message: 'Failed to parse AI detection results' 
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ detectMultipleClothingItems Error:", error);
+    return { 
+      items: [], 
+      success: false, 
+      message: `Detection error: ${error}` 
+    };
+  }
+}
+
 export async function generateIntelligentOutfitSelection(wardrobeItems: any[], context: any, styleDNA: any = null): Promise<any> {
   if (!OPENAI_API_KEY) {
     console.warn('⚠️ No OpenAI API key found for intelligent outfit selection');
