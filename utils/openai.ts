@@ -563,78 +563,34 @@ Style: High-end fashion photography showcasing perfect outfit coordination for t
 
 // Function to generate a weather-based outfit image
 export async function generateWeatherBasedOutfit(clothingItems: any[], styleDNA: any = null, weatherData: any = null, gender: string | null = null) {
-  // Create detailed clothing descriptions
-  const detailedDescriptions = clothingItems.map(item => {
-    if (item.color && item.material && item.style) {
-      return `${item.color} ${item.material} ${item.style} with ${item.fit} fit - ${item.description}`;
+  // Create concise clothing descriptions
+  const shortDescriptions = clothingItems.map(item => {
+    if (item.color && item.style) {
+      return `${item.color} ${item.style}`;
     }
-    return item.description || item;
-  });
+    return item.title || item.description || 'clothing item';
+  }).slice(0, 6); // Limit to 6 items to prevent length issues
 
-  // Create weather context
+  // Create concise weather context
   let weatherContext = "";
   if (weatherData) {
-    weatherContext = `
-WEATHER CONTEXT:
-- Temperature: ${weatherData.temperature}°F (feels like ${weatherData.feels_like}°F)
-- Conditions: ${weatherData.description}
-- Location: ${weatherData.city}
-
-WEATHER STYLING:
-- Outfit appropriate for ${weatherData.temperature}°F
-- Suitable for ${weatherData.description} conditions
-- Practical and stylish for this weather
-`;
+    weatherContext = `Weather: ${weatherData.temperature}°F, ${weatherData.description}. `;
   }
 
-  let weatherOutfitPrompt = `
-Create a professional fashion photograph of a stylish person wearing this outfit:
-
-${detailedDescriptions.map((desc, i) => `${i + 1}. ${desc}`).join('\n')}
-
-${weatherContext}
-`;
-
-  // Add gender specification if provided
+  // Create gender context
+  let genderContext = "";
   if (gender) {
-    const genderText = gender === 'male' ? 'masculine' : 
-                      gender === 'female' ? 'feminine' : 
-                      'non-binary';
-    weatherOutfitPrompt += `
-GENDER IDENTITY: The model should have a ${genderText} appearance and styling appropriate for ${genderText} fashion.
-`;
+    const genderText = gender === 'male' ? 'masculine' : gender === 'female' ? 'feminine' : 'non-binary';
+    genderContext = `${genderText} styling. `;
   }
 
-  // Add general styling preferences if available (much less specific)
-  if (styleDNA && styleDNA.appearance) {
-    weatherOutfitPrompt += `
-STYLING PREFERENCES:
-- Hair: ${styleDNA.appearance.hair_color} ${styleDNA.appearance.hair_length} hair with ${styleDNA.appearance.hair_texture} texture
-- Build: ${styleDNA.appearance.build} build for proper fit demonstration  
-- Aesthetic: ${styleDNA.style_preferences?.aesthetic_shown} style
-- Color coordination: Works well with ${styleDNA.appearance.complexion} tones
-- Age styling: ${styleDNA.appearance.age_range} appropriate fashion
-
-STYLING GUIDELINES:
-- Show how these pieces work for a ${styleDNA.appearance.build} build
-- Color choices should complement ${styleDNA.appearance.complexion} undertones
-- Overall styling should reflect a ${styleDNA.style_preferences?.aesthetic_shown} aesthetic
-- Demonstrate proper fit for this body type
-`;
+  // Create style context (much shorter)
+  let styleContext = "";
+  if (styleDNA?.appearance) {
+    styleContext = `${styleDNA.appearance.build} build, ${styleDNA.style_preferences?.aesthetic_shown || 'modern'} aesthetic. `;
   }
 
-  weatherOutfitPrompt += `
-REQUIREMENTS:
-- Professional fashion photography with excellent lighting
-- Full body shot showing complete outfit coordination
-- Clean, neutral background
-- Model posed naturally to show outfit details
-- High quality, photorealistic style
-- Focus on outfit coordination and styling
-- Show confidence and style appropriate for the weather
-
-Style: Contemporary fashion photography showcasing excellent outfit coordination.
-`;
+  let weatherOutfitPrompt = `Professional fashion photo: stylish person wearing ${shortDescriptions.join(', ')}. ${weatherContext}${genderContext}${styleContext}Full body shot, clean background, excellent lighting, contemporary fashion photography.`;
 
   const payload = {
     model: "dall-e-3",

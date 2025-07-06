@@ -96,10 +96,10 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
     if (context === 'item' && currentItem) {
       const itemType = currentItem.category || currentItem.style || 'item';
       return {
-        text: `🎨 Outfit Ideas`,
-        subtitle: `Build a complete outfit around this ${itemType}`,
-        icon: 'shirt',
-        color: '#f59e0b',
+        text: `🎯 Generate Complete Outfit`,
+        subtitle: `AI will fill gear slots with this ${itemType} as centerpiece + matching pieces`,
+        icon: 'layers',
+        color: '#8b5cf6',
       };
     }
     
@@ -200,14 +200,20 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
 
   const renderButton = () => {
     if (size === 'small') {
+      const isItemContext = context === 'item' && currentItem;
       return (
         <TouchableOpacity
-          style={[styles.smallButton, { backgroundColor: buttonConfig.color }]}
+          style={[
+            isItemContext ? styles.smallItemButton : styles.smallButton, 
+            { backgroundColor: buttonConfig.color }
+          ]}
           onPress={handleQuickGenerate}
           disabled={smartSuggestions.isGenerating}
         >
-          <Ionicons name={buttonConfig.icon as any} size={16} color="white" />
-          <Text style={styles.smallButtonText}>AI</Text>
+          <Ionicons name={buttonConfig.icon as any} size={isItemContext ? 18 : 16} color="white" />
+          <Text style={isItemContext ? styles.smallItemButtonText : styles.smallButtonText}>
+            {isItemContext ? 'Complete Outfit' : 'AI'}
+          </Text>
         </TouchableOpacity>
       );
     }
@@ -376,6 +382,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  smallItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    minWidth: 140,
+    justifyContent: 'center',
+  },
+  smallItemButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // Medium button (general use)
