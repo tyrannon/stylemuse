@@ -12,14 +12,34 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { PhotoEditingToolbar } from './components/PhotoEditingToolbar';
 import { usePhotoEditor } from '../hooks/usePhotoEditor';
+import { BoundingBoxOverlay } from '../components/BoundingBoxOverlay';
+import { cropMultipleItems, getImageDimensions } from '../utils/imageCropping';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+interface DetectedItem {
+  id: number;
+  itemType: string;
+  description: string;
+  boundingBox: {
+    top_left: [number, number];
+    bottom_right: [number, number];
+  };
+  confidence: number;
+  suitable: boolean;
+  reason: string;
+  uniqueFeatures?: string;
+  originalImageUri?: string;
+}
 
 interface PhotoEditingScreenProps {
   photoUri: string;
   onSave: (editedPhotoUri: string) => void;
   onRetake: () => void;
   mode: 'wardrobe' | 'profile';
+  multiItemMode?: boolean;
+  detectedItems?: DetectedItem[];
+  onMultiItemSave?: (croppedItems: any[]) => void;
 }
 
 export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
@@ -27,6 +47,9 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
   onSave,
   onRetake,
   mode = 'wardrobe',
+  multiItemMode = false,
+  detectedItems = [],
+  onMultiItemSave,
 }) => {
   
   const {
@@ -43,12 +66,21 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
   } = usePhotoEditor(photoUri);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState(multiItemMode);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(0);
+  const [croppedItems, setCroppedItems] = useState<any[]>([]);
+  const [imageSize, setImageSize] = useState({ width: 1024, height: 1024 });
 
   const handleSave = async () => {
     try {
       setIsProcessing(true);
-      const finalPhotoUri = await saveEditedPhoto();
-      onSave(finalPhotoUri);
+      
+      if (multiItemMode && detectedItems.length > 0) {
+        await handleMultiItemSave();
+      } else {
+        const finalPhotoUri = await saveEditedPhoto();
+        onSave(finalPhotoUri);
+      }
     } catch (error) {
       console.error('Failed to save edited photo:', error);
       Alert.alert('Error', 'Failed to save edited photo.');
@@ -56,6 +88,46 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
       setIsProcessing(false);
     }
   };
+
+  const handleMultiItemSave = async () => {
+    if (!onMultiItemSave) {
+      Alert.alert('Error', 'Multi-item save handler not provided.');
+      return;
+    }
+
+    console.log('🔍 Processing multiple items for cropping...');
+    const croppedResults = await cropMultipleItems(
+      photoUri,
+      detectedItems,
+      imageSize.width,
+      imageSize.height
+    );
+
+    if (croppedResults.length === 0) {
+      Alert.alert('Error', 'Failed to crop any items. Please try again.');
+      return;
+    }
+
+    console.log(`✅ Successfully cropped ${croppedResults.length} items`);
+    onMultiItemSave(croppedResults);
+  };
+
+  const handleItemSelect = (item: DetectedItem) => {
+    const index = detectedItems.findIndex(d => d.id === item.id);
+    setSelectedItemIndex(index);
+    setShowBoundingBoxes(false);
+  };
+
+  const handleShowBoundingBoxes = () => {
+    setShowBoundingBoxes(true);
+  };
+
+  // Load image dimensions when component mounts
+  React.useEffect(() => {
+    if (multiItemMode) {
+      getImageDimensions(photoUri).then(setImageSize);
+    }
+  }, [multiItemMode, photoUri]);
 
   const handleRetake = () => {
     Alert.alert(
@@ -81,12 +153,18 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
         </TouchableOpacity>
         
         <Text style={styles.headerTitle}>
-          {mode === 'wardrobe' ? 'Edit Wardrobe Item' : 'Edit Profile Photo'}
+          {multiItemMode 
+            ? `Multi-Item (${detectedItems.length} found)` 
+            : mode === 'wardrobe' ? 'Edit Wardrobe Item' : 'Edit Profile Photo'
+          }
         </Text>
         
         <TouchableOpacity onPress={handleSave} style={styles.headerButton} disabled={isProcessing}>
           <Text style={styles.saveButtonText}>
-            {isProcessing ? 'Saving...' : 'Save'}
+            {isProcessing 
+              ? (multiItemMode ? 'Processing...' : 'Saving...') 
+              : (multiItemMode ? 'Save All' : 'Save')
+            }
           </Text>
         </TouchableOpacity>
       </View>
@@ -99,15 +177,27 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
           resizeMode="contain"
         />
         
+        {/* Multi-item bounding box overlay */}
+        {multiItemMode && showBoundingBoxes && (
+          <BoundingBoxOverlay
+            imageUri={photoUri}
+            detectedItems={detectedItems}
+            onItemSelect={handleItemSelect}
+            visible={true}
+            imageWidth={imageSize.width}
+            imageHeight={imageSize.height}
+          />
+        )}
+        
         {/* Tool-specific overlays */}
-        {editingState.currentTool === 'crop' && (
+        {!multiItemMode && editingState.currentTool === 'crop' && (
           <View style={styles.cropOverlay}>
             {/* TODO: Implement crop overlay with draggable handles */}
             <Text style={styles.overlayText}>Drag to crop</Text>
           </View>
         )}
         
-        {editingState.currentTool === 'adjust' && (
+        {!multiItemMode && editingState.currentTool === 'adjust' && (
           <View style={styles.adjustOverlay}>
             {/* TODO: Implement adjustment sliders overlay */}
             <Text style={styles.overlayText}>Adjust brightness, contrast, etc.</Text>
@@ -115,19 +205,41 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
         )}
       </View>
 
-      {/* Editing Toolbar */}
-      <PhotoEditingToolbar
-        currentTool={editingState.currentTool}
-        onToolSelect={handleToolSelect}
-        onUndo={undo}
-        onRedo={redo}
-        onReset={resetToOriginal}
-        canUndo={editingState.editHistory.length > 0}
-        canRedo={false} // TODO: Implement redo functionality
-      />
+      {/* Multi-item controls or standard editing toolbar */}
+      {multiItemMode ? (
+        <View style={styles.multiItemControls}>
+          <TouchableOpacity 
+            style={styles.multiItemButton}
+            onPress={handleShowBoundingBoxes}
+          >
+            <Ionicons name="scan" size={20} color="#007AFF" />
+            <Text style={styles.multiItemButtonText}>Show Detected Items</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.multiItemInfo}>
+            <Text style={styles.multiItemInfoText}>
+              {detectedItems.length} items detected
+            </Text>
+            <Text style={styles.multiItemInfoSubtext}>
+              Tap "Save All" to crop and save each item
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <PhotoEditingToolbar
+          currentTool={editingState.currentTool}
+          onToolSelect={handleToolSelect}
+          onUndo={undo}
+          onRedo={redo}
+          onReset={resetToOriginal}
+          canUndo={editingState.editHistory.length > 0}
+          canRedo={false} // TODO: Implement redo functionality
+        />
+      )}
 
-      {/* Tool-specific controls */}
-      <ScrollView style={styles.toolControls} showsVerticalScrollIndicator={false}>
+      {/* Tool-specific controls - hidden in multi-item mode */}
+      {!multiItemMode && (
+        <ScrollView style={styles.toolControls} showsVerticalScrollIndicator={false}>
         {editingState.currentTool === 'crop' && (
           <View style={styles.cropControls}>
             <Text style={styles.toolTitle}>Crop & Rotate</Text>
@@ -201,7 +313,8 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Bottom actions */}
       <View style={styles.bottomActions}>
@@ -366,6 +479,41 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontSize: 16,
     marginLeft: 8,
+  },
+  multiItemControls: {
+    backgroundColor: '#1C1C1E',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2E',
+  },
+  multiItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2C2C2E',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  multiItemButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  multiItemInfo: {
+    alignItems: 'center',
+  },
+  multiItemInfoText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  multiItemInfoSubtext: {
+    color: '#8E8E93',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
 

@@ -10,6 +10,13 @@ export const useNavigationState = () => {
   const [showAvatarCustomization, setShowAvatarCustomization] = useState(false);
   const [showAddItemPage, setShowAddItemPage] = useState(false);
   
+  // Camera and photo editing states
+  const [showCameraScreen, setShowCameraScreen] = useState(false);
+  const [showPhotoEditingScreen, setShowPhotoEditingScreen] = useState(false);
+  const [currentPhotoUri, setCurrentPhotoUri] = useState<string | null>(null);
+  const [multiItemMode, setMultiItemMode] = useState(false);
+  const [detectedItems, setDetectedItems] = useState<any[]>([]);
+  
   // Detail view states
   const [showingItemDetail, setShowingItemDetail] = useState(false);
   const [detailViewItem, setDetailViewItem] = useState<any | null>(null);
@@ -112,6 +119,46 @@ export const useNavigationState = () => {
     setShowProfilePage(true);
   };
 
+  // Camera navigation functions
+  const navigateToCamera = (mode: 'wardrobe' | 'profile' = 'wardrobe') => {
+    setShowCameraScreen(true);
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowProfilePage(false);
+    setShowOutfitsPage(false);
+    setShowAvatarCustomization(false);
+    setShowAddItemPage(false);
+    setShowPhotoEditingScreen(false);
+    closeAllDetails();
+  };
+
+  const navigateToPhotoEditing = (photoUri: string, multiItem = false, items: any[] = []) => {
+    setCurrentPhotoUri(photoUri);
+    setMultiItemMode(multiItem);
+    setDetectedItems(items);
+    setShowPhotoEditingScreen(true);
+    setShowCameraScreen(false);
+  };
+
+  const goBackToCamera = () => {
+    setShowCameraScreen(true);
+    setShowPhotoEditingScreen(false);
+    setCurrentPhotoUri(null);
+    setMultiItemMode(false);
+    setDetectedItems([]);
+  };
+
+  const closeCameraFlow = () => {
+    setShowCameraScreen(false);
+    setShowPhotoEditingScreen(false);
+    setCurrentPhotoUri(null);
+    setMultiItemMode(false);
+    setDetectedItems([]);
+    // Return to wardrobe after camera flow
+    navigateToWardrobe();
+  };
+
 
   const closeAllDetails = () => {
     setShowingItemDetail(false);
@@ -164,6 +211,18 @@ export const useNavigationState = () => {
     setShowAvatarCustomization,
     showAddItemPage,
     setShowAddItemPage,
+    
+    // Camera and photo editing states
+    showCameraScreen,
+    setShowCameraScreen,
+    showPhotoEditingScreen,
+    setShowPhotoEditingScreen,
+    currentPhotoUri,
+    setCurrentPhotoUri,
+    multiItemMode,
+    setMultiItemMode,
+    detectedItems,
+    setDetectedItems,
     
     // Detail views
     showingItemDetail,
@@ -223,6 +282,10 @@ export const useNavigationState = () => {
     navigateToAvatarCustomization,
     navigateToAddItem,
     goBackToProfile,
+    navigateToCamera,
+    navigateToPhotoEditing,
+    goBackToCamera,
+    closeCameraFlow,
     closeAllDetails,
     openItemDetail,
     openOutfitDetail,

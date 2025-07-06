@@ -13,6 +13,7 @@ import { CameraView } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCameraControls } from '../hooks/useCameraControls';
+import { detectMultipleClothingItems } from '../utils/openai';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ interface CameraScreenProps {
   mode: 'wardrobe' | 'profile' | 'outfit';
   showGrid?: boolean;
   flashMode?: 'on' | 'off' | 'auto';
+  onMultiItemDetected?: (items: any[]) => void;
 }
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
@@ -30,6 +32,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   mode = 'wardrobe',
   showGrid = false,
   flashMode = 'off',
+  onMultiItemDetected,
 }) => {
   const {
     state,
@@ -44,6 +47,8 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   } = useCameraControls();
 
   const [isInitializing, setIsInitializing] = useState(true);
+  const [multiItemMode, setMultiItemMode] = useState(false);
+  const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
 
   useEffect(() => {
     initializeCamera();
@@ -79,8 +84,12 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       const photoUri = await takePicture();
       
       if (photoUri) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onPhotoTaken(photoUri);
+        if (multiItemMode && onMultiItemDetected) {
+          await handleMultiItemDetection(photoUri);
+        } else {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          onPhotoTaken(photoUri);
+        }
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
@@ -90,6 +99,63 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
     }
+  };
+
+  const handleMultiItemDetection = async (photoUri: string) => {
+    setIsProcessingMultiItem(true);
+    try {
+      // Convert image to base64 for AI analysis
+      const response = await fetch(photoUri);
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          resolve(base64String.split(',')[1]); // Remove data:image/jpeg;base64, prefix
+        };
+        reader.readAsDataURL(blob);
+      });
+
+      console.log('🔍 Starting multi-item detection...');
+      const result = await detectMultipleClothingItems(base64);
+      
+      if (result.success !== false && result.items && result.items.length > 0) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onMultiItemDetected!(result.items.map((item: any) => ({
+          ...item,
+          originalImageUri: photoUri
+        })));
+      } else {
+        // Fallback to single-item mode
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(
+          'Multi-Item Detection',
+          'No multiple items detected. Would you like to save as a single item?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Save Single', onPress: () => onPhotoTaken(photoUri) }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Multi-item detection error:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Detection Error',
+        'Multi-item detection failed. Would you like to save as a single item?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save Single', onPress: () => onPhotoTaken(photoUri) }
+        ]
+      );
+    } finally {
+      setIsProcessingMultiItem(false);
+    }
+  };
+
+  const handleMultiItemToggle = () => {
+    setMultiItemMode(!multiItemMode);
+    Haptics.selectionAsync();
   };
 
   const handleFlashToggle = () => {
@@ -117,6 +183,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   };
 
   const getModeTitle = () => {
+    if (multiItemMode && mode === 'wardrobe') {
+      return 'Multi-Item Mode';
+    }
     switch (mode) {
       case 'wardrobe': return 'Add to Wardrobe';
       case 'profile': return 'Profile Photo';
@@ -199,6 +268,20 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             color={state.showGrid ? "#007AFF" : "white"} 
           />
         </TouchableOpacity>
+        
+        {mode === 'wardrobe' && onMultiItemDetected && (
+          <TouchableOpacity
+            style={[styles.sideButton, multiItemMode && styles.sideButtonActive]}
+            onPress={handleMultiItemToggle}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="layers" 
+              size={24} 
+              color={multiItemMode ? "#FF6B35" : "white"} 
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Bottom Controls */}
@@ -207,14 +290,17 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           <TouchableOpacity
             style={[
               styles.captureButton,
-              state.isCapturing && styles.captureButtonActive
+              (state.isCapturing || isProcessingMultiItem) && styles.captureButtonActive
             ]}
             onPress={handleTakePicture}
-            disabled={state.isCapturing}
+            disabled={state.isCapturing || isProcessingMultiItem}
             activeOpacity={0.8}
           >
             <View style={styles.captureButtonInner} />
           </TouchableOpacity>
+          {isProcessingMultiItem && (
+            <Text style={styles.processingText}>Detecting items...</Text>
+          )}
         </View>
       </View>
 
@@ -222,8 +308,16 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       {mode === 'wardrobe' && (
         <View style={styles.wardrobeOverlay}>
           <Text style={styles.overlayText}>
-            Center the clothing item in the frame
+            {multiItemMode 
+              ? 'Position multiple clothing items in frame'
+              : 'Center the clothing item in the frame'
+            }
           </Text>
+          {multiItemMode && (
+            <Text style={styles.overlaySubtext}>
+              AI will detect and crop each item separately
+            </Text>
+          )}
         </View>
       )}
     </View>
@@ -307,6 +401,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10,
   },
+  sideButtonActive: {
+    backgroundColor: 'rgba(255, 107, 53, 0.3)',
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+  },
   bottomControls: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 40 : 20,
@@ -351,6 +450,19 @@ const styles = StyleSheet.create({
   overlayText: {
     color: 'white',
     fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  overlaySubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  processingText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 8,
     textAlign: 'center',
     fontWeight: '500',
   },

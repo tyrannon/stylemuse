@@ -939,6 +939,62 @@ export const useWardrobeData = () => {
     }
   }, [suggestedItems]);
 
+  // BULK SAVE FUNCTION FOR MULTI-ITEM DETECTION
+  
+  // Function to save multiple wardrobe items at once (for multi-item detection)
+  const saveBulkWardrobeItems = useCallback(async (croppedItems: Array<{
+    id: number;
+    itemType: string;
+    description: string;
+    croppedUri: string;
+    originalBoundingBox: any;
+  }>): Promise<void> => {
+    try {
+      console.log(`🔄 Saving ${croppedItems.length} items to wardrobe...`);
+      
+      const newWardrobeItems: WardrobeItem[] = croppedItems.map((item, index) => ({
+        image: item.croppedUri,
+        title: `${item.itemType} ${index + 1}`,
+        description: item.description,
+        tags: [item.itemType, 'multi-item-detection', 'ai-analyzed'],
+        color: 'auto-detected',
+        material: 'auto-detected',
+        style: item.itemType,
+        fit: 'auto-detected',
+        category: categorizeItem({ 
+          image: item.croppedUri,
+          description: item.description,
+          tags: [item.itemType],
+          style: item.itemType
+        } as WardrobeItem),
+        // Initialize laundry status as clean for new items
+        laundryStatus: 'clean',
+        laundryHistory: [{
+          status: 'clean',
+          changedAt: new Date(),
+          notes: 'Added to wardrobe via multi-item detection'
+        }],
+        timesWashed: 0,
+        needsSpecialCare: false,
+      }));
+
+      // Add all new items to the wardrobe
+      const updatedItems = [...savedItems, ...newWardrobeItems];
+      setSavedItems(updatedItems);
+      
+      // Save to storage
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      console.log(`✅ ${newWardrobeItems.length} items saved successfully to wardrobe`);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('❌ Error saving bulk wardrobe items:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  }, [savedItems, categorizeItem]);
+
   return {
     // State
     savedItems,
@@ -988,6 +1044,9 @@ export const useWardrobeData = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    
+    // Bulk Save Function
+    saveBulkWardrobeItems,
     
     // Wishlist Management Functions
     addToWishlist,
