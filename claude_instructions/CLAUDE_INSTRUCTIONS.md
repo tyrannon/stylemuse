@@ -18,9 +18,12 @@ This is a working, user-loved app. Your role is to enhance it incrementally whil
 
 Before taking any action, review these docs:
 1. `WORKING_ARCHITECTURE.md` - Understand the current system
-2. `LESSONS_LEARNED.md` - Avoid past mistakes  
-3. `DEBUG_GUIDE.md` - Fix issues quickly
-4. `HANDOFF_GUIDE.md` - Development best practices
+2. `COMPLETE_PAGE_FLOW_ARCHITECTURE.md` - Page navigation & data flow
+3. `COMPREHENSIVE_FEATURE_INVENTORY.md` - Complete feature map
+4. `STYLEDNA_COMPLETE_GUIDE.md` - StyleDNA technical blueprint
+5. `LESSONS_LEARNED.md` - Avoid past mistakes  
+6. `DEBUG_GUIDE.md` - Fix issues quickly
+7. `HANDOFF_GUIDE.md` - Development best practices
 
 ## 🤖 AI Task Assignment Strategy
 
@@ -270,9 +273,25 @@ console.log('✅ Success [Operation]:', result);
 
 ## 🎯 Quick Reference
 
+### Branches
 - **Stable Branch**: `main-stable`
 - **Emergency Branch**: `main-stable-backup`
-- **Architecture Doc**: `WORKING_ARCHITECTURE.md`
+- **Refactor Archive**: `refactor-save-attempt`
+
+### Core Documentation
+- **Architecture**: `WORKING_ARCHITECTURE.md`
+- **Page Flow**: `COMPLETE_PAGE_FLOW_ARCHITECTURE.md`
+- **Features**: `COMPREHENSIVE_FEATURE_INVENTORY.md`
+- **StyleDNA**: `STYLEDNA_COMPLETE_GUIDE.md`
 - **Debug Help**: `DEBUG_GUIDE.md`
 - **Handoff Info**: `HANDOFF_GUIDE.md`
 - **Lessons**: `LESSONS_LEARNED.md`
+- **Verification**: `FEATURE_VERIFICATION_CHECKLIST.md`
+
+### Key Features Status
+- ✅ StyleDNA: Fully working in ProfilePage.tsx
+- ✅ Laundry Analytics: Fully working in WardrobePage.tsx
+- ✅ Navigation: Properly centered bottom navigation
+- ✅ AI Features: Complete OpenAI integration in /utils/openai.ts
+- ✅ Camera: Full camera and photo editing system
+- ✅ Data Persistence: Complete backup/restore system
