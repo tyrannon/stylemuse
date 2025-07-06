@@ -25,6 +25,28 @@ Before taking any action, review these docs:
 6. `DEBUG_GUIDE.md` - Fix issues quickly
 7. `HANDOFF_GUIDE.md` - Development best practices
 
+## 🚨 CRITICAL PROTECTION PROTOCOLS
+
+### Style DNA Prompt Protection
+**⚠️ NEVER MODIFY STYLE DNA PROMPTS WITHOUT EXPLICIT APPROVAL**
+
+- Current Style DNA prompts are battle-tested and working perfectly
+- Only ADD to prompts, never BREAK existing functionality
+- Required before any Style DNA changes:
+  1. User approval
+  2. Extensive testing 
+  3. Documented reason
+  4. Backup of working prompt
+
+### Dynamic Documentation Protocol
+**📋 ALWAYS CREATE FEATURE DOCUMENTATION**
+
+For every new feature introduced:
+1. Create dedicated Claude instruction file (e.g., `FEATURE_NAME_PLAN.md`)
+2. Update main `CLAUDE_INSTRUCTIONS.md` with reference
+3. Document implementation plan, user flow, and success criteria
+4. Maintain living roadmap of all features and their status
+
 ## 🤖 AI Task Assignment Strategy
 
 ### **Use Opus For** (Complex Analysis & Planning)
@@ -320,7 +342,30 @@ git checkout -b main-stable-recovery  # Create new working branch
 - **Lessons**: `LESSONS_LEARNED.md`
 - **Verification**: `FEATURE_VERIFICATION_CHECKLIST.md`
 - **🎯 Multi-Item Plan**: `MULTI_ITEM_DETECTION_PLAN.md` ← **COMPLETED ✅**
-- **🎯 Current Priority**: `INDIVIDUAL_ITEM_OUTFIT_GENERATION_PLAN.md` ← **URGENT FIX NEEDED**
+- **🎯 Outfit Generation**: `INDIVIDUAL_ITEM_OUTFIT_GENERATION_PLAN.md` ← **COMPLETED ✅**
+- **🎯 Current Priority**: `LOADING_ANIMATIONS_AND_DARK_MODE_PLAN.md` ← **ACTIVE PLANNING**
+
+## 🗺️ Feature Roadmap
+
+### ✅ **Completed Features**
+- Multi-item detection with bounding box UI
+- Individual item outfit generation (fixed & enhanced)
+- AI loading overlays with progress steps
+- Improved outfit generation button clarity
+
+### 🚧 **In Progress**
+- Unified loading animation system
+- Dark mode implementation planning
+
+### 📋 **Planned Features**
+- Dark mode toggle for sensitive eyes
+- Unified loading overlay component across all operations
+- Enhanced Style DNA analysis with better prompts
+
+### 🔧 **Maintenance Items**
+- **INVESTIGATE**: "Fresh Outfit Ideas" button UX issues (technically functional but user reports problems)
+- **PROTECT**: Style DNA prompts (no modifications without approval)
+- **UPDATE**: Loading animations to match outfit generation beauty
 
 ### Key Features Status
 - ✅ StyleDNA: Fully working in ProfilePage.tsx

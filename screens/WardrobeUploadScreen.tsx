@@ -38,6 +38,7 @@ import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { AddItemPage } from './AddItemPage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
+import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -2871,26 +2872,14 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     />
   </View>
   
-  {/* AI Loading Overlay */}
-  {outfitGeneration.generatingSuggestions && (
-    <View style={styles.aiLoadingOverlay}>
-      <View style={styles.aiLoadingCard}>
-        <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.aiLoadingTitle}>🎨 Creating Your Perfect Outfit...</Text>
-        <Text style={styles.aiLoadingSubtext}>
-          {detailViewItem 
-            ? `Building around your ${detailViewItem.category || 'item'}...`
-            : 'Analyzing your style & wardrobe'
-          }
-        </Text>
-        <View style={styles.loadingProgress}>
-          <Text style={styles.loadingStep}>✨ AI analyzing item combinations</Text>
-          <Text style={styles.loadingStep}>🧠 Generating complementary pieces</Text>
-          <Text style={styles.loadingStep}>🎯 Filling your gear slots</Text>
-        </View>
-      </View>
-    </View>
-  )}
+  {/* Unified Loading Overlay */}
+  <UnifiedLoadingOverlay
+    visible={outfitGeneration.unifiedLoading.isLoading}
+    title={outfitGeneration.unifiedLoading.loadingConfig?.title || ''}
+    subtitle={outfitGeneration.unifiedLoading.loadingConfig?.subtitle}
+    steps={outfitGeneration.unifiedLoading.loadingConfig?.steps}
+    style={outfitGeneration.unifiedLoading.loadingConfig?.style}
+  />
   
   {/* Gear Slot Grid */}
   <View style={styles.gearSlotGrid}>

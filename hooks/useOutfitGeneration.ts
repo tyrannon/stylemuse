@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { WardrobeItem } from './useWardrobeData';
 import { generateIntelligentOutfitSelection } from '../utils/openai';
 import { generateClothingItemImage } from '../utils/openai';
+import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
 
 export interface GearSlot {
   itemId: string | null;
@@ -36,6 +37,14 @@ export interface OutfitGenerationState {
   generateOutfitSuggestions: (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => Promise<void>;
   clearGearSlots: () => void;
   setGearSlotItem: (slotType: keyof GearSlots, item: WardrobeItem | null) => void;
+  // Unified loading state
+  unifiedLoading: {
+    isLoading: boolean;
+    loadingConfig: any;
+    showLoading: (config: any) => void;
+    hideLoading: () => void;
+    updateSteps: (steps: any[]) => void;
+  };
 }
 
 export const useOutfitGeneration = (
@@ -43,6 +52,7 @@ export const useOutfitGeneration = (
   categorizeItem: (item: WardrobeItem) => string,
   navigateToBuilder?: () => void
 ): OutfitGenerationState => {
+  const unifiedLoading = useUnifiedLoading();
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
   const [generatingSuggestions, setGeneratingSuggestions] = useState(false);
@@ -68,6 +78,13 @@ export const useOutfitGeneration = (
         // Small delay to let navigation complete
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      
+      // Show unified loading overlay
+      const itemType = categorizeItem(selectedItem);
+      unifiedLoading.showLoading({
+        ...LOADING_CONFIGS.OUTFIT_GENERATION,
+        subtitle: `Building around your ${itemType}...`,
+      });
       
       // Show loading state for suggestions (separate from outfit generation)
       setGeneratingSuggestions(true);
@@ -228,6 +245,7 @@ export const useOutfitGeneration = (
       Alert.alert('Failed to generate outfit suggestions. Please try again.');
     } finally {
       setGeneratingSuggestions(false);
+      unifiedLoading.hideLoading();
     }
   };
 
@@ -274,5 +292,8 @@ export const useOutfitGeneration = (
     generateOutfitSuggestions,
     clearGearSlots,
     setGearSlotItem,
+    
+    // Unified loading
+    unifiedLoading,
   };
 };
