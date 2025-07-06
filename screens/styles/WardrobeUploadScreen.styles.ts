@@ -2364,4 +2364,14 @@ export const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  loadingProgress: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  loadingStep: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+    textAlign: 'center',
+  },
 });

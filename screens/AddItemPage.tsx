@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 
 interface AddItemPageProps {
   onCameraPress: () => void;
+  onMultiItemCameraPress: () => void;
   onPhotoLibraryPress: () => void;
   onBulkUploadPress: () => void;
   onTextEntryPress: () => void;
@@ -11,6 +12,7 @@ interface AddItemPageProps {
 
 export const AddItemPage: React.FC<AddItemPageProps> = ({
   onCameraPress,
+  onMultiItemCameraPress,
   onPhotoLibraryPress,
   onBulkUploadPress,
   onTextEntryPress,
@@ -38,6 +40,21 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
             <View style={styles.optionText}>
               <Text style={styles.optionTitle}>Camera</Text>
               <Text style={styles.optionSubtitle}>Take a photo of your clothing</Text>
+            </View>
+            <Text style={styles.optionArrow}>›</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => handleOptionPress(onMultiItemCameraPress)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.optionIcon}>
+              <Text style={styles.optionEmoji}>🔍</Text>
+            </View>
+            <View style={styles.optionText}>
+              <Text style={styles.optionTitle}>Multi-Item Camera</Text>
+              <Text style={styles.optionSubtitle}>AI detects multiple items in one photo</Text>
             </View>
             <Text style={styles.optionArrow}>›</Text>
           </TouchableOpacity>
@@ -97,6 +114,10 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>
             <Text style={styles.tipText}>Single Photo has "Add Another" convenience</Text>
+          </View>
+          <View style={styles.tip}>
+            <Text style={styles.tipBullet}>•</Text>
+            <Text style={styles.tipText}>Multi-Item Camera saves time with multiple pieces</Text>
           </View>
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>

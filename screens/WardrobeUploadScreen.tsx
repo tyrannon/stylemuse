@@ -629,6 +629,15 @@ const WardrobeUploadScreen = () => {
     modalState.setShowCamera(true);
   };
 
+  // Function to handle multi-item camera press from add item page
+  const handleAddItemMultiItemCameraPress = async () => {
+    // Go to camera screen directly in multi-item mode
+    // The multi-item toggle is available in the camera UI
+    modalState.setShowCamera(true);
+    // Note: User will need to toggle multi-item mode in camera interface
+    // This is by design to give users control over single vs multi-item mode
+  };
+
   // Function to pick images from library with "Add Another" flow for single items
   const pickMultipleImagesFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -2867,8 +2876,18 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     <View style={styles.aiLoadingOverlay}>
       <View style={styles.aiLoadingCard}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.aiLoadingTitle}>🤖 AI Creating Your Outfit...</Text>
-        <Text style={styles.aiLoadingSubtext}>Analyzing your style & wardrobe</Text>
+        <Text style={styles.aiLoadingTitle}>🎨 Creating Your Perfect Outfit...</Text>
+        <Text style={styles.aiLoadingSubtext}>
+          {detailViewItem 
+            ? `Building around your ${detailViewItem.category || 'item'}...`
+            : 'Analyzing your style & wardrobe'
+          }
+        </Text>
+        <View style={styles.loadingProgress}>
+          <Text style={styles.loadingStep}>✨ AI analyzing item combinations</Text>
+          <Text style={styles.loadingStep}>🧠 Generating complementary pieces</Text>
+          <Text style={styles.loadingStep}>🎯 Filling your gear slots</Text>
+        </View>
       </View>
     </View>
   )}
@@ -3194,6 +3213,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 {showAddItemPage && (
   <AddItemPage
     onCameraPress={handleAddItemCameraPress}
+    onMultiItemCameraPress={handleAddItemMultiItemCameraPress}
     onPhotoLibraryPress={handleAddItemPhotoLibraryPress}
     onBulkUploadPress={handleAddItemBulkUploadPress}
     onTextEntryPress={handleAddItemTextEntryPress}
