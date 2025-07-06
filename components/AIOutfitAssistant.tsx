@@ -19,15 +19,17 @@ import { UserStyleProfile } from '../services/SmartSuggestionsService';
 interface AIOutfitAssistantProps {
   userProfile?: UserStyleProfile;
   styleDNA?: any;
-  context?: 'wardrobe' | 'builder' | 'standalone';
+  context?: 'wardrobe' | 'builder' | 'standalone' | 'item';
   size?: 'large' | 'medium' | 'small';
   onOutfitGenerated?: (outfit: any) => void;
+  currentItem?: WardrobeItem;
 }
 
 export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   userProfile,
   styleDNA,
   context = 'standalone',
+  currentItem,
   size = 'medium',
   onOutfitGenerated,
 }) => {
@@ -91,6 +93,16 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       };
     }
     
+    if (context === 'item' && currentItem) {
+      const itemType = currentItem.category || currentItem.style || 'item';
+      return {
+        text: `🎨 Outfit Ideas`,
+        subtitle: `Build a complete outfit around this ${itemType}`,
+        icon: 'shirt',
+        color: '#f59e0b',
+      };
+    }
+    
     return {
       text: '✨ Fresh Outfit Ideas',
       subtitle: 'AI-powered styling suggestions',
@@ -102,6 +114,26 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   const handleQuickGenerate = useCallback(async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Handle item-specific outfit generation
+      if (context === 'item' && currentItem) {
+        console.log(`🎨 Generating outfit around item: ${currentItem.title || currentItem.description}`);
+        
+        // Create a focused outfit generation around this specific item
+        const itemFocusedOutfit = {
+          centerItem: currentItem,
+          selectedItems: [currentItem.image], // Start with this item selected
+          isItemFocused: true,
+          focusItemType: currentItem.category || 'item',
+        };
+        
+        if (onOutfitGenerated) {
+          onOutfitGenerated(itemFocusedOutfit);
+        }
+        
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        return;
+      }
       
       const profile: UserStyleProfile = {
         ...userProfile,
@@ -157,7 +189,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         [{ text: 'OK' }]
       );
     }
-  }, [userProfile, selectedOccasion, selectedStyle, includeNewItems, savedItems, styleDNA, smartSuggestions, onOutfitGenerated, setIncludeNewItems]);
+  }, [userProfile, selectedOccasion, selectedStyle, includeNewItems, savedItems, styleDNA, smartSuggestions, onOutfitGenerated, setIncludeNewItems, context, currentItem]);
 
   const handleConfiguredGenerate = useCallback(async () => {
     setShowConfigModal(false);

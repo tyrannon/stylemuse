@@ -16,6 +16,7 @@ interface ItemDetailViewProps {
   onCategoryPress: () => void;
   onDelete: (item: WardrobeItem) => Promise<void>;
   onNavigateToBuilder?: () => void;
+  generateOutfitSuggestions?: (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
   
   // Editing states
@@ -56,6 +57,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onCategoryPress,
   onDelete,
   onNavigateToBuilder,
+  generateOutfitSuggestions,
   categorizeItem,
   editingTitle,
   setEditingTitle,
@@ -562,10 +564,14 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             <AIOutfitAssistant
               context="item"
               size="small"
-              onOutfitGenerated={(outfit) => {
+              currentItem={item}
+              onOutfitGenerated={async (outfit) => {
                 console.log('Generated outfit for item:', outfit);
-                // Navigate to builder to show the generated outfit
-                if (onNavigateToBuilder) {
+                // Use the proper outfit generation function that pre-fills gear slots
+                if (generateOutfitSuggestions) {
+                  await generateOutfitSuggestions(item);
+                } else if (onNavigateToBuilder) {
+                  // Fallback to just navigating
                   onNavigateToBuilder();
                 }
               }}

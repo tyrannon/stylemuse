@@ -3097,6 +3097,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onCategoryPress={() => modalState.setCategoryDropdownVisible(true)}
     onDelete={deleteWardrobeItem}
     onNavigateToBuilder={navigateToBuilder}
+    generateOutfitSuggestions={generateOutfitSuggestions}
     categorizeItem={categorizeItem}
     editingTitle={editingTitle}
     setEditingTitle={setEditingTitle}
