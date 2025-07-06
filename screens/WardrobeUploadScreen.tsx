@@ -298,48 +298,73 @@ const WardrobeUploadScreen = () => {
         console.log('🔄 Loading stored data...');
         
         // Load wardrobe items
-        const storedWardrobe = await AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS);
-        if (storedWardrobe) {
-          const parsedWardrobe = JSON.parse(storedWardrobe);
-          setSavedItems(parsedWardrobe);
-          console.log(`✅ Loaded ${parsedWardrobe.length} wardrobe items`);
+        try {
+          const storedWardrobe = await AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS);
+          if (storedWardrobe) {
+            const parsedWardrobe = JSON.parse(storedWardrobe);
+            setSavedItems(parsedWardrobe);
+            console.log(`✅ Loaded ${parsedWardrobe.length} wardrobe items`);
+          }
+        } catch (error) {
+          console.error('❌ Error loading wardrobe items:', error);
+          setSavedItems([]); // Reset to empty array
         }
 
         // Load loved outfits
-        const storedLovedOutfits = await AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS);
-        if (storedLovedOutfits) {
-          const parsedLovedOutfits = JSON.parse(storedLovedOutfits);
-          // Convert date strings back to Date objects
-          const outfitsWithDates = parsedLovedOutfits.map((outfit: any) => ({
-            ...outfit,
-            createdAt: new Date(outfit.createdAt)
-          }));
-          setLovedOutfits(outfitsWithDates);
-          console.log(`✅ Loaded ${outfitsWithDates.length} loved outfits`);
+        try {
+          const storedLovedOutfits = await AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS);
+          if (storedLovedOutfits) {
+            const parsedLovedOutfits = JSON.parse(storedLovedOutfits);
+            // Convert date strings back to Date objects
+            const outfitsWithDates = parsedLovedOutfits.map((outfit: any) => ({
+              ...outfit,
+              createdAt: new Date(outfit.createdAt)
+            }));
+            setLovedOutfits(outfitsWithDates);
+            console.log(`✅ Loaded ${outfitsWithDates.length} loved outfits`);
+          }
+        } catch (error) {
+          console.error('❌ Error loading loved outfits:', error);
+          setLovedOutfits([]); // Reset to empty array
         }
 
         // Load style DNA
-        const storedStyleDNA = await AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA);
-        if (storedStyleDNA) {
-          const parsedStyleDNA = JSON.parse(storedStyleDNA);
-          setStyleDNA(parsedStyleDNA);
-          console.log('✅ Loaded style DNA');
+        try {
+          const storedStyleDNA = await AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA);
+          if (storedStyleDNA) {
+            const parsedStyleDNA = JSON.parse(storedStyleDNA);
+            setStyleDNA(parsedStyleDNA);
+            console.log('✅ Loaded style DNA');
+          }
+        } catch (error) {
+          console.error('❌ Error loading style DNA:', error);
+          setStyleDNA(null); // Reset to null
         }
 
         // Load selected gender
-        const storedGender = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER);
-        if (storedGender) {
-          const parsedGender = JSON.parse(storedGender);
-          setSelectedGender(parsedGender);
-          console.log(`✅ Loaded selected gender: ${parsedGender}`);
+        try {
+          const storedGender = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER);
+          if (storedGender) {
+            // Gender is stored as a plain string, not JSON
+            setSelectedGender(storedGender);
+            console.log(`✅ Loaded selected gender: ${storedGender}`);
+          }
+        } catch (error) {
+          console.error('❌ Error loading selected gender:', error);
+          setSelectedGender(null); // Reset to null
         }
 
         // Load profile image
-        const storedProfileImage = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE);
-        if (storedProfileImage) {
-          const parsedProfileImage = JSON.parse(storedProfileImage);
-          setProfileImage(parsedProfileImage);
-          console.log('✅ Loaded profile image');
+        try {
+          const storedProfileImage = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE);
+          if (storedProfileImage) {
+            const parsedProfileImage = JSON.parse(storedProfileImage);
+            setProfileImage(parsedProfileImage);
+            console.log('✅ Loaded profile image');
+          }
+        } catch (error) {
+          console.error('❌ Error loading profile image:', error);
+          setProfileImage(null); // Reset to null
         }
 
         console.log('✅ All stored data loaded successfully');
