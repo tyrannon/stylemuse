@@ -16,6 +16,7 @@ import { useCameraControls } from '../hooks/useCameraControls';
 import { detectMultipleClothingItems } from '../utils/openai';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -50,10 +51,12 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     takePicture,
   } = useCameraControls();
 
+  const { theme } = useTheme();
   const unifiedLoading = useUnifiedLoading();
   const [isInitializing, setIsInitializing] = useState(true);
   const [multiItemMode, setMultiItemMode] = useState(defaultMultiItemMode); // Use prop default
   const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
+  const styles = createStyles(theme);
 
   useEffect(() => {
     initializeCamera();
@@ -289,7 +292,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           <Ionicons 
             name="grid" 
             size={24} 
-            color={state.showGrid ? "#007AFF" : "white"} 
+            color={state.showGrid ? theme.colors.primary : "white"} 
           />
         </TouchableOpacity>
         
@@ -302,7 +305,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             <Ionicons 
               name="layers" 
               size={24} 
-              color={multiItemMode ? "#FF6B35" : "white"} 
+              color={multiItemMode ? theme.colors.accent : "white"} 
             />
           </TouchableOpacity>
         )}
@@ -357,19 +360,19 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'black', // Keep black for camera
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'black', // Keep black for camera loading
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: 'white',
+    color: 'white', // Keep white for camera overlay
     fontSize: 16,
     fontWeight: '500',
   },
@@ -391,7 +394,7 @@ const styles = StyleSheet.create({
   },
   gridLine: {
     position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)', // Keep as is for grid visibility
     height: 1,
     width: '100%',
     top: '33.33%',
@@ -411,12 +414,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.overlay, // Use theme overlay
     justifyContent: 'center',
     alignItems: 'center',
   },
   modeTitle: {
-    color: 'white',
+    color: 'white', // Keep white for camera overlay
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
@@ -432,15 +435,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.overlay, // Use theme overlay
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 10,
   },
   sideButtonActive: {
-    backgroundColor: 'rgba(255, 107, 53, 0.3)',
+    backgroundColor: `${theme.colors.accent}30`, // Use theme accent with 30% opacity
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: theme.colors.accent, // Use theme accent
   },
   bottomControls: {
     position: 'absolute',
@@ -457,11 +460,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'white',
+    backgroundColor: 'white', // Keep white for camera capture button
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderColor: 'rgba(255, 255, 255, 0.8)', // Keep as is for camera
   },
   captureButtonActive: {
     transform: [{ scale: 0.9 }],
@@ -471,32 +474,32 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'white',
+    backgroundColor: 'white', // Keep white for camera capture button
   },
   wardrobeOverlay: {
     position: 'absolute',
     bottom: 140,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.colors.overlay, // Use theme overlay
     borderRadius: 8,
     padding: 12,
     zIndex: 2,
   },
   overlayText: {
-    color: 'white',
+    color: 'white', // Keep white for camera overlay
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '500',
   },
   overlaySubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.8)', // Keep as is for camera overlay
     fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
   },
   processingText: {
-    color: 'white',
+    color: 'white', // Keep white for camera overlay
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',

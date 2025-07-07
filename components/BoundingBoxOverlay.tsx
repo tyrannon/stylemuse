@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -114,10 +115,10 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
     return { x, y, width, height };
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return '#00FF88'; // High confidence - green
-    if (confidence >= 70) return '#FFD700'; // Medium confidence - yellow
-    return '#FF6B35'; // Lower confidence - orange
+  const getConfidenceColor = (confidence: number, theme: any) => {
+    if (confidence >= 90) return theme.colors.success; // High confidence - green
+    if (confidence >= 70) return theme.colors.warning; // Medium confidence - yellow
+    return theme.colors.error; // Lower confidence - orange
   };
 
   const handleItemPress = async (item: DetectedItem) => {
@@ -126,6 +127,8 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
   };
 
   const { displayWidth, displayHeight, offsetX, offsetY } = getDisplayDimensions();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -152,7 +155,7 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
           {/* Bounding Boxes */}
           {detectedItems.map((item, index) => {
         const bbox = convertBoundingBox(item.boundingBox);
-        const confidenceColor = getConfidenceColor(item.confidence);
+        const confidenceColor = getConfidenceColor(item.confidence, theme);
         
         return (
           <TouchableOpacity
@@ -210,10 +213,10 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: theme.colors.background,
     width: screenWidth,
     height: screenHeight,
   },
@@ -243,14 +246,14 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   itemLabelText: {
-    color: 'white',
+    color: theme.colors.text,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
     marginRight: 6,
   },
   confidenceText: {
-    color: 'white',
+    color: theme.colors.text,
     fontSize: 10,
     fontWeight: '500',
     opacity: 0.9,
@@ -263,12 +266,12 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectionText: {
-    color: 'white',
+    color: theme.colors.text,
     fontSize: 9,
     fontWeight: '600',
   },
@@ -277,45 +280,46 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 30,
     right: 30,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: theme.colors.overlay,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 136, 0.3)',
+    borderColor: theme.colors.success + '50', // Adding transparency
   },
   instructionsText: {
-    color: '#00FF88',
+    color: theme.colors.success,
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowColor: theme.colors.background,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     marginBottom: 2,
   },
   instructionsSubtext: {
-    color: 'rgba(255, 255, 255, 0.95)',
+    color: theme.colors.text,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 6,
-    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowColor: theme.colors.background,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     fontWeight: '500',
+    opacity: 0.95,
   },
   pairInfoText: {
-    color: '#00FF88',
+    color: theme.colors.success,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowColor: theme.colors.background,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },

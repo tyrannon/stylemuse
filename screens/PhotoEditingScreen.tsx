@@ -200,7 +200,7 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onRetake} style={styles.headerButton}>
-          <Ionicons name="close" size={24} color="#fff" />
+          <Ionicons name="close" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         
         <Text style={styles.headerTitle}>
@@ -268,7 +268,7 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
               style={styles.multiItemButton}
               onPress={handleShowBoundingBoxes}
             >
-              <Ionicons name="scan" size={20} color="#007AFF" />
+              <Ionicons name="scan" size={20} color={theme.colors.primary} />
               <Text style={styles.multiItemButtonText}>Show Detected Items</Text>
             </TouchableOpacity>
           ) : (
@@ -276,8 +276,8 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
               style={[styles.multiItemButton, styles.backButton]}
               onPress={() => setShowBoundingBoxes(false)}
             >
-              <Ionicons name="arrow-back" size={20} color="white" />
-              <Text style={[styles.multiItemButtonText, { color: 'white' }]}>Back to Preview</Text>
+              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+              <Text style={[styles.multiItemButtonText, { color: theme.colors.text }]}>Back to Preview</Text>
             </TouchableOpacity>
           )}
           
@@ -335,13 +335,13 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
             
             <View style={styles.rotationButtons}>
               <TouchableOpacity style={styles.rotationButton}>
-                <Ionicons name="arrow-back-circle" size={24} color="#007AFF" />
+                <Ionicons name="arrow-back-circle" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.rotationButton}>
-                <Ionicons name="arrow-forward-circle" size={24} color="#007AFF" />
+                <Ionicons name="arrow-forward-circle" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.rotationButton}>
-                <Ionicons name="swap-horizontal" size={24} color="#007AFF" />
+                <Ionicons name="swap-horizontal" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -361,12 +361,12 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
             <Text style={styles.toolTitle}>Auto Enhance</Text>
             
             <TouchableOpacity style={styles.enhanceButton}>
-              <Ionicons name="sparkles" size={24} color="#007AFF" />
+              <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
               <Text style={styles.enhanceButtonText}>Auto Enhance</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.enhanceButton}>
-              <Ionicons name="color-palette" size={24} color="#007AFF" />
+              <Ionicons name="color-palette" size={24} color={theme.colors.primary} />
               <Text style={styles.enhanceButtonText}>Color Correction</Text>
             </TouchableOpacity>
           </View>
@@ -377,12 +377,12 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
             <Text style={styles.toolTitle}>Background</Text>
             
             <TouchableOpacity style={styles.backgroundButton}>
-              <Ionicons name="cut" size={24} color="#007AFF" />
+              <Ionicons name="cut" size={24} color={theme.colors.primary} />
               <Text style={styles.backgroundButtonText}>Remove Background</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.backgroundButton}>
-              <Ionicons name="color-filter" size={24} color="#007AFF" />
+              <Ionicons name="color-filter" size={24} color={theme.colors.primary} />
               <Text style={styles.backgroundButtonText}>Blur Background</Text>
             </TouchableOpacity>
           </View>
@@ -393,7 +393,7 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
       {/* Bottom actions */}
       <View style={styles.bottomActions}>
         <TouchableOpacity onPress={handleRetake} style={styles.retakeButton}>
-          <Ionicons name="camera-reverse" size={20} color="#FF3B30" />
+          <Ionicons name="camera-reverse" size={20} color={theme.colors.error} />
           <Text style={styles.retakeButtonText}>Retake</Text>
         </TouchableOpacity>
       </View>
@@ -404,7 +404,7 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.mode === 'dark' ? '#000000' : '#F8F9FA',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -462,18 +462,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
   },
   overlayText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.colors.overlay,
     padding: 10,
     borderRadius: 8,
   },
   toolControls: {
     maxHeight: 200,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.colors.surface,
   },
   toolTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
@@ -490,11 +490,11 @@ const createStyles = (theme: any) => StyleSheet.create({
   aspectRatioButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.card,
     borderRadius: 8,
   },
   aspectRatioText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 14,
   },
   rotationButtons: {
@@ -503,14 +503,14 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   rotationButton: {
     padding: 12,
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.card,
     borderRadius: 8,
   },
   adjustControls: {
     padding: 20,
   },
   comingSoon: {
-    color: '#8E8E93',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     fontSize: 16,
   },
@@ -520,13 +520,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   enhanceButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.card,
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
   },
   enhanceButtonText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
     marginLeft: 12,
   },
@@ -536,13 +536,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   backgroundButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.card,
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
   },
   backgroundButtonText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
     marginLeft: 12,
   },
@@ -556,7 +556,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     padding: 12,
   },
   retakeButtonText: {
-    color: '#FF3B30',
+    color: theme.colors.error,
     fontSize: 16,
     marginLeft: 8,
   },
@@ -579,8 +579,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   backButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: theme.colors.overlay,
+    borderColor: theme.colors.border,
   },
   multiItemButtonText: {
     color: theme.colors.primary,
