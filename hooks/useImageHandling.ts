@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { WardrobeItem } from './useWardrobeData';
 import { generateClothingItemImage } from '../utils/openai';
+import { ImagePersistenceService } from '../services/ImagePersistenceService';
 
 export interface ImageHandlingState {
   loading: boolean;
@@ -30,6 +31,8 @@ export const useImageHandling = (): ImageHandlingState => {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [generatingImageForItem, setGeneratingImageForItem] = useState<string | null>(null);
+  
+  const imagePersistence = ImagePersistenceService.getInstance();
 
   // Pick a single image from the library
   const pickImage = async (): Promise<string | null> => {
@@ -47,7 +50,15 @@ export const useImageHandling = (): ImageHandlingState => {
     });
 
     if (!result.canceled && result.assets?.[0]) {
-      return result.assets[0].uri;
+      try {
+        // Persist the image to permanent storage
+        const persistentImage = await imagePersistence.persistImage(result.assets[0].uri, 'wardrobe');
+        return persistentImage.originalUri;
+      } catch (error) {
+        console.error('Failed to persist image:', error);
+        // Fallback to original URI
+        return result.assets[0].uri;
+      }
     }
     return null;
   };
@@ -67,7 +78,21 @@ export const useImageHandling = (): ImageHandlingState => {
     });
 
     if (!result.canceled && result.assets) {
-      return result.assets.map(asset => asset.uri);
+      const persistentUris: string[] = [];
+      
+      for (const asset of result.assets) {
+        try {
+          // Persist each image to permanent storage
+          const persistentImage = await imagePersistence.persistImage(asset.uri, 'wardrobe');
+          persistentUris.push(persistentImage.originalUri);
+        } catch (error) {
+          console.error('Failed to persist image:', error);
+          // Fallback to original URI
+          persistentUris.push(asset.uri);
+        }
+      }
+      
+      return persistentUris;
     }
     return [];
   };
@@ -87,7 +112,15 @@ export const useImageHandling = (): ImageHandlingState => {
     });
 
     if (!result.canceled && result.assets?.[0]) {
-      return result.assets[0].uri;
+      try {
+        // Persist the image to permanent storage
+        const persistentImage = await imagePersistence.persistImage(result.assets[0].uri, 'wardrobe');
+        return persistentImage.originalUri;
+      } catch (error) {
+        console.error('Failed to persist image:', error);
+        // Fallback to original URI
+        return result.assets[0].uri;
+      }
     }
     return null;
   };
@@ -96,15 +129,23 @@ export const useImageHandling = (): ImageHandlingState => {
   const downloadAndSaveImage = async (imageUrl: string, itemId: string): Promise<string | null> => {
     try {
       const fileName = `generated_item_${itemId.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const tempFileUri = `${FileSystem.cacheDirectory}${fileName}`;
       
-      console.log('⬇️ Downloading generated image to:', fileUri);
+      console.log('⬇️ Downloading generated image to:', tempFileUri);
       
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, tempFileUri);
       
       if (downloadResult.status === 200) {
-        console.log('✅ Image saved to device storage:', fileUri);
-        return fileUri;
+        try {
+          // Persist the downloaded image to permanent storage
+          const persistentImage = await imagePersistence.persistImage(tempFileUri, 'wardrobe', itemId);
+          console.log('✅ Image downloaded and persisted:', persistentImage.originalUri);
+          return persistentImage.originalUri;
+        } catch (error) {
+          console.error('Failed to persist downloaded image:', error);
+          // Fallback to temp file
+          return tempFileUri;
+        }
       } else {
         console.error('❌ Failed to download image:', downloadResult.status);
         return null;
@@ -168,12 +209,16 @@ export const useImageHandling = (): ImageHandlingState => {
     bulkProgress,
     setBulkProgress,
     generatingImageForItem,
+    setGeneratingImageForItem,
     
     // Functions
     pickImage,
+    takePhoto: openCamera, // Alias for backwards compatibility
     pickMultipleImages,
     openCamera,
     downloadAndSaveImage,
     handleGenerateItemImage,
+    generateImageForItem: handleGenerateItemImage, // Alias for backwards compatibility
+    downloadImage: downloadAndSaveImage, // Alias for backwards compatibility
   };
 };

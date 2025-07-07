@@ -5,6 +5,7 @@ import { Platform, Alert } from 'react-native';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { removeBackgroundEnhanced, BackgroundRemovalResult, cleanupBackgroundRemovalFiles } from '../utils/backgroundRemoval';
 import { assessPhotoQuality as comprehensivePhotoQualityAssessment, PhotoQualityMetrics, quickQualityCheck } from '../utils/photoQualityAssessment';
+import { ImagePersistenceService } from '../services/ImagePersistenceService';
 
 interface PhotoMetadata {
   originalUri: string;
@@ -19,6 +20,7 @@ interface PhotoMetadata {
 
 export const useCameraIntegration = () => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const imagePersistence = ImagePersistenceService.getInstance();
 
   const capturePhoto = async (cameraRef: any, options: any = {}) => {
     if (!cameraRef?.current) {
@@ -56,14 +58,26 @@ export const useCameraIntegration = () => {
         }
       );
 
+      let finalUri = processedPhoto.uri;
+
       // Enhanced processing for clothing items with background removal
       if (mode === 'wardrobe') {
         console.log('🎯 Processing wardrobe item with background removal...');
         const enhancedPhoto = await enhanceForClothing(processedPhoto.uri);
-        return enhancedPhoto;
+        finalUri = enhancedPhoto;
       }
 
-      return processedPhoto.uri;
+      // Persist the processed image to permanent storage
+      try {
+        const persistentImage = await imagePersistence.persistImage(finalUri, mode as any);
+        console.log(`✅ Image persisted for ${mode}:`, persistentImage.originalUri);
+        return persistentImage.originalUri;
+      } catch (persistError) {
+        console.error('Failed to persist processed image:', persistError);
+        // Fallback to processed URI
+        return finalUri;
+      }
+
     } catch (error) {
       console.error('Photo processing failed:', error);
       // Return original if processing fails

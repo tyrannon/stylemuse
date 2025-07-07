@@ -8,8 +8,10 @@ import {
   Image,
   Dimensions,
   Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PhotoEditingToolbar } from './components/PhotoEditingToolbar';
 import { usePhotoEditor } from '../hooks/usePhotoEditor';
 import { BoundingBoxOverlay } from '../components/BoundingBoxOverlay';
@@ -72,7 +74,10 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(multiItemMode);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [croppedItems, setCroppedItems] = useState<any[]>([]);
+  const [excludedItems, setExcludedItems] = useState<number[]>([]);
   const [imageSize, setImageSize] = useState({ width: 1024, height: 1024 });
+  const [previewScale, setPreviewScale] = useState(new Animated.Value(1));
+  const [lastScale, setLastScale] = useState(1);
   
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -195,8 +200,51 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
     setCurrentTool(tool);
   };
 
+  // New handlers for Save All mode
+  const handleSaveAllItems = async (includedItems: DetectedItem[]) => {
+    if (!onMultiItemSave) {
+      console.error('❌ [PHOTO-EDITOR] Multi-item save handler not provided');
+      Alert.alert('Error', 'Multi-item save handler not provided.');
+      return;
+    }
+
+    console.log('🚀 [PHOTO-EDITOR] Saving all included items:', includedItems.length);
+    
+    try {
+      setIsProcessing(true);
+      
+      const croppedResults = await cropMultipleItems(
+        photoUri,
+        includedItems,
+        imageSize.width,
+        imageSize.height
+      );
+
+      console.log('✅ [PHOTO-EDITOR] Successfully cropped items for save-all:', croppedResults.length);
+      
+      onMultiItemSave(croppedResults);
+    } catch (error) {
+      console.error('❌ [PHOTO-EDITOR] Failed to save all items:', error);
+      Alert.alert('Error', 'Failed to save items. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleExcludeItem = (itemId: number) => {
+    setExcludedItems(prev => {
+      if (prev.includes(itemId)) {
+        // Re-include the item
+        return prev.filter(id => id !== itemId);
+      } else {
+        // Exclude the item
+        return [...prev, itemId];
+      }
+    });
+  };
+
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onRetake} style={styles.headerButton}>
@@ -227,21 +275,49 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
           <BoundingBoxOverlay
             imageUri={photoUri}
             detectedItems={detectedItems}
-            onItemSelect={handleItemSelect}
+            onSaveAll={handleSaveAllItems}
+            onExcludeItem={handleExcludeItem}
+            excludedItems={excludedItems}
             visible={true}
             imageWidth={imageSize.width}
             imageHeight={imageSize.height}
+            mode="save-all"
           />
         ) : (
-          <Image
-            source={{ uri: editingState.currentUri }}
-            style={styles.photo}
-            resizeMode="contain"
-            onLoad={(event) => {
-              const { width, height } = event.nativeEvent.source;
-              setImageSize({ width, height });
+          <PinchGestureHandler
+            onGestureEvent={Animated.event(
+              [{ nativeEvent: { scale: previewScale } }],
+              { useNativeDriver: false }
+            )}
+            onHandlerStateChange={(event) => {
+              if (event.nativeEvent.oldState === State.ACTIVE) {
+                const newScale = lastScale * event.nativeEvent.scale;
+                // Limit zoom between 1x and 3x
+                const clampedScale = Math.max(1, Math.min(3, newScale));
+                setLastScale(clampedScale);
+                previewScale.setValue(clampedScale);
+              }
             }}
-          />
+          >
+            <Animated.View style={styles.zoomableImageContainer}>
+              <Animated.Image
+                source={{ uri: editingState.currentUri }}
+                style={[
+                  styles.photo,
+                  {
+                    transform: [
+                      { scale: previewScale }
+                    ]
+                  }
+                ]}
+                resizeMode="contain"
+                onLoad={(event) => {
+                  const { width, height } = event.nativeEvent.source;
+                  setImageSize({ width, height });
+                }}
+              />
+            </Animated.View>
+          </PinchGestureHandler>
         )}
         
         {/* Tool-specific overlays */}
@@ -397,7 +473,7 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
           <Text style={styles.retakeButtonText}>Retake</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </GestureHandlerRootView>
   );
 };
 
@@ -608,6 +684,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '600',
+  },
+  zoomableImageContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
 });
 

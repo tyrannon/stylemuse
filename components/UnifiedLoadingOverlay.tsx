@@ -82,33 +82,13 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
 
   const styleConfig = isDark ? getDarkModeConfig(style) : getStyleConfig(style);
 
-  // Track renders and prop changes
-  console.log('🔵 [LoadingOverlay] Component render', {
-    componentId: componentIdRef.current,
-    timestamp: Date.now(),
-    visible,
-    title,
-    subtitle,
-    style,
-    stepsCount: steps.length,
-    isDark,
-    fadeAnimValue: fadeAnim._value,
-    scaleAnimValue: scaleAnim._value,
-  });
+  // Track renders and prop changes - simplified logging
+  if (visible) {
+    console.log('🔵 [LoadingOverlay] Showing overlay:', title);
+  }
 
   useEffect(() => {
-    console.log('🔵 [LoadingOverlay] Visibility changed, starting animation', {
-      componentId: componentIdRef.current,
-      timestamp: Date.now(),
-      visible,
-      title,
-      animationType: visible ? 'fade-in' : 'fade-out',
-    });
-
     if (visible) {
-      console.log('🔵 [LoadingOverlay] Starting fade-in animation', {
-        componentId: componentIdRef.current,
-      });
       // Fade in animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -121,18 +101,8 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start((finished) => {
-        console.log('🔵 [LoadingOverlay] Fade-in animation completed', {
-          componentId: componentIdRef.current,
-          timestamp: Date.now(),
-          finished,
-          title,
-        });
-      });
+      ]).start();
     } else {
-      console.log('🔵 [LoadingOverlay] Starting fade-out animation', {
-        componentId: componentIdRef.current,
-      });
       // Fade out animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -145,34 +115,13 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
           duration: 200,
           useNativeDriver: true,
         }),
-      ]).start((finished) => {
-        console.log('🔵 [LoadingOverlay] Fade-out animation completed', {
-          componentId: componentIdRef.current,
-          timestamp: Date.now(),
-          finished,
-          title,
-        });
-      });
+      ]).start();
     }
-  }, [visible, fadeAnim, scaleAnim, title]);
+  }, [visible, fadeAnim, scaleAnim]);
 
   if (!visible) {
-    console.log('🔵 [LoadingOverlay] Component returning null (not visible)', {
-      componentId: componentIdRef.current,
-      timestamp: Date.now(),
-      title,
-    });
     return null;
   }
-
-  console.log('🔵 [LoadingOverlay] Component rendering visible overlay', {
-    componentId: componentIdRef.current,
-    timestamp: Date.now(),
-    title,
-    subtitle,
-    fadeAnimValue: fadeAnim._value,
-    scaleAnimValue: scaleAnim._value,
-  });
 
   const dynamicStyles = StyleSheet.create({
     overlay: {
@@ -228,13 +177,25 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
           </Text>
         )}
         
-        {steps.length > 0 && (
+        {steps && steps.length > 0 && (
           <View style={styles.progress}>
-            {steps.map((step, index) => (
-              <Text key={index} style={dynamicStyles.step}>
-                {step.icon} {step.text}
-              </Text>
-            ))}
+            {steps.map((step, index) => {
+              if (!step) return null;
+              return (
+                <View key={index} style={styles.stepContainer}>
+                  <Text style={[
+                    dynamicStyles.step,
+                    {
+                      color: step.completed ? theme.colors.success : theme.colors.textMuted,
+                      fontWeight: step.completed ? '600' : '400',
+                      opacity: step.completed ? 1 : 0.3,
+                    }
+                  ]}>
+                    {step.completed ? '✅' : step.icon} {step.text || ''}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
       </Animated.View>
@@ -283,5 +244,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  stepContainer: {
+    marginVertical: 2,
+    padding: 4,
+    borderRadius: 6,
   },
 });

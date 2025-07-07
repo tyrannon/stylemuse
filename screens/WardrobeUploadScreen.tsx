@@ -28,6 +28,7 @@ import { OutfitDetailView } from './components/OutfitDetailView';
 import { CategoryDropdown } from './components/CategoryDropdown';
 import { BuilderPage } from './BuilderPage';
 import { WardrobePage } from './WardrobePage';
+import { DataMigrationModal } from '../components/DataMigrationModal';
 import { OutfitsPage } from './OutfitsPage';
 import { ProfilePage } from './ProfilePage';
 import { AvatarCustomizationPage } from './AvatarCustomizationPage';
@@ -46,6 +47,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
+import { DataMigrationService, MigrationSummary } from '../services/DataMigrationService';
 import { createStyles } from './styles/WardrobeUploadScreen.styles';
 
 // Types
@@ -161,6 +163,11 @@ const WardrobeUploadScreen = () => {
   // Ref for main scroll view to control scrolling
   const mainScrollViewRef = useRef<ScrollView>(null);
 
+  // Migration state
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [migrationChecked, setMigrationChecked] = useState(false);
+  const migrationService = DataMigrationService.getInstance();
+
   // Custom navigate to builder with scroll
   const navigateToBuilderWithScroll = useCallback(() => {
     // Ensure state updates happen synchronously
@@ -237,6 +244,58 @@ const WardrobeUploadScreen = () => {
       headerSpinValue.setValue(0);
     }
   }, [unifiedLoading.isLoading, headerSpinValue]);
+
+  // Check for migration needs on app startup
+  useEffect(() => {
+    const checkMigration = async () => {
+      try {
+        if (!migrationChecked) {
+          console.log('🔍 Checking if data migration is needed...');
+          const needsMigration = await migrationService.checkNeedsMigration();
+          
+          if (needsMigration) {
+            console.log('📦 Data migration needed - showing prompt');
+            const shouldMigrate = await migrationService.showMigrationPrompt();
+            if (shouldMigrate) {
+              setShowMigrationModal(true);
+            }
+          } else {
+            console.log('✅ No migration needed');
+          }
+          
+          setMigrationChecked(true);
+        }
+      } catch (error) {
+        console.error('Migration check failed:', error);
+        setMigrationChecked(true);
+      }
+    };
+
+    // Only check migration after initial wardrobe data is loaded
+    if (savedItems.length > 0 && !migrationChecked) {
+      checkMigration();
+    } else if (savedItems.length === 0 && !migrationChecked) {
+      // No items to migrate
+      setMigrationChecked(true);
+    }
+  }, [savedItems.length, migrationChecked]);
+
+  const handleMigrationComplete = async (summary: MigrationSummary) => {
+    setShowMigrationModal(false);
+    
+    try {
+      await migrationService.showMigrationResults(summary);
+      
+      // Reload wardrobe data to reflect any changes
+      if (summary.recoveredItems > 0) {
+        console.log('♻️ Reloading wardrobe data after migration...');
+        // The migration already updates the data, so we just need to refresh the state
+        window.location?.reload?.(); // For web only
+      }
+    } catch (error) {
+      console.error('Failed to show migration results:', error);
+    }
+  };
 
   // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -809,8 +868,8 @@ const WardrobeUploadScreen = () => {
       setCapturedPhotoUri(null);
       setDetectedItemsState([]);
       
-      // Show loading state
-      unifiedLoading.showLoading(LOADING_CONFIGS.BULK_UPLOAD);
+      // Show enhanced loading state for multi-item save
+      unifiedLoading.showLoading(LOADING_CONFIGS.MULTI_ITEM_SAVE);
       
       console.log('🔄 [MULTI-ITEM] Calling saveBulkWardrobeItems...');
       // Use the bulk save function from wardrobe data hook
@@ -3350,6 +3409,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           </View>
         </View>
       )}
+
+      {/* Data Migration Modal */}
+      <DataMigrationModal
+        visible={showMigrationModal}
+        onComplete={handleMigrationComplete}
+      />
       
     </SafeAreaView>
   );

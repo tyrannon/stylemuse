@@ -111,11 +111,34 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   const handleMultiItemDetection = async (photoUri: string) => {
     setIsProcessingMultiItem(true);
-    unifiedLoading.showLoading(LOADING_CONFIGS.MULTI_ITEM_DETECTION);
+    
+    // Start with initial loading config
+    const initialSteps = LOADING_CONFIGS.MULTI_ITEM_DETECTION.steps!.map(step => ({ ...step, completed: false }));
+    unifiedLoading.showLoading({
+      ...LOADING_CONFIGS.MULTI_ITEM_DETECTION,
+      steps: initialSteps
+    });
+    
     try {
-      // Convert image to base64 for AI analysis
+      // Step 1: Loading high-resolution image data
+      console.log('📸 Loading high-resolution image data...');
       const response = await fetch(photoUri);
       const blob = await response.blob();
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      // Mark step 1 complete
+      let updatedSteps = [...initialSteps];
+      updatedSteps[0] = { ...updatedSteps[0], completed: true };
+      unifiedLoading.updateSteps(updatedSteps);
+      
+      // Step 2: Initializing neural networks
+      console.log('🧠 Initializing neural networks...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mark step 2 complete
+      updatedSteps[1] = { ...updatedSteps[1], completed: true };
+      unifiedLoading.updateSteps(updatedSteps);
+      
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -125,16 +148,35 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         reader.readAsDataURL(blob);
       });
 
-      console.log('🔍 Starting multi-item detection...');
+      // Step 3: Scanning for clothing objects
+      console.log('👁️ Scanning for clothing objects...');
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      // Mark step 3 complete
+      updatedSteps[2] = { ...updatedSteps[2], completed: true };
+      unifiedLoading.updateSteps(updatedSteps);
+      
+      // Step 4: Starting AI detection
+      console.log('🏷️ Classifying detected items...');
+      updatedSteps[3] = { ...updatedSteps[3], completed: true };
+      unifiedLoading.updateSteps(updatedSteps);
+      
       const result = await detectMultipleClothingItems(base64);
+      
+      // Step 5: Post-processing
+      console.log('📏 Calculating precise boundaries...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Mark step 5 complete
+      updatedSteps[4] = { ...updatedSteps[4], completed: true };
+      unifiedLoading.updateSteps(updatedSteps);
       
       console.log('📊 Multi-item detection result:', result);
       console.log('🔢 Items found:', result.items?.length || 0);
       
       if (result.success !== false && result.items && result.items.length > 0) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
-        // Check if shoes were detected and provide feedback
+        // Step 6: Detecting and pairing shoe sets
+        console.log('👟 Detecting and pairing shoe sets...');
         const shoeItems = result.items.filter((item: any) => 
           item.itemType?.toLowerCase().includes('shoe') || 
           item.itemType?.toLowerCase().includes('sneaker') || 
@@ -142,6 +184,30 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           item.itemType?.toLowerCase().includes('sandal') ||
           item.itemType?.toLowerCase().includes('heel')
         );
+        
+        await new Promise(resolve => setTimeout(resolve, 400));
+        updatedSteps[5] = { ...updatedSteps[5], completed: true };
+        unifiedLoading.updateSteps(updatedSteps);
+        
+        // Step 7: Analyzing colors and patterns
+        console.log('🎨 Analyzing colors and patterns...');
+        await new Promise(resolve => setTimeout(resolve, 350));
+        updatedSteps[6] = { ...updatedSteps[6], completed: true };
+        unifiedLoading.updateSteps(updatedSteps);
+        
+        // Step 8: Preparing cropping coordinates
+        console.log('📦 Preparing cropping coordinates...');
+        await new Promise(resolve => setTimeout(resolve, 300));
+        updatedSteps[7] = { ...updatedSteps[7], completed: true };
+        unifiedLoading.updateSteps(updatedSteps);
+        
+        // Step 9: Finalizing cyberpunk bounding boxes
+        console.log('✨ Finalizing cyberpunk bounding boxes...');
+        await new Promise(resolve => setTimeout(resolve, 400));
+        updatedSteps[8] = { ...updatedSteps[8], completed: true };
+        unifiedLoading.updateSteps(updatedSteps);
+        
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         
         if (shoeItems.length > 1) {
           console.log(`🎉 Successfully detected ${shoeItems.length} shoes!`);

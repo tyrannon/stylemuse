@@ -130,7 +130,7 @@ export const useUnifiedLoading = (): UseUnifiedLoadingReturn => {
       currentConfig: loadingConfig?.title || 'null',
     });
     setLoadingConfig(prev => prev ? { ...prev, steps } : null);
-  }, [loadingConfig?.title]);
+  }, []);
 
   // Track state changes
   React.useEffect(() => {
@@ -218,15 +218,21 @@ export const LOADING_CONFIGS = {
   },
   
   MULTI_ITEM_DETECTION: {
-    title: '🔍 Detecting Multiple Items...',
-    subtitle: 'Analyzing your photo...',
+    title: '🎯 AI Multi-Item Detection',
+    subtitle: 'Advanced computer vision scanning your closet...',
     style: 'analysis' as const,
     steps: [
-      { icon: '📸', text: 'Processing image' },
-      { icon: '👔', text: 'Identifying clothing items' },
-      { icon: '📐', text: 'Drawing bounding boxes' },
+      { icon: '📸', text: 'Loading high-resolution image data' },
+      { icon: '🧠', text: 'Initializing neural networks' },
+      { icon: '👁️', text: 'Scanning for clothing objects' },
+      { icon: '🏷️', text: 'Classifying detected items (shoes, tops, etc.)' },
+      { icon: '📏', text: 'Calculating precise boundaries' },
+      { icon: '👟', text: 'Detecting and pairing shoe sets' },
+      { icon: '🎨', text: 'Analyzing colors and patterns' },
+      { icon: '📦', text: 'Preparing cropping coordinates' },
+      { icon: '✨', text: 'Finalizing cyberpunk bounding boxes' },
     ],
-    minimumDuration: 1000,
+    minimumDuration: 2000, // Increased for better experience
   },
   
   SAVING_ITEMS: {
@@ -241,6 +247,21 @@ export const LOADING_CONFIGS = {
     minimumDuration: 600,
   },
   
+  MULTI_ITEM_SAVE: {
+    title: '🚀 Saving All Detected Items',
+    subtitle: 'AI cropping and organizing your wardrobe...',
+    style: 'save' as const,
+    steps: [
+      { icon: '✂️', text: 'Cropping each item with precision' },
+      { icon: '🎨', text: 'Enhancing image quality' },
+      { icon: '🏷️', text: 'Auto-categorizing by type' },
+      { icon: '💾', text: 'Saving to permanent storage' },
+      { icon: '📁', text: 'Adding to your wardrobe' },
+      { icon: '✨', text: 'Generating thumbnails' },
+    ],
+    minimumDuration: 1500,
+  },
+
   BULK_UPLOAD: {
     title: '📦 Saving Multiple Items...',
     subtitle: 'Processing cropped items...',

@@ -34,19 +34,27 @@ interface DetectedItem {
 interface BoundingBoxOverlayProps {
   imageUri: string;
   detectedItems: DetectedItem[];
-  onItemSelect: (item: DetectedItem) => void;
+  onItemSelect?: (item: DetectedItem) => void; // Made optional for new workflow
+  onSaveAll?: (items: DetectedItem[]) => void; // New: Save all items
+  onExcludeItem?: (itemId: number) => void; // New: Exclude specific items
+  excludedItems?: number[]; // New: List of excluded item IDs
   visible: boolean;
   imageWidth: number;
   imageHeight: number;
+  mode?: 'select' | 'save-all'; // New: Operation mode
 }
 
 export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
   imageUri,
   detectedItems,
   onItemSelect,
+  onSaveAll,
+  onExcludeItem,
+  excludedItems = [],
   visible,
   imageWidth,
   imageHeight,
+  mode = 'save-all', // Default to new save-all mode
 }) => {
   const [scale, setScale] = useState(1);
   const [lastScale, setLastScale] = useState(1);
@@ -123,7 +131,30 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
 
   const handleItemPress = async (item: DetectedItem) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onItemSelect(item);
+    
+    if (mode === 'save-all') {
+      // In save-all mode, toggle item exclusion instead of selecting
+      if (excludedItems.includes(item.id)) {
+        // Re-include the item
+        onExcludeItem?.(item.id);
+      } else {
+        // Exclude the item
+        onExcludeItem?.(item.id);
+      }
+    } else {
+      // Legacy select mode
+      onItemSelect?.(item);
+    }
+  };
+
+  const handleSaveAllPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const includedItems = detectedItems.filter(item => !excludedItems.includes(item.id));
+    onSaveAll?.(includedItems);
+  };
+
+  const getIncludedItemsCount = () => {
+    return detectedItems.filter(item => !excludedItems.includes(item.id)).length;
   };
 
   const { displayWidth, displayHeight, offsetX, offsetY } = getDisplayDimensions();
@@ -156,6 +187,7 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
           {detectedItems.map((item, index) => {
         const bbox = convertBoundingBox(item.boundingBox);
         const confidenceColor = getConfidenceColor(item.confidence, theme);
+        const isExcluded = excludedItems.includes(item.id);
         
         return (
           <TouchableOpacity
@@ -167,15 +199,22 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
                 top: bbox.y,
                 width: bbox.width,
                 height: bbox.height,
-                borderColor: confidenceColor,
+                borderColor: isExcluded ? theme.colors.textMuted : confidenceColor,
+                opacity: isExcluded ? 0.5 : 1,
               }
             ]}
             onPress={() => handleItemPress(item)}
             activeOpacity={0.8}
           >
             {/* Item Label */}
-            <View style={[styles.itemLabel, { backgroundColor: confidenceColor }]}>
+            <View style={[
+              styles.itemLabel, 
+              { 
+                backgroundColor: isExcluded ? theme.colors.textMuted : confidenceColor 
+              }
+            ]}>
               <Text style={styles.itemLabelText} numberOfLines={1}>
+                {isExcluded ? '❌ ' : ''}
                 {item.itemType}
                 {item.isPair ? ' 👟' : ''}
               </Text>
@@ -184,9 +223,23 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
               </Text>
             </View>
             
-            {/* Selection Indicator */}
-            <View style={[styles.selectionIndicator, { borderColor: confidenceColor }]}>
-              <Text style={styles.selectionText}>TAP</Text>
+            {/* Status Indicator */}
+            <View style={[
+              styles.selectionIndicator, 
+              { 
+                borderColor: isExcluded ? theme.colors.textMuted : confidenceColor,
+                backgroundColor: isExcluded ? theme.colors.textMuted : 'transparent'
+              }
+            ]}>
+              <Text style={[
+                styles.selectionText,
+                { color: isExcluded ? theme.colors.background : theme.colors.text }
+              ]}>
+                {mode === 'save-all' 
+                  ? (isExcluded ? 'SKIP' : 'SAVE')
+                  : 'TAP'
+                }
+              </Text>
             </View>
           </TouchableOpacity>
         );
@@ -194,21 +247,22 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
         </Animated.View>
       </PinchGestureHandler>
       
-      {/* Instructions - Keep outside zoom container */}
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsText}>
-          {detectedItems.length} item{detectedItems.length !== 1 ? 's' : ''} detected
-        </Text>
-        <Text style={styles.instructionsSubtext}>
-          Tap any item to crop and save it instantly • Pinch to zoom
-        </Text>
-        {/* Show shoe pair info if any pairs detected */}
-        {detectedItems.some(item => item.isPair) && (
-          <Text style={styles.pairInfoText}>
-            👟 Shoe pairs detected and grouped together
+      {/* Bottom Control Panel - Only show for legacy select mode */}
+      {mode === 'select' && (
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionsText}>
+            {detectedItems.length} item{detectedItems.length !== 1 ? 's' : ''} detected
           </Text>
-        )}
-      </View>
+          <Text style={styles.instructionsSubtext}>
+            Tap any item to crop and save it instantly • Pinch to zoom
+          </Text>
+          {detectedItems.some(item => item.isPair) && (
+            <Text style={styles.pairInfoText}>
+              👟 Shoe pairs detected and grouped together
+            </Text>
+          )}
+        </View>
+      )}
     </GestureHandlerRootView>
   );
 };
