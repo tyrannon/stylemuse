@@ -236,10 +236,99 @@ npm run dev       # Development server
 3. AI will automatically detect and separate each item
 4. Each detected item gets its own wardrobe entry
 
+## Unified Loading System Architecture
+
+### Overview
+StyleMuse uses a sophisticated unified loading system that provides non-blocking background processing with a simple header loading animation. This system allows users to continue navigating while long operations (like outfit generation) run in the background.
+
+### Key Components
+
+#### 1. useUnifiedLoading Hook (`/hooks/useUnifiedLoading.ts`)
+- **Purpose**: Centralized loading state management
+- **Features**: Configuration-based loading states with titles, subtitles, and steps
+- **Usage**: Creates loading instances that can be shared across components
+
+#### 2. Header Loading Animation (`WardrobeUploadScreen.tsx`)
+- **Location**: Main header with spinning animation
+- **Behavior**: Non-blocking, allows full navigation during operations
+- **Animation**: Smooth spinning icon using `Animated.Value`
+
+#### 3. Shared Loading Instance Pattern
+- **Architecture**: Single loading instance shared across related components
+- **Benefits**: Consistent loading state across component hierarchy
+- **Implementation**: Pass `unifiedLoading` instance as prop to child components
+
+### Critical Architecture Pattern: Hook Loading Instance Sharing
+
+**Problem Solved**: Multiple `useUnifiedLoading()` calls create isolated loading states, causing loading animations to not appear when expected.
+
+**Solution Pattern**:
+```typescript
+// Parent component (WardrobeUploadScreen)
+const unifiedLoading = useUnifiedLoading();
+const outfitGeneration = useOutfitGeneration(
+  savedItems, 
+  categorizeItem, 
+  navigateToBuilder, 
+  unifiedLoading  // Pass shared instance
+);
+
+// Hook implementation (useOutfitGeneration)
+export const useOutfitGeneration = (
+  savedItems: WardrobeItem[],
+  categorizeItem: (item: WardrobeItem) => string,
+  navigateToBuilder?: () => void,
+  sharedLoading?: any  // Accept shared instance
+): OutfitGenerationState => {
+  const localUnifiedLoading = useUnifiedLoading();
+  const unifiedLoading = sharedLoading || localUnifiedLoading; // Use shared if provided
+  
+  // Use unifiedLoading throughout the hook
+  const generateOutfitSuggestions = async () => {
+    unifiedLoading.showLoading(LOADING_CONFIGS.OUTFIT_GENERATION);
+    // ... outfit generation logic
+    unifiedLoading.hideLoading();
+  };
+};
+
+// Child component (ItemDetailView)
+<AIOutfitAssistant 
+  sharedLoading={sharedLoading}  // Pass through to sub-components
+  onOutfitGenerated={generateOutfitSuggestions}  // Uses shared loading
+/>
+```
+
+### Loading State Flow
+
+1. **User Action**: "Complete Outfit" button pressed in item detail
+2. **AIOutfitAssistant**: Uses shared loading instance 
+3. **generateOutfitSuggestions**: Called with shared loading instance
+4. **Header Animation**: Triggered by shared loading state
+5. **Background Processing**: Outfit generation runs without blocking UI
+6. **Navigation**: User can navigate freely during operation
+7. **Completion**: Loading stops, header animation stops
+
+### Components Using Shared Loading
+
+**Fully Implemented**:
+- ✅ WardrobeUploadScreen (main loading instance)
+- ✅ useOutfitGeneration hook (accepts shared instance)
+- ✅ AIOutfitAssistant (uses shared loading when provided)
+- ✅ ItemDetailView (passes shared loading through)
+
+### Benefits Achieved
+
+- **Non-Blocking UX**: Users can navigate during long operations
+- **Consistent Feedback**: Single loading animation for all operations
+- **Simple UI**: Clean header loading bar instead of modal overlays
+- **Student-Friendly**: Intuitive loading feedback without complexity
+
 ## Recent Updates
 
 - ✅ Expanded dark mode app-wide (BuilderPage, WardrobePage, ProfilePage)
 - ✅ Implemented unified loading animations across key operations
+- ✅ **Fixed shared loading instance architecture for complete outfit feature**
+- ✅ **Implemented non-blocking header loading system**
 - ✅ Fixed AI outfit assistant button colors for dark mode
 - ✅ Removed fresh outfit ideas section from wardrobe
 - ✅ Updated loading screens to use unified loading overlay
@@ -247,3 +336,4 @@ npm run dev       # Development server
 - ✅ Implemented Tokyo color scheme with neon aesthetics
 - ✅ Enhanced multi-item detection for better shoe detection
 - ✅ Created comprehensive color scheming documentation
+- ✅ **Resolved loading state isolation between hook instances**

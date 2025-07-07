@@ -5,6 +5,7 @@ import { WardrobeItem } from './useWardrobeData';
 import { generateIntelligentOutfitSelection } from '../utils/openai';
 import { generateClothingItemImage } from '../utils/openai';
 import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
+// import { useBackgroundTasks } from '../contexts/BackgroundTaskContext';
 
 export interface GearSlot {
   itemId: string | null;
@@ -50,9 +51,12 @@ export interface OutfitGenerationState {
 export const useOutfitGeneration = (
   savedItems: WardrobeItem[],
   categorizeItem: (item: WardrobeItem) => string,
-  navigateToBuilder?: () => void
+  navigateToBuilder?: () => void,
+  sharedLoading?: any
 ): OutfitGenerationState => {
-  const unifiedLoading = useUnifiedLoading();
+  const localUnifiedLoading = useUnifiedLoading();
+  const unifiedLoading = sharedLoading || localUnifiedLoading;
+  // const backgroundTasks = useBackgroundTasks();
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
   const [generatingSuggestions, setGeneratingSuggestions] = useState(false);

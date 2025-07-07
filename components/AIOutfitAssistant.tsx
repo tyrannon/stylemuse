@@ -156,6 +156,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       if (context === 'item' && currentItem) {
         console.log(`🎨 Generating outfit around item: ${currentItem.title || currentItem.description}`);
         
+        // Don't show loading here - let the actual outfit generation handle it
         // Create a focused outfit generation around this specific item
         const itemFocusedOutfit = {
           centerItem: currentItem,

@@ -90,6 +90,7 @@ const WardrobeUploadScreen = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    deleteBulkOutfits,
     saveBulkWardrobeItems,
   } = wardrobeData;
   
@@ -187,7 +188,7 @@ const WardrobeUploadScreen = () => {
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
   const modalState = useModalState();
-  const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll);
+  const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll, unifiedLoading);
   const smartSuggestions = useSmartSuggestions();
   // Removed separate styleDNALoading - now using main unifiedLoading
 
@@ -215,6 +216,27 @@ const WardrobeUploadScreen = () => {
   
   // Multi-item detection state
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
+  const [cameraMode, setCameraMode] = useState<'single' | 'multi'>('single');
+  
+  // Header loading animation
+  const [headerSpinValue] = useState(new Animated.Value(0));
+  
+  // Start spinning animation when loading starts
+  useEffect(() => {
+    if (unifiedLoading.isLoading) {
+      const spinAnimation = Animated.loop(
+        Animated.timing(headerSpinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      );
+      spinAnimation.start();
+      return () => spinAnimation.stop();
+    } else {
+      headerSpinValue.setValue(0);
+    }
+  }, [unifiedLoading.isLoading, headerSpinValue]);
 
   // Wardrobe inventory and editing states
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -427,8 +449,11 @@ const WardrobeUploadScreen = () => {
   // Function to handle automatic description and saving of clothing item
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
     if (!isBulkUpload) {
-      imageHandling.setLoading(true);
-      // Single image analysis now uses unified loading - handled by imageHandling hook
+      // Show unified loading overlay for single image analysis
+      unifiedLoading.showLoading({
+        ...LOADING_CONFIGS.IMAGE_ANALYSIS,
+        subtitle: 'Analyzing your clothing item...',
+      });
       setDescription(null);
       setTitle(null);
       setTags([]);
@@ -511,8 +536,7 @@ const WardrobeUploadScreen = () => {
       }
     } finally {
       if (!isBulkUpload) {
-        imageHandling.setLoading(false);
-        stopSpinAnimation(); // Stop spinning animation for single image
+        unifiedLoading.hideLoading();
       }
     }
   };
@@ -625,6 +649,7 @@ const WardrobeUploadScreen = () => {
   // SIMPLE DIRECT CAMERA APPROACH - No modal, just open camera directly
   const openCamera = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setCameraMode('single'); // Default to single mode for main camera
     modalState.setShowCamera(true);
   };
 
@@ -635,17 +660,16 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle camera capture from add item page
   const handleAddItemCameraPress = async () => {
-    // Go to camera screen directly
+    // Go to camera screen directly in single mode
+    setCameraMode('single');
     modalState.setShowCamera(true);
   };
 
   // Function to handle multi-item camera press from add item page
   const handleAddItemMultiItemCameraPress = async () => {
     // Go to camera screen directly in multi-item mode
-    // The multi-item toggle is available in the camera UI
+    setCameraMode('multi');
     modalState.setShowCamera(true);
-    // Note: User will need to toggle multi-item mode in camera interface
-    // This is by design to give users control over single vs multi-item mode
   };
 
   // Function to pick images from library with "Add Another" flow for single items
@@ -761,21 +785,24 @@ const WardrobeUploadScreen = () => {
   // Function to handle multi-item save from photo editing
   const handleMultiItemSave = async (croppedItems: any[]) => {
     try {
-      console.log(`🔍 Processing ${croppedItems.length} cropped items for wardrobe save...`);
-      console.log('📋 Cropped items data:', croppedItems);
+      console.log(`🔍 [MULTI-ITEM] Processing ${croppedItems.length} cropped items for wardrobe save...`);
+      console.log('📋 [MULTI-ITEM] Cropped items data:', JSON.stringify(croppedItems, null, 2));
       
       // Validate cropped items
       if (!croppedItems || croppedItems.length === 0) {
+        console.error('❌ [MULTI-ITEM] No cropped items provided');
         Alert.alert('Error', 'No items were successfully cropped. Please try again.');
         return;
       }
       
       // Validate that saveBulkWardrobeItems function exists
       if (!saveBulkWardrobeItems) {
-        console.error('❌ saveBulkWardrobeItems function not available');
+        console.error('❌ [MULTI-ITEM] saveBulkWardrobeItems function not available');
         Alert.alert('Error', 'Save function not available. Please restart the app.');
         return;
       }
+      
+      console.log('✅ [MULTI-ITEM] Validation passed, proceeding with save...');
       
       // Close editing screen first
       modalState.setShowPhotoEditing(false);
@@ -785,12 +812,13 @@ const WardrobeUploadScreen = () => {
       // Show loading state
       unifiedLoading.showLoading(LOADING_CONFIGS.BULK_UPLOAD);
       
+      console.log('🔄 [MULTI-ITEM] Calling saveBulkWardrobeItems...');
       // Use the bulk save function from wardrobe data hook
       await saveBulkWardrobeItems(croppedItems);
       
       unifiedLoading.hideLoading();
       
-      console.log(`✅ Successfully saved ${croppedItems.length} items to wardrobe`);
+      console.log(`✅ [MULTI-ITEM] Successfully saved ${croppedItems.length} items to wardrobe`);
       
       Alert.alert(
         '🎉 Success!', 
@@ -800,7 +828,12 @@ const WardrobeUploadScreen = () => {
       
     } catch (error) {
       unifiedLoading.hideLoading();
-      console.error('❌ Error saving multi-item detection results:', error);
+      console.error('❌ [MULTI-ITEM] Error saving multi-item detection results:', error);
+      console.error('❌ [MULTI-ITEM] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        croppedItemsLength: croppedItems?.length || 'undefined'
+      });
       Alert.alert(
         'Save Error', 
         `Failed to save items to wardrobe: ${error.message || 'Unknown error'}. Please try again.`
@@ -1804,8 +1837,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   // This is the main component that renders the wardrobe upload screen
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* Main Content */}
-      <View style={{ flex: 1 }}>
+        {/* Main Content */}
+        <View style={{ flex: 1 }}>
         <ScrollView 
           ref={mainScrollViewRef}
           style={{ flex: 1, backgroundColor: theme.colors.background }}
@@ -1856,19 +1889,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
               {/* Header */}
               <View style={styles.outfitModalHeader}>
                 <Text style={styles.outfitModalTitle}>
-                  {weatherData && styleDNA ? "Your Personalized Weather Outfit! 🧬🌤️" : 
-                   weatherData ? "Perfect Weather Outfit! 🌤️" :
-                   styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "Your AI-Generated Outfit"}
+                  {styleDNA ? "Your Personalized AI Outfit! 🧬✨" : "Your AI-Generated Outfit"}
                 </Text>
-                
-                {/* Weather info if available */}
-                {weatherData && (
-                  <View style={styles.weatherInfo}>
-                    <Text style={styles.weatherText}>
-                      🌡️ {weatherData.temperature}°F • {weatherData.description}
-                    </Text>
-                  </View>
-                )}
                 
                 {/* Close button */}
                 <TouchableOpacity
@@ -1934,6 +1956,32 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 )}
               </View>
 
+              {/* Action Buttons - Moved up for better UX */}
+              <View style={styles.outfitModalActions}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setOutfitModalVisible(false);
+                    outfitGeneration.setGeneratedOutfit(null);
+                    outfitGeneration.setSelectedItemsForOutfit([]);
+                    outfitGeneration.setIsSelectionMode(true);
+                  }}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionButtonText}>🔄 Generate Another</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => {
+                    setOutfitModalVisible(false);
+                    outfitGeneration.setGeneratedOutfit(null);
+                    outfitGeneration.setSelectedItemsForOutfit([]);
+                  }}
+                  style={[styles.actionButton, styles.keepOutfitButton]}
+                >
+                  <Text style={styles.actionButtonText}>✅ Keep This Outfit</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Original Items Section */}
               {outfitGeneration.selectedItemsForOutfit.length > 0 && (
                 <View style={styles.originalItemsContainer}>
@@ -1988,31 +2036,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 </Text>
               </View>
 
-              {/* Action Buttons */}
-              <View style={styles.outfitModalActions}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setOutfitModalVisible(false);
-                    outfitGeneration.setGeneratedOutfit(null);
-                    outfitGeneration.setSelectedItemsForOutfit([]);
-                    outfitGeneration.setIsSelectionMode(true);
-                  }}
-                  style={styles.actionButton}
-                >
-                  <Text style={styles.actionButtonText}>🔄 Generate Another</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  onPress={() => {
-                    setOutfitModalVisible(false);
-                    outfitGeneration.setGeneratedOutfit(null);
-                    outfitGeneration.setSelectedItemsForOutfit([]);
-                  }}
-                  style={[styles.actionButton, styles.keepOutfitButton]}
-                >
-                  <Text style={styles.actionButtonText}>✅ Keep This Outfit</Text>
-                </TouchableOpacity>
-              </View>
             </ScrollView>
           </View>
         </GestureHandlerRootView>
@@ -2928,6 +2951,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getItemsByLaundryStatus={getItemsByLaundryStatus}
     // Navigation
     onNavigateToBuilder={navigateToBuilder}
+    // Bulk operations
+    deleteBulkWardrobeItems={deleteBulkWardrobeItems}
   />
 )}
 
@@ -2942,6 +2967,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onNavigateToBuilder={navigateToBuilder}
     generateOutfitSuggestions={generateOutfitSuggestions}
     categorizeItem={categorizeItem}
+    sharedLoading={unifiedLoading}
     editingTitle={editingTitle}
     setEditingTitle={setEditingTitle}
     editingColor={editingColor}
@@ -3030,6 +3056,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     downloadImage={downloadImage}
     markOutfitAsWorn={markOutfitAsWorn}
     navigateToBuilder={navigateToBuilder}
+    deleteBulkOutfits={deleteBulkOutfits}
   />
 )}
 
@@ -3255,11 +3282,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       {modalState.showCamera && (
         <View style={styles.fullScreenOverlay}>
           <CameraScreen
-            onPhotoTaken={handleCameraPhotoDirect}
+            onPhotoTaken={cameraMode === 'single' ? handleCameraPhotoDirect : handlePhotoTaken}
             onCancel={() => modalState.setShowCamera(false)}
             mode="wardrobe"
             showGrid={true}
             onMultiItemDetected={handleMultiItemDetected}
+            defaultMultiItemMode={cameraMode === 'multi'}
           />
         </View>
       )}
@@ -3300,14 +3328,29 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         isGenerating={smartSuggestions.isGenerating}
       />
 
-      {/* Unified Loading Overlay - Main Instance */}
-      <UnifiedLoadingOverlay
-        visible={unifiedLoading.isLoading}
-        title={unifiedLoading.loadingConfig?.title || ''}
-        subtitle={unifiedLoading.loadingConfig?.subtitle}
-        steps={unifiedLoading.loadingConfig?.steps}
-        style={unifiedLoading.loadingConfig?.style}
-      />
+      {/* Header Loading Bar - Simple and Non-blocking */}
+      {unifiedLoading.isLoading && (
+        <View style={styles.headerLoadingContainer}>
+          <View style={styles.headerLoadingContent}>
+            <Text style={styles.headerLoadingText}>
+              {unifiedLoading.loadingConfig?.title || 'Processing...'}
+            </Text>
+            <Animated.View
+              style={{
+                transform: [{
+                  rotate: headerSpinValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                }],
+              }}
+            >
+              <Text style={styles.headerLoadingSpinner}>⚙️</Text>
+            </Animated.View>
+          </View>
+        </View>
+      )}
+      
     </SafeAreaView>
   );
 };

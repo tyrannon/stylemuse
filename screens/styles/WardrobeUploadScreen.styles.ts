@@ -2369,4 +2369,32 @@ export const createStyles = (theme: any) => StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  
+  // Header Loading Styles - Simple and Non-blocking
+  headerLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999, // Below modal overlays but above content
+    backgroundColor: theme.colors.primary,
+    paddingTop: 50, // Account for status bar
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+  },
+  headerLoadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLoadingText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 12,
+  },
+  headerLoadingSpinner: {
+    fontSize: 16,
+    color: 'white',
+  },
 });

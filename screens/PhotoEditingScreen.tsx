@@ -81,14 +81,22 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
     try {
       setIsProcessing(true);
       
+      console.log('🔍 [PHOTO-EDITOR] handleSave called:', {
+        multiItemMode,
+        detectedItemsLength: detectedItems.length,
+        hasOnMultiItemSave: !!onMultiItemSave
+      });
+      
       if (multiItemMode && detectedItems.length > 0) {
+        console.log('🔄 [PHOTO-EDITOR] Calling handleMultiItemSave...');
         await handleMultiItemSave();
       } else {
+        console.log('🔄 [PHOTO-EDITOR] Calling single item save...');
         const finalPhotoUri = await saveEditedPhoto();
         onSave(finalPhotoUri);
       }
     } catch (error) {
-      console.error('Failed to save edited photo:', error);
+      console.error('❌ [PHOTO-EDITOR] Failed to save edited photo:', error);
       Alert.alert('Error', 'Failed to save edited photo.');
     } finally {
       setIsProcessing(false);
@@ -97,25 +105,39 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
 
   const handleMultiItemSave = async () => {
     if (!onMultiItemSave) {
+      console.error('❌ [PHOTO-EDITOR] Multi-item save handler not provided');
       Alert.alert('Error', 'Multi-item save handler not provided.');
       return;
     }
 
-    console.log('🔍 Processing multiple items for cropping...');
-    const croppedResults = await cropMultipleItems(
-      photoUri,
-      detectedItems,
-      imageSize.width,
-      imageSize.height
-    );
+    console.log('🔍 [PHOTO-EDITOR] Processing multiple items for cropping...');
+    console.log('📋 [PHOTO-EDITOR] Detected items to crop:', detectedItems.length);
+    
+    try {
+      const croppedResults = await cropMultipleItems(
+        photoUri,
+        detectedItems,
+        imageSize.width,
+        imageSize.height
+      );
 
-    if (croppedResults.length === 0) {
-      Alert.alert('Error', 'Failed to crop any items. Please try again.');
-      return;
+      console.log('🎯 [PHOTO-EDITOR] Crop results:', {
+        croppedCount: croppedResults.length,
+        originalCount: detectedItems.length
+      });
+
+      if (croppedResults.length === 0) {
+        console.error('❌ [PHOTO-EDITOR] No items were successfully cropped');
+        Alert.alert('Error', 'Failed to crop any items. Please try again.');
+        return;
+      }
+
+      console.log(`✅ [PHOTO-EDITOR] Successfully cropped ${croppedResults.length} items, calling onMultiItemSave...`);
+      onMultiItemSave(croppedResults);
+    } catch (error) {
+      console.error('❌ [PHOTO-EDITOR] Error in cropMultipleItems:', error);
+      Alert.alert('Error', 'Failed to process items. Please try again.');
     }
-
-    console.log(`✅ Successfully cropped ${croppedResults.length} items`);
-    onMultiItemSave(croppedResults);
   };
 
   const handleItemSelect = async (item: DetectedItem) => {

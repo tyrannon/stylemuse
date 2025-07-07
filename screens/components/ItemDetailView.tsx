@@ -21,6 +21,7 @@ interface ItemDetailViewProps {
   onNavigateToBuilder?: () => void;
   generateOutfitSuggestions?: (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
+  sharedLoading?: any; // Shared unified loading instance
   
   // Editing states
   editingTitle: boolean;
@@ -62,6 +63,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   onNavigateToBuilder,
   generateOutfitSuggestions,
   categorizeItem,
+  sharedLoading,
   editingTitle,
   setEditingTitle,
   editingColor,
@@ -571,6 +573,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
               context="item"
               size="small"
               currentItem={item}
+              sharedLoading={sharedLoading}
               onOutfitGenerated={async (outfit) => {
                 console.log('Generated outfit for item:', outfit);
                 // Use the proper outfit generation function that pre-fills gear slots

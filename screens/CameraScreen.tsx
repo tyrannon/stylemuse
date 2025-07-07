@@ -26,6 +26,7 @@ interface CameraScreenProps {
   showGrid?: boolean;
   flashMode?: 'on' | 'off' | 'auto';
   onMultiItemDetected?: (items: any[]) => void;
+  defaultMultiItemMode?: boolean;
 }
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
@@ -35,6 +36,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   showGrid = false,
   flashMode = 'off',
   onMultiItemDetected,
+  defaultMultiItemMode = false,
 }) => {
   const {
     state,
@@ -50,7 +52,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   const unifiedLoading = useUnifiedLoading();
   const [isInitializing, setIsInitializing] = useState(true);
-  const [multiItemMode, setMultiItemMode] = useState(true); // Default to true for better discovery
+  const [multiItemMode, setMultiItemMode] = useState(defaultMultiItemMode); // Use prop default
   const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
 
   useEffect(() => {

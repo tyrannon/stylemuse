@@ -163,11 +163,14 @@ export const useWardrobeData = () => {
     const description = (item.description || '').toLowerCase();
     const style = (item.style || '').toLowerCase();
     
-    // Check for top items
-    if (tags.some(tag => ['top', 't-shirt', 'shirt', 'blouse', 'tank', 'crop', 'sweater'].includes(tag.toLowerCase())) ||
-        title.includes('shirt') || title.includes('top') || title.includes('blouse') || title.includes('t-shirt') ||
-        description.includes('shirt') || description.includes('top') || description.includes('blouse') ||
-        style.includes('shirt') || style.includes('top') || style.includes('blouse')) {
+    // Check for top items (including dresses)
+    if (tags.some(tag => ['top', 't-shirt', 'shirt', 'blouse', 'tank', 'crop', 'sweater', 'dress', 'gown', 'tunic'].includes(tag.toLowerCase())) ||
+        title.includes('shirt') || title.includes('top') || title.includes('blouse') || title.includes('t-shirt') || 
+        title.includes('dress') || title.includes('gown') || title.includes('tunic') ||
+        description.includes('shirt') || description.includes('top') || description.includes('blouse') || 
+        description.includes('dress') || description.includes('gown') || description.includes('tunic') ||
+        style.includes('shirt') || style.includes('top') || style.includes('blouse') || 
+        style.includes('dress') || style.includes('gown') || style.includes('tunic')) {
       return 'top';
     }
     
@@ -179,11 +182,14 @@ export const useWardrobeData = () => {
       return 'bottom';
     }
     
-    // Check for shoes
-    if (tags.some(tag => ['shoes', 'boots', 'sandals', 'sneakers', 'footwear'].includes(tag.toLowerCase())) ||
-        title.includes('shoes') || title.includes('boots') || title.includes('sandals') || title.includes('sneakers') ||
-        description.includes('shoes') || description.includes('boots') || description.includes('sandals') ||
-        style.includes('shoes') || style.includes('boots') || style.includes('sandals')) {
+    // Check for shoes (including sandals, slippers, etc.)
+    if (tags.some(tag => ['shoes', 'boots', 'sandals', 'sneakers', 'footwear', 'sandal', 'slipper', 'heel', 'loafer'].includes(tag.toLowerCase())) ||
+        title.includes('shoes') || title.includes('boots') || title.includes('sandals') || title.includes('sneakers') || 
+        title.includes('sandal') || title.includes('slipper') || title.includes('heel') || title.includes('loafer') ||
+        description.includes('shoes') || description.includes('boots') || description.includes('sandals') || 
+        description.includes('sandal') || description.includes('slipper') || description.includes('heel') ||
+        style.includes('shoes') || style.includes('boots') || style.includes('sandals') || 
+        style.includes('sandal') || style.includes('slipper') || style.includes('heel')) {
       return 'shoes';
     }
     
@@ -203,11 +209,14 @@ export const useWardrobeData = () => {
       return 'hat';
     }
     
-    // Check for accessories
-    if (tags.some(tag => ['accessories', 'jewelry', 'bag', 'scarf', 'belt', 'watch'].includes(tag.toLowerCase())) ||
-        title.includes('accessories') || title.includes('jewelry') || title.includes('bag') || title.includes('scarf') ||
-        description.includes('accessories') || description.includes('jewelry') || description.includes('bag') ||
-        style.includes('accessories') || style.includes('jewelry') || style.includes('bag')) {
+    // Check for accessories (including support items, braces, etc.)
+    if (tags.some(tag => ['accessories', 'jewelry', 'bag', 'scarf', 'belt', 'watch', 'brace', 'support', 'strap', 'band'].includes(tag.toLowerCase())) ||
+        title.includes('accessories') || title.includes('jewelry') || title.includes('bag') || title.includes('scarf') || 
+        title.includes('brace') || title.includes('support') || title.includes('strap') || title.includes('band') ||
+        description.includes('accessories') || description.includes('jewelry') || description.includes('bag') || 
+        description.includes('brace') || description.includes('support') || description.includes('strap') ||
+        style.includes('accessories') || style.includes('jewelry') || style.includes('bag') || 
+        style.includes('brace') || style.includes('support') || style.includes('strap')) {
       return 'accessories';
     }
     
@@ -741,6 +750,7 @@ export const useWardrobeData = () => {
       
       // Remove items from wardrobe
       const updatedItems = savedItems.filter(item => !imagesToDelete.includes(item.image));
+      
       setSavedItems(updatedItems);
       
       // Save to AsyncStorage
@@ -757,7 +767,6 @@ export const useWardrobeData = () => {
         await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
       }
       
-      console.log(`✅ ${itemsToDelete.length} wardrobe items deleted successfully`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
@@ -766,6 +775,28 @@ export const useWardrobeData = () => {
       throw error;
     }
   }, [savedItems, lovedOutfits]);
+
+  // Function to delete multiple outfits at once
+  const deleteBulkOutfits = useCallback(async (outfitIds: string[]): Promise<void> => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      
+      // Remove outfits by ID
+      const updatedOutfits = lovedOutfits.filter(outfit => !outfitIds.includes(outfit.id));
+      
+      setLovedOutfits(updatedOutfits);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error('❌ Error deleting bulk outfits:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      throw error;
+    }
+  }, [lovedOutfits]);
 
   // WISHLIST MANAGEMENT FUNCTIONS
   
@@ -963,6 +994,7 @@ export const useWardrobeData = () => {
         fit: 'auto-detected',
         category: categorizeItem({ 
           image: item.croppedUri,
+          title: item.description, // Use description as title for better categorization
           description: item.description,
           tags: [item.itemType],
           style: item.itemType
@@ -1044,6 +1076,7 @@ export const useWardrobeData = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    deleteBulkOutfits,
     
     // Bulk Save Function
     saveBulkWardrobeItems,

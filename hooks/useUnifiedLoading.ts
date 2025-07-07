@@ -205,6 +205,18 @@ export const LOADING_CONFIGS = {
     minimumDuration: 800,
   },
   
+  IMAGE_ANALYSIS: {
+    title: '🔍 Analyzing Your Image...',
+    subtitle: 'AI is examining your clothing item...',
+    style: 'analysis' as const,
+    steps: [
+      { icon: '📸', text: 'Processing image' },
+      { icon: '🏷️', text: 'Identifying clothing type' },
+      { icon: '📝', text: 'Creating description' },
+    ],
+    minimumDuration: 800,
+  },
+  
   MULTI_ITEM_DETECTION: {
     title: '🔍 Detecting Multiple Items...',
     subtitle: 'Analyzing your photo...',
@@ -227,6 +239,18 @@ export const LOADING_CONFIGS = {
       { icon: '✅', text: 'Adding to wardrobe' },
     ],
     minimumDuration: 600,
+  },
+  
+  BULK_UPLOAD: {
+    title: '📦 Saving Multiple Items...',
+    subtitle: 'Processing cropped items...',
+    style: 'save' as const,
+    steps: [
+      { icon: '✂️', text: 'Processing cropped items' },
+      { icon: '📝', text: 'Generating descriptions' },
+      { icon: '💾', text: 'Saving to wardrobe' },
+    ],
+    minimumDuration: 800,
   },
   
   WEATHER_FETCH: {
