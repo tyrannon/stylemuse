@@ -7,4 +7,5 @@ export const STORAGE_KEYS = {
   PROFILE_IMAGE: 'stylemuse_profile_image',
   WISHLIST_ITEMS: 'stylemuse_wishlist_items',
   SUGGESTED_ITEMS: 'stylemuse_suggested_items',
+  USER_PREFERENCES: 'stylemuse_user_preferences',
 } as const;

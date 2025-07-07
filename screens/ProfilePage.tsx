@@ -5,6 +5,7 @@ import { SafeImage } from '../utils/SafeImage';
 import { EnhancedStyleDNA } from '../types/Avatar';
 import { PersistenceService } from '../services/PersistenceService';
 import { useTheme } from '../contexts/ThemeContext';
+import { BackupManagerModal } from '../components/BackupManagerModal';
 import * as Haptics from 'expo-haptics';
 
 interface ProfilePageProps {
@@ -435,7 +436,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 };
 
 /**
- * 💾 BACKUP SECTION: Ultimate data persistence controls
+ * 💾 BACKUP SECTION: Complete backup/restore system
  */
 interface BackupSectionProps {
   theme: any;
@@ -443,121 +444,104 @@ interface BackupSectionProps {
 }
 
 const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles }) => {
-  const [backupInfo, setBackupInfo] = useState<{
-    hasLocalBackup: boolean;
+  const [showBackupManager, setShowBackupManager] = useState(false);
+  const [backupStats, setBackupStats] = useState<{
+    availableBackups: number;
     lastBackupDate: Date | null;
-    backupSize: string;
+    totalBackupSize: string;
   }>({
-    hasLocalBackup: false,
+    availableBackups: 0,
     lastBackupDate: null,
-    backupSize: '0 KB'
+    totalBackupSize: '0 KB'
   });
-  const [loading, setLoading] = useState(false);
 
-  // Load backup info on component mount
   useEffect(() => {
-    loadBackupInfo();
+    loadBackupStats();
   }, []);
 
-  const loadBackupInfo = async () => {
+  const loadBackupStats = async () => {
     try {
-      const info = await PersistenceService.getBackupInfo();
-      setBackupInfo(info);
+      const { FullBackupService } = await import('../services/FullBackupService');
+      const backups = await FullBackupService.getAvailableBackups();
+      
+      const totalSize = backups.reduce((sum, backup) => sum + backup.totalSizeMB, 0);
+      const lastBackup = backups.length > 0 ? new Date(backups[0].timestamp) : null;
+      
+      setBackupStats({
+        availableBackups: backups.length,
+        lastBackupDate: lastBackup,
+        totalBackupSize: totalSize > 1 ? `${totalSize.toFixed(1)} MB` : `${Math.round(totalSize * 1024)} KB`,
+      });
     } catch (error) {
-      console.error('Error loading backup info:', error);
+      console.error('Failed to load backup stats:', error);
     }
   };
 
-  const handleExportBackup = async () => {
-    try {
-      setLoading(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await PersistenceService.exportBackup();
-      await loadBackupInfo(); // Refresh backup info
-    } catch (error) {
-      console.error('Export failed:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleBackupCreated = (backupId: string) => {
+    console.log('New backup created:', backupId);
+    loadBackupStats(); // Refresh stats
   };
 
-  const handleImportBackup = async () => {
-    try {
-      setLoading(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await PersistenceService.importBackup();
-      await loadBackupInfo(); // Refresh backup info
-    } catch (error) {
-      console.error('Import failed:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleDataRestored = (backupId: string) => {
+    console.log('Data restored from backup:', backupId);
+    // You might want to trigger a full app refresh here
   };
 
   return (
     <View style={styles.backupSection}>
-      <Text style={styles.backupTitle}>💾 Data Backup & Restore</Text>
+      <Text style={styles.backupTitle}>💾 Complete Backup System</Text>
       <Text style={styles.backupSubtitle}>
-        Protect your StyleMuse data from app updates and device changes
+        Professional-grade backup, restore, and testing capabilities
       </Text>
 
-      {/* Backup Status */}
+      {/* Enhanced Backup Status */}
       <View style={styles.backupStatusCard}>
         <View style={styles.backupStatusHeader}>
-          <Text style={styles.backupStatusTitle}>📊 Backup Status</Text>
-          <Text style={[styles.backupStatusBadge, backupInfo.hasLocalBackup ? styles.backupStatusGood : styles.backupStatusBad]}>
-            {backupInfo.hasLocalBackup ? '✅ Protected' : '⚠️ No Backup'}
+          <Text style={styles.backupStatusTitle}>📊 System Status</Text>
+          <Text style={[
+            styles.backupStatusBadge, 
+            backupStats.availableBackups > 0 ? styles.backupStatusGood : styles.backupStatusBad
+          ]}>
+            {backupStats.availableBackups > 0 ? '✅ Protected' : '⚠️ No Backups'}
           </Text>
         </View>
         
         <View style={styles.backupStatusDetails}>
           <Text style={styles.backupStatusText}>
-            Size: {backupInfo.backupSize}
+            Backups: {backupStats.availableBackups} available
           </Text>
           <Text style={styles.backupStatusText}>
-            Last Backup: {backupInfo.lastBackupDate 
-              ? backupInfo.lastBackupDate.toLocaleDateString() 
+            Total Size: {backupStats.totalBackupSize}
+          </Text>
+          <Text style={styles.backupStatusText}>
+            Last Backup: {backupStats.lastBackupDate 
+              ? backupStats.lastBackupDate.toLocaleDateString() 
               : 'Never'}
           </Text>
         </View>
       </View>
 
-      {/* Backup Actions */}
-      <View style={styles.backupActions}>
-        <TouchableOpacity
-          style={[styles.backupButton, styles.exportButton]}
-          onPress={handleExportBackup}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Text style={styles.backupButtonIcon}>📤</Text>
-              <Text style={styles.backupButtonText}>Export Backup</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.backupButton, styles.importButton]}
-          onPress={handleImportBackup}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Text style={styles.backupButtonIcon}>📥</Text>
-              <Text style={styles.backupButtonText}>Restore Backup</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Advanced Backup Manager Button */}
+      <TouchableOpacity
+        style={[styles.backupButton, styles.managerButton]}
+        onPress={() => setShowBackupManager(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backupButtonIcon}>🎛️</Text>
+        <Text style={styles.backupButtonText}>Advanced Backup Manager</Text>
+      </TouchableOpacity>
 
       <Text style={styles.backupNote}>
-        💡 Your backups are saved to your device's secure storage and will sync with iCloud (iOS) automatically.
+        🎯 Full backup/restore system with versioning, testing, and data reset capabilities. Create snapshots, restore from any point, and test your backup integrity.
       </Text>
+
+      {/* Backup Manager Modal */}
+      <BackupManagerModal
+        visible={showBackupManager}
+        onClose={() => setShowBackupManager(false)}
+        onBackupCreated={handleBackupCreated}
+        onDataRestored={handleDataRestored}
+      />
     </View>
   );
 };
@@ -772,6 +756,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   importButton: {
     backgroundColor: theme.colors.success,
+  },
+  managerButton: {
+    backgroundColor: theme.colors.primary,
+    marginTop: 12,
   },
   backupButtonIcon: {
     fontSize: 16,
