@@ -147,6 +147,7 @@ export class FullBackupService {
         lovedOutfitsLength: dataMap[STORAGE_KEYS.LOVED_OUTFITS]?.length || 0,
         hasStyleDNA: !!dataMap[STORAGE_KEYS.STYLE_DNA],
         hasProfileImage: !!dataMap[STORAGE_KEYS.PROFILE_IMAGE],
+        profileImageValue: dataMap[STORAGE_KEYS.PROFILE_IMAGE]?.substring(0, 100) + '...',
         hasGender: !!dataMap[STORAGE_KEYS.SELECTED_GENDER],
       });
 
@@ -155,8 +156,16 @@ export class FullBackupService {
       const lovedOutfits = this.safeJSONParse(dataMap[STORAGE_KEYS.LOVED_OUTFITS], []);
       const styleDNA = this.safeJSONParse(dataMap[STORAGE_KEYS.STYLE_DNA], null);
       const selectedGender = this.safeJSONParse(dataMap[STORAGE_KEYS.SELECTED_GENDER], 'female');
-      const profileImage = this.safeJSONParse(dataMap[STORAGE_KEYS.PROFILE_IMAGE], null);
+      // Profile image is stored as a plain string, not JSON
+      const profileImageRaw = dataMap[STORAGE_KEYS.PROFILE_IMAGE];
+      const profileImage = profileImageRaw && profileImageRaw !== 'null' && profileImageRaw !== 'undefined' ? profileImageRaw : null;
       const userPreferences = this.safeJSONParse(dataMap[STORAGE_KEYS.USER_PREFERENCES], {});
+      
+      console.log('🔍 [FullBackup] Profile image parsing:', {
+        rawValue: profileImageRaw,
+        finalValue: profileImage,
+        willProcess: !!profileImage,
+      });
 
       console.log('✅ [FullBackup] Parsed data successfully:', {
         wardrobeItemsCount: Array.isArray(wardrobeItems) ? wardrobeItems.length : 0,
@@ -248,11 +257,14 @@ export class FullBackupService {
       // Process profile image
       if (profileImage && typeof profileImage === 'string' && !processedUris.has(profileImage)) {
         try {
+          console.log(`🔍 [FullBackup] Processing profile image: ${profileImage}`);
+          
           // Check if profile image file exists
           const fileInfo = await FileSystem.getInfoAsync(profileImage);
           if (!fileInfo.exists) {
             console.warn(`⚠️ [FullBackup] Profile image file not found: ${profileImage}`);
           } else {
+            console.log(`📸 [FullBackup] Profile image file exists, size: ${fileInfo.size} bytes`);
             const base64Data = await FileSystem.readAsStringAsync(profileImage, {
               encoding: FileSystem.EncodingType.Base64,
             });
@@ -262,14 +274,24 @@ export class FullBackupService {
               fileName: profileImage.split('/').pop() || 'profile.jpg',
               base64Data,
             };
-            console.log(`📸 [FullBackup] Processed profile image: ${profileImage}`);
+            console.log(`✅ [FullBackup] Successfully processed profile image: ${profileImage}`, {
+              base64Length: base64Data.length,
+              fileName: profileImage.split('/').pop() || 'profile.jpg',
+            });
           }
         } catch (imageError) {
-          console.warn('⚠️ [FullBackup] Failed to process profile image:', {
+          console.error('❌ [FullBackup] Failed to process profile image:', {
             error: imageError.message,
             profileImage,
+            stack: imageError.stack,
           });
         }
+      } else if (profileImage) {
+        console.log(`🔍 [FullBackup] Profile image skipped:`, {
+          profileImage,
+          isString: typeof profileImage === 'string',
+          alreadyProcessed: processedUris.has(profileImage),
+        });
       }
 
       console.log(`🖼️ [FullBackup] Processed ${Object.keys(images).length} images`);

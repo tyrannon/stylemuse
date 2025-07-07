@@ -970,6 +970,19 @@ export const useWardrobeData = () => {
     }
   }, [suggestedItems]);
 
+  // CLEAR ALL DATA FUNCTION FOR RESET OPERATIONS
+  const clearAllData = useCallback((): void => {
+    console.log('🧹 [useWardrobeData] Clearing all data from React state...');
+    setSavedItems([]);
+    setLovedOutfits([]);
+    setWishlistItems([]);
+    setSuggestedItems([]);
+    setProfileImage(null);
+    setStyleDNA(null);
+    setSelectedGender(null);
+    console.log('✅ [useWardrobeData] All data cleared from React state');
+  }, []);
+
   // BULK SAVE FUNCTION FOR MULTI-ITEM DETECTION
   
   // Function to save multiple wardrobe items at once (for multi-item detection)
@@ -1050,6 +1063,7 @@ export const useWardrobeData = () => {
     
     // Functions
     loadWardrobeData,
+    clearAllData,
     categorizeItem,
     updateItemCategory,
     saveFieldUpdate,

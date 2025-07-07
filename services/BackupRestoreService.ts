@@ -161,18 +161,96 @@ export class BackupRestoreService {
         });
 
         if (defaultOptions.restoreStyleDNA && backup.data.styleDNA) {
+          console.log('👤 [BackupRestore] Restoring style DNA...', {
+            hasStyleDNA: !!backup.data.styleDNA,
+            styleDNAKeys: Object.keys(backup.data.styleDNA || {}),
+            hasAvatarImage: !!(backup.data.styleDNA as any)?.avatar_image_url,
+            avatarImageUrl: (backup.data.styleDNA as any)?.avatar_image_url,
+          });
           await AsyncStorage.setItem(STORAGE_KEYS.STYLE_DNA, JSON.stringify(backup.data.styleDNA));
           restoredCounts.styleDNA = true;
+          
+          // Verify it was saved
+          const verifyStyleDNA = await AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA);
+          console.log('🔍 [BackupRestore] Style DNA verification:', {
+            saved: !!verifyStyleDNA,
+            length: verifyStyleDNA?.length || 0,
+            parsedData: verifyStyleDNA ? JSON.parse(verifyStyleDNA) : null,
+          });
         }
 
         if (defaultOptions.restoreProfileImage && backup.data.profileImage) {
-          const profileImageUri = restoredImages.mapping['profile'] || backup.data.profileImage;
-          await AsyncStorage.setItem(STORAGE_KEYS.PROFILE_IMAGE, JSON.stringify(profileImageUri));
-          restoredCounts.profileImage = true;
+          try {
+            console.log('📸 [BackupRestore] Restoring profile image...', {
+              originalUri: backup.data.profileImage,
+              hasProfileInMapping: !!restoredImages.mapping['profile'],
+              hasProfileInImages: !!backup.images['profile'],
+              mappedUri: restoredImages.mapping['profile'],
+            });
+            
+            // Check if profile image was successfully restored to mapping
+            let profileImageUri: string;
+            if (restoredImages.mapping['profile']) {
+              // Profile image was successfully restored
+              profileImageUri = restoredImages.mapping['profile'];
+              console.log('✅ [BackupRestore] Using restored profile image:', profileImageUri);
+            } else {
+              // Profile image restoration failed, try to restore it manually
+              console.log('⚠️ [BackupRestore] Profile image not in mapping, attempting manual restoration...');
+              
+              if (backup.images['profile']) {
+                const profileImageData = backup.images['profile'] as { base64Data: string; uri: string; fileName: string };
+                
+                // Create a temporary file from base64 data
+                const tempUri = `${FileSystem.cacheDirectory}restore_profile_${Date.now()}.jpg`;
+                await FileSystem.writeAsStringAsync(tempUri, profileImageData.base64Data, {
+                  encoding: FileSystem.EncodingType.Base64,
+                });
+                
+                // Use ImagePersistenceService to persist the profile image properly
+                const persistenceService = ImagePersistenceService.getInstance();
+                const persistentImage = await persistenceService.persistImage(tempUri, 'profile', 'profile');
+                profileImageUri = persistentImage.originalUri;
+                
+                // Clean up temp file
+                await FileSystem.deleteAsync(tempUri, { idempotent: true });
+                
+                console.log('✅ [BackupRestore] Manually restored profile image:', profileImageUri);
+              } else {
+                throw new Error('Profile image data not found in backup');
+              }
+            }
+            
+            // Save the profile image URI (as plain string, not JSON)
+            await AsyncStorage.setItem(STORAGE_KEYS.PROFILE_IMAGE, profileImageUri);
+            restoredCounts.profileImage = true;
+            
+            // Verify it was saved
+            const verifyProfileImage = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE);
+            console.log('🔍 [BackupRestore] Profile image verification:', {
+              saved: !!verifyProfileImage,
+              uri: verifyProfileImage,
+              matches: verifyProfileImage === profileImageUri,
+            });
+          } catch (profileError) {
+            console.error('❌ [BackupRestore] Failed to restore profile image:', profileError);
+            errors.push(`Profile image restoration failed: ${profileError.message}`);
+            restoredCounts.profileImage = false;
+          }
         }
 
-        // Restore gender selection
-        await AsyncStorage.setItem(STORAGE_KEYS.SELECTED_GENDER, JSON.stringify(backup.data.selectedGender));
+        // Restore gender selection (save as raw string, not JSON)
+        console.log('👫 [BackupRestore] Restoring gender selection...', {
+          gender: backup.data.selectedGender,
+        });
+        await AsyncStorage.setItem(STORAGE_KEYS.SELECTED_GENDER, backup.data.selectedGender);
+        
+        // Verify it was saved
+        const verifyGender = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER);
+        console.log('🔍 [BackupRestore] Gender verification:', {
+          saved: !!verifyGender,
+          gender: verifyGender,
+        });
       }
 
       // Step 6: Restore settings and preferences
@@ -238,12 +316,18 @@ export class BackupRestoreService {
 
     try {
       console.log(`🖼️ [BackupRestore] Restoring ${Object.keys(backupImages).length} images...`);
+      console.log(`🔍 [BackupRestore] Image IDs to restore:`, Object.keys(backupImages));
 
       for (const [itemId, imageData] of Object.entries(backupImages)) {
         try {
           // Type guard for image data
           if (!imageData || typeof imageData !== 'object' || !('base64Data' in imageData) || !('uri' in imageData)) {
-            console.warn(`Invalid image data for ${itemId}`);
+            console.warn(`⚠️ [BackupRestore] Invalid image data for ${itemId}:`, {
+              hasImageData: !!imageData,
+              imageDataType: typeof imageData,
+              hasBase64: imageData && 'base64Data' in imageData,
+              hasUri: imageData && 'uri' in imageData,
+            });
             continue;
           }
 
@@ -256,8 +340,10 @@ export class BackupRestoreService {
           });
 
           // Use ImagePersistenceService to persist the image properly
-          const persistenceService = new ImagePersistenceService();
-          const persistentImage = await persistenceService.persistImage(tempUri, 'wardrobe', itemId);
+          const persistenceService = ImagePersistenceService.getInstance();
+          // Determine the correct image type based on itemId
+          const imageType = itemId === 'profile' ? 'profile' : 'wardrobe';
+          const persistentImage = await persistenceService.persistImage(tempUri, imageType, itemId);
           const persistedUri = persistentImage.originalUri;
           
           // Clean up temp file

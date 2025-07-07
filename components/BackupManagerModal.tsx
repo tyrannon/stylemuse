@@ -32,6 +32,7 @@ interface BackupManagerModalProps {
   onClose: () => void;
   onBackupCreated?: (backupId: string) => void;
   onDataRestored?: (backupId: string) => void;
+  onRefreshData?: (operation?: 'reset' | 'restore') => void; // Enhanced refresh callback
 }
 
 export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
@@ -39,6 +40,7 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
   onClose,
   onBackupCreated,
   onDataRestored,
+  onRefreshData,
 }) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'backups' | 'restore' | 'reset' | 'test'>('backups');
@@ -139,9 +141,13 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
         setTimeout(() => {
           setProgress(null);
           setOperationInProgress(false);
+          
+          // Trigger data refresh to update UI immediately
+          onRefreshData?.('restore');
+          
           Alert.alert(
             'Restore Complete!', 
-            `Successfully restored:\n• ${restoreResult.restoredCounts.wardrobeItems} wardrobe items\n• ${restoreResult.restoredCounts.lovedOutfits} outfits\n• ${restoreResult.restoredCounts.images} images\n\nPlease restart the app or navigate away and back to see your restored data.`,
+            `Successfully restored:\n• ${restoreResult.restoredCounts.wardrobeItems} wardrobe items\n• ${restoreResult.restoredCounts.lovedOutfits} outfits\n• ${restoreResult.restoredCounts.images} images\n• Style DNA: ${restoreResult.restoredCounts.styleDNA ? '✅' : '❌'}\n• Profile Image: ${restoreResult.restoredCounts.profileImage ? '✅' : '❌'}\n\nData has been refreshed and should appear immediately!`,
             [
               { text: 'OK', onPress: () => onClose() } // Close the modal
             ]
@@ -231,9 +237,13 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
         setTimeout(() => {
           setProgress(null);
           setOperationInProgress(false);
+          
+          // Trigger data refresh to update UI immediately
+          onRefreshData?.('reset');
+          
           Alert.alert(
             'Reset Complete', 
-            `All data has been reset. ${resetResult.backupId ? `Backup created: ${resetResult.backupId}` : 'No backup was created.'}`
+            `All data has been reset. ${resetResult.backupId ? `Backup created: ${resetResult.backupId}` : 'No backup was created.'}\n\nUI has been refreshed to show empty state!`
           );
         }, 1500);
       } else {

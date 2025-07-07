@@ -21,6 +21,7 @@ interface ProfilePageProps {
   onUpdateStyleDNA: (updatedStyleDNA: EnhancedStyleDNA) => void;
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
   navigateToAvatarCustomization: () => void;
+  onRefreshData?: () => void; // Add refresh callback
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -36,6 +37,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onUpdateStyleDNA,
   triggerHaptic,
   navigateToAvatarCustomization,
+  onRefreshData,
 }) => {
   const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme, toggleTheme } = useTheme();
   const styles = createStyles(theme);
@@ -429,7 +431,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       </View>
 
       {/* Backup & Data Management Section */}
-      <BackupSection theme={theme} styles={styles} />
+      <BackupSection theme={theme} styles={styles} onRefreshData={onRefreshData} />
 
     </View>
   );
@@ -441,9 +443,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 interface BackupSectionProps {
   theme: any;
   styles: any;
+  onRefreshData?: () => void;
 }
 
-const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles }) => {
+const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles, onRefreshData }) => {
   const [showBackupManager, setShowBackupManager] = useState(false);
   const [backupStats, setBackupStats] = useState<{
     availableBackups: number;
@@ -541,6 +544,7 @@ const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles }) => {
         onClose={() => setShowBackupManager(false)}
         onBackupCreated={handleBackupCreated}
         onDataRestored={handleDataRestored}
+        onRefreshData={onRefreshData}
       />
     </View>
   );

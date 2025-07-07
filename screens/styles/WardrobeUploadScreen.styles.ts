@@ -2224,7 +2224,7 @@ export const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Header Loading Styles - Simple and Non-blocking
+  // Header Loading Styles - Enhanced and More Visible
   headerLoadingContainer: {
     position: 'absolute',
     top: 0,
@@ -2233,8 +2233,13 @@ export const createStyles = (theme: any) => StyleSheet.create({
     zIndex: 999, // Below modal overlays but above content
     backgroundColor: theme.colors.primary,
     paddingTop: 50, // Account for status bar
-    paddingBottom: 8,
+    paddingBottom: 12, // Increased padding for more height
     paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5, // Android shadow
   },
   headerLoadingContent: {
     flexDirection: 'row',
@@ -2243,12 +2248,13 @@ export const createStyles = (theme: any) => StyleSheet.create({
   },
   headerLoadingText: {
     color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16, // Larger text - was 14
+    fontWeight: '600', // Bolder text - was 500
     marginRight: 12,
+    letterSpacing: 0.5, // Better letter spacing
   },
   headerLoadingSpinner: {
-    fontSize: 16,
+    fontSize: 20, // Larger spinner - was 16
     color: 'white',
   },
 });

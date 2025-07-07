@@ -94,6 +94,7 @@ const WardrobeUploadScreen = () => {
     deleteBulkWardrobeItems,
     deleteBulkOutfits,
     saveBulkWardrobeItems,
+    clearAllData,
   } = wardrobeData;
   
   const {
@@ -191,6 +192,23 @@ const WardrobeUploadScreen = () => {
     }, 150);
   }, [navigationState]);
 
+  // Comprehensive data refresh function for backup operations
+  const handleDataRefresh = useCallback(async (operation: 'reset' | 'restore' = 'restore') => {
+    console.log(`🔄 [WardrobeUpload] Handling ${operation} data refresh...`);
+    
+    if (operation === 'reset') {
+      // For reset: immediately clear React state to show empty UI
+      console.log('🧹 [WardrobeUpload] Clearing React state for reset...');
+      clearAllData();
+    }
+    
+    // Always reload from AsyncStorage (which should be empty after reset, populated after restore)
+    console.log('📊 [WardrobeUpload] Reloading data from AsyncStorage...');
+    await wardrobeData.loadWardrobeData();
+    
+    console.log(`✅ [WardrobeUpload] ${operation} refresh complete`);
+  }, [clearAllData, wardrobeData.loadWardrobeData]);
+
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
@@ -234,7 +252,7 @@ const WardrobeUploadScreen = () => {
       const spinAnimation = Animated.loop(
         Animated.timing(headerSpinValue, {
           toValue: 1,
-          duration: 1000,
+          duration: 800, // Faster animation - was 1000ms
           useNativeDriver: true,
         }),
       );
@@ -3074,7 +3092,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   />
 )}
 
-
 {/* Profile Page */}
 {showProfilePage && (
   <ProfilePage
@@ -3090,6 +3107,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onUpdateStyleDNA={updateStyleDNA}
     triggerHaptic={triggerHaptic}
     navigateToAvatarCustomization={navigateToAvatarCustomization}
+    onRefreshData={handleDataRefresh}
   />
 )}
 
