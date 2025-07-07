@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Alert } from 'react-native';
 import { LovedOutfit } from '../hooks/useWardrobeData';
 import { SmartOutfitSuggestions } from './components/SmartOutfitSuggestions';
 import { OutfitAnalytics } from './components/OutfitAnalytics';
 import { MarkAsWornModal } from './components/MarkAsWornModal';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
+import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading } from '../hooks/useUnifiedLoading';
 import { SafeImage } from '../utils/SafeImage';
 import { formatDate } from '../utils/dateUtils';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
@@ -18,6 +21,9 @@ interface OutfitsPageProps {
   downloadImage: (imageUri: string) => void;
   markOutfitAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
   navigateToBuilder: () => void;
+  // Bulk operations
+  deleteBulkOutfits?: (outfitIds: string[]) => Promise<void>;
+  downloadBulkImages?: (imageUris: string[]) => Promise<void>;
 }
 
 export const OutfitsPage: React.FC<OutfitsPageProps> = ({
@@ -30,11 +36,104 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   downloadImage,
   markOutfitAsWorn,
   navigateToBuilder,
+  // Bulk operations
+  deleteBulkOutfits,
+  downloadBulkImages,
 }) => {
+  const { theme } = useTheme();
+  const unifiedLoading = useUnifiedLoading();
+  const styles = createStyles(theme);
+  
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [markAsWornModalVisible, setMarkAsWornModalVisible] = useState(false);
   const [selectedOutfitForWearing, setSelectedOutfitForWearing] = useState<string | null>(null);
+  
+  // Multi-select state
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedOutfits, setSelectedOutfits] = useState<LovedOutfit[]>([]);
+  
+  // Handle multi-select functions
+  const toggleMultiSelectMode = () => {
+    setIsMultiSelectMode(!isMultiSelectMode);
+    setSelectedOutfits([]); // Clear selection when toggling mode
+  };
+  
+  const toggleOutfitSelection = (outfit: LovedOutfit) => {
+    if (selectedOutfits.some(selected => selected.id === outfit.id)) {
+      setSelectedOutfits(selectedOutfits.filter(selected => selected.id !== outfit.id));
+    } else {
+      setSelectedOutfits([...selectedOutfits, outfit]);
+    }
+  };
+  
+  const selectAllOutfits = () => {
+    setSelectedOutfits(lovedOutfits);
+  };
+  
+  const clearSelection = () => {
+    setSelectedOutfits([]);
+  };
+  
+  const handleBulkDownload = async () => {
+    if (selectedOutfits.length === 0) return;
+    
+    try {
+      if (downloadBulkImages) {
+        const imageUris = selectedOutfits.map(outfit => outfit.image);
+        await downloadBulkImages(imageUris);
+        Alert.alert(
+          'Success! 🎉',
+          `Downloaded ${selectedOutfits.length} outfit image${selectedOutfits.length > 1 ? 's' : ''} to your photo library.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Fallback to individual downloads
+        for (const outfit of selectedOutfits) {
+          await downloadImage(outfit.image);
+        }
+        Alert.alert(
+          'Success! 🎉',
+          `Downloaded ${selectedOutfits.length} outfit image${selectedOutfits.length > 1 ? 's' : ''} to your photo library.`,
+          [{ text: 'OK' }]
+        );
+      }
+      setSelectedOutfits([]);
+      setIsMultiSelectMode(false);
+    } catch (error) {
+      console.error('Error downloading images:', error);
+      Alert.alert('Error', 'Failed to download some images. Please try again.');
+    }
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedOutfits.length === 0) return;
+    
+    Alert.alert(
+      'Delete Outfits',
+      `Are you sure you want to delete ${selectedOutfits.length} outfit${selectedOutfits.length > 1 ? 's' : ''} from your collection? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (deleteBulkOutfits) {
+                const outfitIds = selectedOutfits.map(outfit => outfit.id);
+                await deleteBulkOutfits(outfitIds);
+                setSelectedOutfits([]);
+                setIsMultiSelectMode(false);
+              }
+            } catch (error) {
+              console.error('Error deleting outfits:', error);
+              Alert.alert('Error', 'Failed to delete outfits. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
   if (lovedOutfits.length === 0) {
     return (
       <View style={{ marginTop: 20 }}>
@@ -53,6 +152,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
           <AIOutfitAssistant
             context="outfits"
             size="large"
+            sharedLoading={unifiedLoading} // Pass the shared loading instance
             onOutfitGenerated={(outfit) => {
               // Navigate to builder with the generated outfit
               navigateToBuilder();
@@ -115,57 +215,96 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
       </View>
       
       <View style={{ marginTop: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-          👗 Generated Outfits ({lovedOutfits.length})
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
+            👗 Generated Outfits ({lovedOutfits.length})
+          </Text>
+          
+          <TouchableOpacity
+            onPress={toggleMultiSelectMode}
+            style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton]}
+          >
+            <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
+              {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Multi-select actions */}
+        {isMultiSelectMode && (
+          <View style={styles.multiSelectActions}>
+            <View style={styles.selectionInfo}>
+              <Text style={styles.selectionText}>
+                {selectedOutfits.length} selected
+              </Text>
+            </View>
+            
+            <View style={styles.bulkActionButtons}>
+              <TouchableOpacity
+                onPress={selectAllOutfits}
+                style={styles.bulkActionButton}
+                disabled={selectedOutfits.length === lovedOutfits.length}
+              >
+                <Text style={styles.bulkActionButtonText}>Select All</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={clearSelection}
+                style={styles.bulkActionButton}
+                disabled={selectedOutfits.length === 0}
+              >
+                <Text style={styles.bulkActionButtonText}>Clear</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={handleBulkDownload}
+                style={[styles.bulkActionButton, styles.downloadButton]}
+                disabled={selectedOutfits.length === 0}
+              >
+                <Text style={[styles.bulkActionButtonText, styles.downloadButtonText]}>
+                  ⬇️ Download ({selectedOutfits.length})
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={handleBulkDelete}
+                style={[styles.bulkActionButton, styles.deleteButton]}
+                disabled={selectedOutfits.length === 0}
+              >
+                <Text style={[styles.bulkActionButtonText, styles.deleteButtonText]}>
+                  🗑️ Delete ({selectedOutfits.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       
       <View style={{ paddingHorizontal: 20 }}>
         {/* Loved Outfits Section */}
         {lovedOutfits.filter(outfit => outfit.isLoved).length > 0 && (
-          <View style={{ marginBottom: 30 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#ff6b6b' }}>
+          <View style={styles.lovedOutfitsSection}>
+            <Text style={styles.lovedOutfitsSectionTitle}>
               ❤️ Loved Outfits ({lovedOutfits.filter(outfit => outfit.isLoved).length})
             </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 10 }}
+              style={styles.lovedOutfitsScroll}
+              contentContainerStyle={styles.lovedOutfitsScrollContent}
             >
               {lovedOutfits.filter(outfit => outfit.isLoved).map((outfit, index) => (
                 <TouchableOpacity
                   key={outfit.id}
-                  onPress={() => openOutfitDetailView(outfit)}
-                  style={{
-                    marginRight: 20,
-                    width: 200,
-                    backgroundColor: '#fff5f5',
-                    borderRadius: 12,
-                    padding: 10,
-                    alignItems: 'center',
-                    borderWidth: 2,
-                    borderColor: '#ff6b6b',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
+                  onPress={() => isMultiSelectMode ? toggleOutfitSelection(outfit) : openOutfitDetailView(outfit)}
+                  style={[
+                    styles.lovedOutfitCard,
+                    isMultiSelectMode && selectedOutfits.some(selected => selected.id === outfit.id) && styles.selectedOutfitCard
+                  ]}
                 >
                   {/* Love/Unlove button */}
                   <TouchableOpacity
                     onPress={() => toggleOutfitLove(outfit.id)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      right: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#ff6b6b',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
+                    style={styles.loveButton}
                   >
                     <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>❤️</Text>
                   </TouchableOpacity>
@@ -173,18 +312,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   {/* Download button */}
                   <TouchableOpacity
                     onPress={() => downloadImage(outfit.image)}
-                    style={{
-                      position: 'absolute',
-                      top: 5,
-                      left: 5,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#4CAF50',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 1,
-                    }}
+                    style={styles.downloadButton}
                   >
                     <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
                   </TouchableOpacity>
@@ -192,47 +320,48 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   {/* Outfit image */}
                   <SafeImage
                     uri={outfit.image}
-                    style={{ width: 180, height: 140, borderRadius: 8, marginBottom: 8 }}
+                    style={styles.lovedOutfitCardImage}
                     resizeMode="cover"
                   />
 
-                  {/* Weather info if available */}
-                  {outfit.weatherData && (
-                    <View style={{
-                      backgroundColor: '#E8F5E8',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: 'bold' }}>
-                        🌡️ {outfit.weatherData.temperature}°F
-                      </Text>
+                  <View style={styles.lovedOutfitCardInfo}>
+                    {/* Weather info if available */}
+                    {outfit.weatherData && (
+                      <View style={styles.outfitWeatherBadge}>
+                        <Text style={styles.outfitWeatherText}>
+                          🌡️ {outfit.weatherData.temperature}°F
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Style DNA indicator */}
+                    {outfit.styleDNA && (
+                      <View style={styles.outfitDNABadge}>
+                        <Text style={styles.outfitDNAText}>
+                          🧬
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Date */}
+                    <Text style={styles.outfitDateText}>
+                      {formatDate(outfit.createdAt)}
+                    </Text>
+
+                    {/* Items used */}
+                    <Text style={styles.outfitItemsText}>
+                      {outfit.selectedItems.length} items used
+                    </Text>
+                  </View>
+                  
+                  {/* Selection overlay for multi-select mode */}
+                  {isMultiSelectMode && selectedOutfits.some(selected => selected.id === outfit.id) && (
+                    <View style={styles.selectionOverlay}>
+                      <View style={styles.selectionCheckmark}>
+                        <Text style={styles.selectionCheckmarkText}>✓</Text>
+                      </View>
                     </View>
                   )}
-
-                  {/* Style DNA indicator */}
-                  {outfit.styleDNA && (
-                    <View style={{
-                      backgroundColor: '#f0f8f0',
-                      padding: 4,
-                      borderRadius: 6,
-                      marginBottom: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: 'bold' }}>
-                        🧬 Personalized
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Date */}
-                  <Text style={{ fontSize: 10, color: '#666', fontStyle: 'italic' }}>
-                    {formatDate(outfit.createdAt)}
-                  </Text>
-
-                  {/* Items used */}
-                  <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
-                    {outfit.selectedItems.length} items used
-                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -240,18 +369,21 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
         )}
 
         {/* All Outfits Section */}
-        <View>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' }}>
-            📸 All Generated Outfits
+        <View style={styles.allOutfitsSection}>
+          <Text style={styles.allOutfitsSectionTitle}>
+            📸 {lovedOutfits.filter(outfit => outfit.isLoved).length > 0 ? 'Other Generated Outfits' : 'All Generated Outfits'}
           </Text>
           <View style={styles.outfitsGrid}>
-            {getSortedOutfits().map((outfit, index) => (
+            {getSortedOutfits()
+              .filter(outfit => !outfit.isLoved) // Exclude loved outfits since they're shown above
+              .map((outfit, index) => (
               <TouchableOpacity
                 key={outfit.id}
-                onPress={() => openOutfitDetailView(outfit)}
+                onPress={() => isMultiSelectMode ? toggleOutfitSelection(outfit) : openOutfitDetailView(outfit)}
                 style={[
                   styles.outfitCard,
-                  outfit.isLoved && styles.lovedOutfitCard
+                  outfit.isLoved && styles.lovedOutfitCard,
+                  isMultiSelectMode && selectedOutfits.some(selected => selected.id === outfit.id) && styles.selectedOutfitCard
                 ]}
                 activeOpacity={0.7}
               >
@@ -313,6 +445,15 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                     {outfit.selectedItems.length} items
                   </Text>
                 </View>
+                
+                {/* Selection overlay for multi-select mode */}
+                {isMultiSelectMode && selectedOutfits.some(selected => selected.id === outfit.id) && (
+                  <View style={styles.selectionOverlay}>
+                    <View style={styles.selectionCheckmark}>
+                      <Text style={styles.selectionCheckmarkText}>✓</Text>
+                    </View>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -336,23 +477,28 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
         }}
         outfitId={selectedOutfitForWearing || ''}
       />
+      
+      {/* Unified Loading Overlay */}
+      <UnifiedLoadingOverlay
+        visible={unifiedLoading.isLoading}
+        title={unifiedLoading.loadingConfig?.title || ''}
+        subtitle={unifiedLoading.loadingConfig?.subtitle}
+        steps={unifiedLoading.loadingConfig?.steps}
+        style={unifiedLoading.loadingConfig?.style}
+      />
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   tabHeader: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     marginHorizontal: 20,
     borderRadius: 12,
     padding: 4,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.medium,
   },
   tabButton: {
     flex: 1,
@@ -361,12 +507,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   activeTabText: {
     color: 'white',
@@ -394,20 +540,60 @@ const styles = StyleSheet.create({
   },
   outfitCard: {
     width: '48%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...theme.shadows.medium,
     elevation: 3,
   },
+  lovedOutfitsSection: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    ...theme.shadows.medium,
+  },
+  lovedOutfitsSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: theme.colors.error, // Use theme error color for loved items
+    textAlign: 'center',
+  },
+  lovedOutfitsScroll: {
+    marginHorizontal: -16,
+  },
+  lovedOutfitsScrollContent: {
+    paddingHorizontal: 16,
+  },
   lovedOutfitCard: {
+    width: 180,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
     borderWidth: 2,
-    borderColor: '#ff6b6b',
-    backgroundColor: '#fff5f5',
+    borderColor: theme.colors.error,
+    ...theme.shadows.medium,
+  },
+  lovedOutfitCardImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  lovedOutfitCardInfo: {
+    flex: 1,
+  },
+  allOutfitsSection: {
+    marginTop: 8,
+  },
+  allOutfitsSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: theme.colors.text,
   },
   loveButton: {
     position: 'absolute',
@@ -488,6 +674,108 @@ const styles = StyleSheet.create({
   },
   outfitItemsText: {
     fontSize: 10,
-    color: '#666',
+    color: theme.colors.textSecondary,
+  },
+  
+  // Multi-select styles
+  actionButton: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  activeActionButton: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  activeActionButtonText: {
+    color: 'white',
+  },
+  multiSelectActions: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  selectionInfo: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  selectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  bulkActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 6,
+  },
+  bulkActionButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  bulkActionButtonText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  downloadButton: {
+    backgroundColor: '#4CAF50',
+  },
+  downloadButtonText: {
+    color: 'white',
+  },
+  deleteButton: {
+    backgroundColor: theme.colors.error,
+  },
+  deleteButtonText: {
+    color: 'white',
+  },
+  selectedOutfitCard: {
+    borderWidth: 3,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.mode === 'dark' ? '#1a2332' : '#e3f2fd',
+  },
+  selectionOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+    ...theme.shadows.medium,
+  },
+  selectionCheckmark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionCheckmarkText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

@@ -15,7 +15,8 @@ export const cropImageWithBounds = async (
   imageUri: string, 
   boundingBox: BoundingBox,
   imageWidth: number,
-  imageHeight: number
+  imageHeight: number,
+  itemType?: string
 ): Promise<CropResult> => {
   try {
     // Convert 0-100 coordinate system to actual pixel coordinates
@@ -24,11 +25,45 @@ export const cropImageWithBounds = async (
     const width = ((boundingBox.bottom_right[0] - boundingBox.top_left[0]) / 100) * imageWidth;
     const height = ((boundingBox.bottom_right[1] - boundingBox.top_left[1]) / 100) * imageHeight;
 
+    // Add generous padding based on item type - more space for better cropping
+    let paddingPercent = 0.35; // Default 35% padding - much more generous
+    
+    if (itemType?.toLowerCase().includes('shoe') || 
+        itemType?.toLowerCase().includes('sneaker') ||
+        itemType?.toLowerCase().includes('boot') ||
+        itemType?.toLowerCase().includes('sandal') ||
+        itemType?.toLowerCase().includes('heel')) {
+      paddingPercent = 0.45; // 45% padding for shoes - very generous
+    } else if (itemType?.toLowerCase().includes('accessory') ||
+               itemType?.toLowerCase().includes('jewelry') ||
+               itemType?.toLowerCase().includes('watch')) {
+      paddingPercent = 0.5; // 50% padding for small accessories
+    } else if (itemType?.toLowerCase().includes('top') ||
+               itemType?.toLowerCase().includes('shirt') ||
+               itemType?.toLowerCase().includes('blouse') ||
+               itemType?.toLowerCase().includes('jacket')) {
+      paddingPercent = 0.3; // 30% padding for tops
+    } else if (itemType?.toLowerCase().includes('bottom') ||
+               itemType?.toLowerCase().includes('pants') ||
+               itemType?.toLowerCase().includes('jeans') ||
+               itemType?.toLowerCase().includes('skirt')) {
+      paddingPercent = 0.4; // 40% padding for bottoms
+    }
+    
+    const paddingX = width * paddingPercent;
+    const paddingY = height * paddingPercent;
+    
+    // Apply padding to crop area
+    const paddedX = x - paddingX;
+    const paddedY = y - paddingY;
+    const paddedWidth = width + (paddingX * 2);
+    const paddedHeight = height + (paddingY * 2);
+
     // Ensure crop dimensions are within image bounds
-    const cropX = Math.max(0, Math.min(x, imageWidth - 1));
-    const cropY = Math.max(0, Math.min(y, imageHeight - 1));
-    const cropWidth = Math.max(1, Math.min(width, imageWidth - cropX));
-    const cropHeight = Math.max(1, Math.min(height, imageHeight - cropY));
+    const cropX = Math.max(0, Math.min(paddedX, imageWidth - 1));
+    const cropY = Math.max(0, Math.min(paddedY, imageHeight - 1));
+    const cropWidth = Math.max(1, Math.min(paddedWidth, imageWidth - cropX));
+    const cropHeight = Math.max(1, Math.min(paddedHeight, imageHeight - cropY));
 
     console.log('🔍 Cropping image:', {
       originalSize: { width: imageWidth, height: imageHeight },
@@ -87,7 +122,8 @@ export const cropMultipleItems = async (
         imageUri,
         item.boundingBox,
         imageWidth,
-        imageHeight
+        imageHeight,
+        item.itemType
       );
 
       results.push({

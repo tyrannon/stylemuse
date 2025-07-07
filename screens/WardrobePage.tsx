@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import { LaundryAnalytics } from './components/LaundryAnalytics';
 import { TextItemCard } from '../components/TextItemCard';
 import { SafeImage } from '../utils/SafeImage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
+import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading } from '../hooks/useUnifiedLoading';
+import { useTheme } from '../contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 interface WardrobePageProps {
@@ -30,6 +33,8 @@ interface WardrobePageProps {
   getItemsByLaundryStatus: (status: LaundryStatus) => WardrobeItem[];
   // Navigation
   onNavigateToBuilder?: () => void;
+  // Bulk operations
+  deleteBulkWardrobeItems?: (items: WardrobeItem[]) => Promise<void>;
 }
 
 // Helper function to get laundry status display info
@@ -75,7 +80,72 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   getItemsByLaundryStatus,
   // Navigation
   onNavigateToBuilder,
+  // Bulk operations
+  deleteBulkWardrobeItems,
 }) => {
+  const { theme } = useTheme();
+  const unifiedLoading = useUnifiedLoading();
+  const styles = createStyles(theme);
+  
+  // Multi-select state
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<WardrobeItem[]>([]);
+  
+  // Handle multi-select functions
+  const toggleMultiSelectMode = () => {
+    setIsMultiSelectMode(!isMultiSelectMode);
+    setSelectedItems([]); // Clear selection when toggling mode
+  };
+  
+  const toggleItemSelection = (item: WardrobeItem) => {
+    if (selectedItems.some(selected => selected.image === item.image)) {
+      setSelectedItems(selectedItems.filter(selected => selected.image !== item.image));
+    } else {
+      setSelectedItems([...selectedItems, item]);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  
+  const selectAllItems = () => {
+    const filteredItems = getSortedAndFilteredItems();
+    setSelectedItems(filteredItems);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+  
+  const clearSelection = () => {
+    setSelectedItems([]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedItems.length === 0) return;
+    
+    Alert.alert(
+      'Delete Items',
+      `Are you sure you want to delete ${selectedItems.length} item${selectedItems.length > 1 ? 's' : ''} from your wardrobe? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (deleteBulkWardrobeItems) {
+                await deleteBulkWardrobeItems(selectedItems);
+                setSelectedItems([]);
+                setIsMultiSelectMode(false);
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            } catch (error) {
+              console.error('Error deleting items:', error);
+              Alert.alert('Error', 'Failed to delete items. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+  
   // Handle navigation to unified AI Outfit Assistant
   // Removed handleGoToAIAssistant - now using unified AIOutfitAssistant component
 
@@ -93,6 +163,7 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         <AIOutfitAssistant
           context="wardrobe"
           size="large"
+          sharedLoading={unifiedLoading} // Pass the shared loading instance
           onOutfitGenerated={(outfit) => {
             console.log('✅ Empty wardrobe: AI generated outfit:', outfit?.outfitName);
             // For empty wardrobe, we can navigate to show the user how to use the builder
@@ -160,19 +231,6 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Unified Smart Outfit Generator for populated wardrobe */}
-      <View style={styles.smartGeneratorContainer}>
-        <AIOutfitAssistant
-          context="wardrobe"
-          size="medium"
-          onOutfitGenerated={(outfit) => {
-            console.log('✅ WardrobePage: AI generated outfit:', outfit?.outfitName);
-            // Don't auto-navigate - let user see results and choose to navigate
-            // The Smart Suggestions Modal will show the outfit suggestions
-            console.log('🎭 Outfit suggestions should now be visible in modal');
-          }}
-        />
-      </View>
 
       <View style={{ marginTop: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
@@ -180,13 +238,63 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
           👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
         </Text>
         
-        <TouchableOpacity
-          onPress={() => setShowSortFilterModal(true)}
-          style={styles.sortFilterButton}
-        >
-          <Text style={styles.sortFilterButtonText}>🔍 Filter</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={toggleMultiSelectMode}
+            style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton]}
+          >
+            <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
+              {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => setShowSortFilterModal(true)}
+            style={styles.sortFilterButton}
+          >
+            <Text style={styles.sortFilterButtonText}>🔍 Filter</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+      
+      {/* Multi-select actions */}
+      {isMultiSelectMode && (
+        <View style={styles.multiSelectActions}>
+          <View style={styles.selectionInfo}>
+            <Text style={styles.selectionText}>
+              {selectedItems.length} selected
+            </Text>
+          </View>
+          
+          <View style={styles.bulkActionButtons}>
+            <TouchableOpacity
+              onPress={selectAllItems}
+              style={styles.bulkActionButton}
+              disabled={selectedItems.length === getSortedAndFilteredItems().length}
+            >
+              <Text style={styles.bulkActionButtonText}>Select All</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={clearSelection}
+              style={styles.bulkActionButton}
+              disabled={selectedItems.length === 0}
+            >
+              <Text style={styles.bulkActionButtonText}>Clear</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={handleBulkDelete}
+              style={[styles.bulkActionButton, styles.deleteButton]}
+              disabled={selectedItems.length === 0}
+            >
+              <Text style={[styles.bulkActionButtonText, styles.deleteButtonText]}>
+                🗑️ Delete ({selectedItems.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       
       {/* Current filter display */}
       {(filterCategory !== 'all' || filterLaundryStatus !== 'all' || sortBy !== 'recent' || sortOrder !== 'desc') && (
@@ -198,33 +306,27 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
       )}
       
       <ScrollView style={styles.wardrobeScrollView} showsVerticalScrollIndicator={false}>
-        {/* Show text-only items first if they exist */}
-        {getSortedAndFilteredItems().filter(item => item.image === 'text-only').length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>📝 Text Items</Text>
-            {getSortedAndFilteredItems()
-              .filter(item => item.image === 'text-only')
-              .map((item, index) => (
-                <TextItemCard
-                  key={`text-${index}`}
-                  item={item}
-                  onPress={() => openWardrobeItemView(item)}
-                  category={categorizeItem(item)}
-                  laundryStatus={getLaundryStatusDisplay(item.laundryStatus)}
-                />
-              ))}
-          </View>
-        )}
-        
-        {/* Regular photo items in grid */}
+        {/* Unified display - all items together respecting sort order */}
         <View style={styles.wardrobeInventoryGrid}>
-          {getSortedAndFilteredItems()
-            .filter(item => item.image !== 'text-only')
-            .map((item, index) => (
+          {getSortedAndFilteredItems().map((item, index) => (
+            item.image === 'text-only' ? (
+              // Text item - render as card in grid
+              <TextItemCard
+                key={`text-${index}`}
+                item={item}
+                onPress={() => openWardrobeItemView(item)}
+                category={categorizeItem(item)}
+                laundryStatus={getLaundryStatusDisplay(item.laundryStatus)}
+              />
+            ) : (
+              // Photo item - render as regular grid item
               <TouchableOpacity
                 key={`photo-${index}`}
-                onPress={() => openWardrobeItemView(item)}
-                style={styles.wardrobeInventoryItem}
+                onPress={() => isMultiSelectMode ? toggleItemSelection(item) : openWardrobeItemView(item)}
+                style={[
+                  styles.wardrobeInventoryItem,
+                  isMultiSelectMode && selectedItems.some(selected => selected.image === item.image) && styles.selectedWardrobeItem
+                ]}
                 activeOpacity={0.7}
               >
                 <SafeImage
@@ -268,24 +370,49 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                     );
                   })()}
                   
-                  {/* REMOVED: Individual outfit ideas buttons - now using unified Smart Outfit Generator */}
-                  
-                  {/* Edit indicator */}
-                  <View style={styles.editIndicator}>
-                    <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
-                  </View>
+                  {/* Edit indicator or multi-select indicator */}
+                  {isMultiSelectMode ? (
+                    <View style={styles.selectIndicator}>
+                      <Text style={styles.selectIndicatorText}>
+                        {selectedItems.some(selected => selected.image === item.image) ? '✅ Selected' : '☑️ Tap to select'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.editIndicator}>
+                      <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
+                    </View>
+                  )}
                 </View>
+                
+                {/* Selection overlay for multi-select mode */}
+                {isMultiSelectMode && selectedItems.some(selected => selected.image === item.image) && (
+                  <View style={styles.selectionOverlay}>
+                    <View style={styles.selectionCheckmark}>
+                      <Text style={styles.selectionCheckmarkText}>✓</Text>
+                    </View>
+                  </View>
+                )}
               </TouchableOpacity>
-            ))}
+            )
+          ))}
         </View>
         <View style={{ height: 20 }} />
       </ScrollView>
       </View>
+      
+      {/* Unified Loading Overlay */}
+      <UnifiedLoadingOverlay
+        visible={unifiedLoading.isLoading}
+        title={unifiedLoading.loadingConfig?.title || ''}
+        subtitle={unifiedLoading.loadingConfig?.subtitle}
+        steps={unifiedLoading.loadingConfig?.steps}
+        style={unifiedLoading.loadingConfig?.style}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   smartGeneratorContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -301,28 +428,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginHorizontal: 20,
     marginBottom: 10,
-    color: '#333',
+    color: theme.colors.text,
   },
   emptyWardrobeContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 30,
     margin: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: theme.colors.primary,
     marginTop: 60,
   },
   emptyWardrobeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 15,
   },
   emptyWardrobeSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 25,
@@ -373,13 +500,13 @@ const styles = StyleSheet.create({
   },
   manualText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 20,
   },
   sortFilterButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -412,15 +539,11 @@ const styles = StyleSheet.create({
   },
   wardrobeInventoryItem: {
     width: '48%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.medium,
   },
   wardrobeInventoryItemImage: {
     width: '100%',
@@ -434,7 +557,7 @@ const styles = StyleSheet.create({
   wardrobeInventoryItemTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   wardrobeInventoryItemTags: {
@@ -443,7 +566,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   wardrobeInventoryItemTag: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -452,7 +575,7 @@ const styles = StyleSheet.create({
   },
   wardrobeInventoryItemTagText: {
     fontSize: 10,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
   categoryBadge: {
@@ -507,20 +630,118 @@ const styles = StyleSheet.create({
     color: '#999',
     fontStyle: 'italic',
   },
+  // Multi-select styles
+  actionButton: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  activeActionButton: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  activeActionButtonText: {
+    color: 'white',
+  },
+  multiSelectActions: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  selectionInfo: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  selectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  bulkActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 8,
+  },
+  bulkActionButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  bulkActionButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: theme.colors.error,
+  },
+  deleteButtonText: {
+    color: 'white',
+  },
+  selectedWardrobeItem: {
+    borderWidth: 3,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.mode === 'dark' ? '#1a2332' : '#e3f2fd',
+  },
+  selectIndicator: {
+    alignItems: 'center',
+  },
+  selectIndicatorText: {
+    fontSize: 10,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  selectionOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.medium,
+  },
+  selectionCheckmark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionCheckmarkText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   // Tab Styles
   tabHeader: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 12,
     padding: 4,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.medium,
   },
   tabButton: {
     flex: 1,
@@ -529,12 +750,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   activeTabText: {
     color: 'white',

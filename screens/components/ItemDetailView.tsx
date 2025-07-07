@@ -6,8 +6,11 @@ import { useStyleRecommendations } from '../../hooks/useStyleRecommendations';
 import { OnlineItemCard } from './StyleAdvice/OnlineItemCard';
 import { StyleRecommendation } from '../../types/StyleAdvice';
 import { AIOutfitAssistant } from '../../components/AIOutfitAssistant';
+import { UnifiedLoadingOverlay } from '../../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading } from '../../hooks/useUnifiedLoading';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface ItemDetailViewProps {
   item: WardrobeItem;
@@ -95,6 +98,9 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
   // Image state
   const [imageError, setImageError] = useState(false);
 
+  const { theme } = useTheme();
+  const unifiedLoading = useUnifiedLoading();
+  const styles = createStyles(theme);
   const { getItemRecommendations } = useStyleRecommendations();
 
   // Storage keys for item-specific caching
@@ -650,22 +656,27 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             </ScrollView>
           </View>
         )}
+        
+        {/* Unified Loading Overlay */}
+        <UnifiedLoadingOverlay
+          visible={unifiedLoading.isLoading}
+          title={unifiedLoading.loadingConfig?.title || ''}
+          subtitle={unifiedLoading.loadingConfig?.subtitle}
+          steps={unifiedLoading.loadingConfig?.steps}
+          style={unifiedLoading.loadingConfig?.style}
+        />
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   itemDetailContainer: {
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
     borderRadius: 16,
     margin: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.large,
   },
   itemDetailHeader: {
     flexDirection: 'row',
@@ -673,24 +684,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     flex: 0,
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: theme.colors.primary,
   },
   itemDetailTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     flex: 1,
     marginHorizontal: 16,
@@ -698,15 +709,15 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fee',
+    backgroundColor: theme.colors.error + '15',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#fbb',
+    borderColor: theme.colors.error + '40',
     flex: 0,
   },
   deleteButtonText: {
     fontSize: 18,
-    color: '#d32f2f',
+    color: theme.colors.error,
   },
   itemDetailImageContainer: {
     padding: 20,
@@ -722,7 +733,7 @@ const styles = StyleSheet.create({
   },
   itemDetailDescription: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
   },
@@ -735,13 +746,13 @@ const styles = StyleSheet.create({
   itemDetailLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginRight: 8,
     minWidth: 80,
   },
   itemDetailValue: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     flex: 1,
   },
   itemDetailTagsContainer: {
@@ -750,7 +761,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemDetailTag: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: theme.colors.primary + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -759,7 +770,7 @@ const styles = StyleSheet.create({
   },
   itemDetailTagText: {
     fontSize: 12,
-    color: '#1976d2',
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   itemDetailActions: {
@@ -768,10 +779,10 @@ const styles = StyleSheet.create({
     marginTop: 30,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border,
   },
   itemDetailActionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
@@ -787,53 +798,53 @@ const styles = StyleSheet.create({
   editableField: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.colors.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
     flex: 1,
   },
   editIcon: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginLeft: 8,
   },
   editFieldContainer: {
     flex: 1,
   },
   editFieldInput: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: theme.colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text,
   },
   categoryDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.border,
     marginLeft: 8,
     minWidth: 100,
   },
   categoryDropdownText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     flex: 1,
   },
   categoryDropdownArrow: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginLeft: 8,
   },
   // Tag editing styles
@@ -848,7 +859,7 @@ const styles = StyleSheet.create({
   editableTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e3f2fd',
+    backgroundColor: theme.colors.primary + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -857,7 +868,7 @@ const styles = StyleSheet.create({
   },
   editableTagText: {
     fontSize: 12,
-    color: '#1976d2',
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   removeTagButton: {
@@ -869,7 +880,7 @@ const styles = StyleSheet.create({
   },
   removeTagText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontWeight: 'bold',
   },
   addTagContainer: {
@@ -878,17 +889,18 @@ const styles = StyleSheet.create({
   },
   addTagInput: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     fontSize: 14,
     marginRight: 8,
+    color: theme.colors.text,
   },
   saveTagsButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -900,10 +912,10 @@ const styles = StyleSheet.create({
   },
   // Amazon suggestions styles
   amazonButton: {
-    backgroundColor: '#FF9500',
+    backgroundColor: theme.colors.warning,
   },
   disabledButton: {
-    backgroundColor: '#999',
+    backgroundColor: theme.colors.textMuted,
     opacity: 0.6,
   },
   loadingContainer: {
@@ -920,7 +932,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border,
   },
   amazonSuggestionsHeader: {
     marginBottom: 16,
@@ -928,12 +940,12 @@ const styles = StyleSheet.create({
   amazonSuggestionsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   amazonSuggestionsDescription: {
     fontSize: 13,
-    color: '#888',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
     fontStyle: 'italic',
   },

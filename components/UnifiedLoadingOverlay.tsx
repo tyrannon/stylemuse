@@ -78,11 +78,37 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
   const { theme, isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const componentIdRef = useRef(Math.random().toString(36).substring(2, 8));
 
   const styleConfig = isDark ? getDarkModeConfig(style) : getStyleConfig(style);
 
+  // Track renders and prop changes
+  console.log('🔵 [LoadingOverlay] Component render', {
+    componentId: componentIdRef.current,
+    timestamp: Date.now(),
+    visible,
+    title,
+    subtitle,
+    style,
+    stepsCount: steps.length,
+    isDark,
+    fadeAnimValue: fadeAnim._value,
+    scaleAnimValue: scaleAnim._value,
+  });
+
   useEffect(() => {
+    console.log('🔵 [LoadingOverlay] Visibility changed, starting animation', {
+      componentId: componentIdRef.current,
+      timestamp: Date.now(),
+      visible,
+      title,
+      animationType: visible ? 'fade-in' : 'fade-out',
+    });
+
     if (visible) {
+      console.log('🔵 [LoadingOverlay] Starting fade-in animation', {
+        componentId: componentIdRef.current,
+      });
       // Fade in animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -95,8 +121,18 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start((finished) => {
+        console.log('🔵 [LoadingOverlay] Fade-in animation completed', {
+          componentId: componentIdRef.current,
+          timestamp: Date.now(),
+          finished,
+          title,
+        });
+      });
     } else {
+      console.log('🔵 [LoadingOverlay] Starting fade-out animation', {
+        componentId: componentIdRef.current,
+      });
       // Fade out animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -109,13 +145,34 @@ export const UnifiedLoadingOverlay: React.FC<UnifiedLoadingOverlayProps> = ({
           duration: 200,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start((finished) => {
+        console.log('🔵 [LoadingOverlay] Fade-out animation completed', {
+          componentId: componentIdRef.current,
+          timestamp: Date.now(),
+          finished,
+          title,
+        });
+      });
     }
-  }, [visible, fadeAnim, scaleAnim]);
+  }, [visible, fadeAnim, scaleAnim, title]);
 
   if (!visible) {
+    console.log('🔵 [LoadingOverlay] Component returning null (not visible)', {
+      componentId: componentIdRef.current,
+      timestamp: Date.now(),
+      title,
+    });
     return null;
   }
+
+  console.log('🔵 [LoadingOverlay] Component rendering visible overlay', {
+    componentId: componentIdRef.current,
+    timestamp: Date.now(),
+    title,
+    subtitle,
+    fadeAnimValue: fadeAnim._value,
+    scaleAnimValue: scaleAnim._value,
+  });
 
   const dynamicStyles = StyleSheet.create({
     overlay: {
@@ -194,7 +251,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 9999,
     borderRadius: 12,
   },
   card: {

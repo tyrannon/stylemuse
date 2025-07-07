@@ -15,6 +15,8 @@ import * as Haptics from 'expo-haptics';
 import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
 import { useWardrobeData, WardrobeItem } from '../hooks/useWardrobeData';
 import { UserStyleProfile } from '../services/SmartSuggestionsService';
+import { useTheme } from '../contexts/ThemeContext';
+import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 
 interface AIOutfitAssistantProps {
   userProfile?: UserStyleProfile;
@@ -23,6 +25,7 @@ interface AIOutfitAssistantProps {
   size?: 'large' | 'medium' | 'small';
   onOutfitGenerated?: (outfit: any) => void;
   currentItem?: WardrobeItem;
+  sharedLoading?: any; // Optional shared loading instance to use instead of creating a new one
 }
 
 export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
@@ -32,10 +35,14 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   currentItem,
   size = 'medium',
   onOutfitGenerated,
+  sharedLoading,
 }) => {
   // Smart suggestions state
   const smartSuggestions = useSmartSuggestions();
   const { savedItems } = useWardrobeData();
+  const { theme } = useTheme();
+  const localUnifiedLoading = useUnifiedLoading();
+  const unifiedLoading = sharedLoading || localUnifiedLoading; // Use shared loading if provided
   
   // Modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -62,6 +69,32 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
     { value: 'minimalist', label: '⚪ Minimalist' },
   ];
 
+  // Smart color function that ensures visibility across all themes
+  const getSmartButtonColor = (baseColor: string) => {
+    // Tokyo Kawaii mode fixes
+    if (theme.colorScheme === 'tokyo' && theme.mode === 'light') {
+      if (baseColor === theme.colors.accent) return '#FF1493'; // Use deeper pink instead of light pink
+      if (baseColor === theme.colors.primary) return '#E91E63'; // Slightly darker hot pink
+      if (baseColor === theme.colors.success) return '#2E7D32'; // Darker green for better visibility
+      return baseColor;
+    }
+    
+    // Cyber mode fixes  
+    if (theme.colorScheme === 'tokyo' && theme.mode === 'dark') {
+      if (baseColor === theme.colors.primary) return '#00FFFF'; // Use cyan instead of deep pink for better contrast
+      if (baseColor === theme.colors.accent) return '#FF4081'; // Use brighter pink-red
+      if (baseColor === theme.colors.success) return '#00C853'; // Brighter green for dark mode
+      return baseColor;
+    }
+    
+    // Default theme adjustments for bright green success color
+    if (baseColor === theme.colors.success) {
+      return theme.mode === 'dark' ? '#388E3C' : '#2E7D32'; // Darker green for better readability
+    }
+    
+    return baseColor;
+  };
+
   // Get dynamic button content based on wardrobe size and context
   const getButtonConfig = useCallback(() => {
     const itemCount = savedItems.length;
@@ -71,7 +104,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         text: '✨ Build My First Outfit',
         subtitle: 'AI will suggest items to get you started',
         icon: 'sparkles',
-        color: '#6366f1',
+        color: getSmartButtonColor(theme.colors.primary),
       };
     }
     
@@ -80,7 +113,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         text: '🧠 Get Smart Suggestions',
         subtitle: 'Complete your wardrobe with AI recommendations',
         icon: 'bulb',
-        color: '#8b5cf6',
+        color: getSmartButtonColor(theme.colors.accent),
       };
     }
     
@@ -89,7 +122,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         text: '🎯 AI Outfit Assistant',
         subtitle: 'Generate complete outfits with smart recommendations',
         icon: 'checkmark-circle',
-        color: '#06b6d4',
+        color: getSmartButtonColor(theme.colors.success), // Use success color for better visibility
       };
     }
     
@@ -99,7 +132,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         text: `🎯 Generate Complete Outfit`,
         subtitle: `AI will fill gear slots with this ${itemType} as centerpiece + matching pieces`,
         icon: 'layers',
-        color: '#8b5cf6',
+        color: getSmartButtonColor(theme.colors.accent),
       };
     }
     
@@ -107,11 +140,15 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       text: '✨ Fresh Outfit Ideas',
       subtitle: 'AI-powered styling suggestions',
       icon: 'shirt',
-      color: '#10b981',
+      color: getSmartButtonColor(theme.colors.success),
     };
-  }, [savedItems.length, context]);
+  }, [savedItems.length, context, theme.colors, theme.colorScheme, theme.mode]);
 
   const handleQuickGenerate = useCallback(async () => {
+    console.log('🧪 [DEBUG] handleQuickGenerate called - BEFORE unifiedLoading.showLoading()', {
+      isLoading: unifiedLoading.isLoading
+    });
+    
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
@@ -142,17 +179,32 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       };
 
       if (includeNewItems) {
-        // Generate suggestions that include new items to purchase (Smart Suggestions)
-        console.log('🛍️ Generating outfit suggestions with new items to purchase');
-        const generatedOutfit = await smartSuggestions.generateSuggestions(
-          profile,
-          savedItems, // Pass existing wardrobe as context for building upon
-          styleDNA
-        );
+        // Show unified loading while generating suggestions
+        unifiedLoading.showLoading(LOADING_CONFIGS.GENERATING_SUGGESTIONS);
         
-        // Call the outfit generated callback with the generated suggestion
-        if (generatedOutfit && onOutfitGenerated) {
-          onOutfitGenerated(generatedOutfit);
+        console.log('🧪 [DEBUG] showLoading() just called - AFTER unifiedLoading.showLoading()', {
+          isLoading: unifiedLoading.isLoading
+        });
+        
+        try {
+          // Generate suggestions that include new items to purchase (Smart Suggestions)
+          console.log('🛍️ Generating outfit suggestions with new items to purchase');
+          const generatedOutfit = await smartSuggestions.generateSuggestions(
+            profile,
+            savedItems, // Pass existing wardrobe as context for building upon
+            styleDNA
+          );
+          
+          // Call the outfit generated callback with the generated suggestion
+          if (generatedOutfit && onOutfitGenerated) {
+            onOutfitGenerated(generatedOutfit);
+          }
+        } finally {
+          unifiedLoading.hideLoading();
+          
+          console.log('🧪 [DEBUG] hideLoading() just called - AFTER unifiedLoading.hideLoading()', {
+            isLoading: unifiedLoading.isLoading
+          });
         }
       } else {
         // Generate outfits using only existing wardrobe items
@@ -197,6 +249,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   }, [handleQuickGenerate]);
 
   const buttonConfig = getButtonConfig();
+  const styles = createStyles(theme);
 
   const renderButton = () => {
     if (size === 'small') {
@@ -208,7 +261,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
             { backgroundColor: buttonConfig.color }
           ]}
           onPress={handleQuickGenerate}
-          disabled={smartSuggestions.isGenerating}
+          disabled={smartSuggestions.isGenerating || unifiedLoading.isLoading}
         >
           <Ionicons name={buttonConfig.icon as any} size={isItemContext ? 18 : 16} color="white" />
           <Text style={isItemContext ? styles.smallItemButtonText : styles.smallButtonText}>
@@ -223,15 +276,12 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         <TouchableOpacity
           style={[styles.mediumButton, { backgroundColor: buttonConfig.color }]}
           onPress={() => setShowConfigModal(true)}
-          disabled={smartSuggestions.isGenerating}
+          disabled={smartSuggestions.isGenerating || unifiedLoading.isLoading}
         >
           <View style={styles.buttonContent}>
             <Ionicons name={buttonConfig.icon as any} size={20} color="white" />
             <Text style={styles.mediumButtonText}>{buttonConfig.text}</Text>
           </View>
-          {smartSuggestions.isGenerating && (
-            <Text style={styles.loadingText}>Generating...</Text>
-          )}
         </TouchableOpacity>
       );
     }
@@ -241,7 +291,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       <TouchableOpacity
         style={[styles.largeButton, { backgroundColor: buttonConfig.color }]}
         onPress={() => setShowConfigModal(true)}
-        disabled={smartSuggestions.isGenerating}
+        disabled={smartSuggestions.isGenerating || unifiedLoading.isLoading}
       >
         <View style={styles.largeButtonContent}>
           <Ionicons name={buttonConfig.icon as any} size={24} color="white" />
@@ -250,12 +300,6 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
             <Text style={styles.subtitleText}>{buttonConfig.subtitle}</Text>
           </View>
         </View>
-        {smartSuggestions.isGenerating && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="white" />
-            <Text style={styles.loadingText}>🧠 Generating smart suggestions...</Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -283,10 +327,10 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
             <TouchableOpacity
               style={styles.generateButton}
               onPress={handleConfiguredGenerate}
-              disabled={smartSuggestions.isGenerating}
+              disabled={smartSuggestions.isGenerating || unifiedLoading.isLoading}
             >
               <Text style={styles.generateButtonText}>
-                {smartSuggestions.isGenerating ? '✨ Generating Magic...' : '🎯 Generate Outfit'}
+                {(smartSuggestions.isGenerating || unifiedLoading.isLoading) ? '✨ Generating Magic...' : '🎯 Generate Outfit'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -307,8 +351,8 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
                 <Switch
                   value={includeNewItems}
                   onValueChange={setIncludeNewItems}
-                  trackColor={{ false: '#d1d5db', true: '#6366f1' }}
-                  thumbColor={includeNewItems ? '#ffffff' : '#f3f4f6'}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={includeNewItems ? '#ffffff' : theme.colors.surface}
                 />
               </View>
             </View>
@@ -368,7 +412,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   // Small button (replaces confusing AI button in wardrobe)
   smallButton: {
     flexDirection: 'row',
@@ -460,7 +504,7 @@ const styles = StyleSheet.create({
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -469,7 +513,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.colors.border,
   },
   closeButton: {
     padding: 8,
@@ -479,9 +523,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     textAlign: 'center',
+    color: theme.colors.text,
   },
   generateButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -503,7 +548,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#374151',
+    color: theme.colors.text,
   },
 
   // Toggle styles
@@ -511,7 +556,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 12,
   },
@@ -523,11 +568,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
-    color: '#374151',
+    color: theme.colors.text,
   },
   toggleSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
   },
 
   // Options grid
@@ -537,12 +582,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionButton: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.colors.border,
     minWidth: '30%',
     alignItems: 'center',
   },
@@ -556,11 +601,11 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 14,
-    color: '#374151',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   selectedOptionText: {
-    color: '#6366f1',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
 });

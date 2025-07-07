@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Animated } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
+import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface BuilderPageProps {
   savedItems: WardrobeItem[];
@@ -15,7 +18,7 @@ interface BuilderPageProps {
   setIsSelectionMode: (mode: boolean) => void;
   selectedItemsForOutfit: string[];
   setSelectedItemsForOutfit: (items: string[]) => void;
-  spinValue: Animated.Value;
+  // spinValue: Animated.Value; // Legacy prop removed - now using unified loading
   onToggleItemSelection: (imageUri: string) => void;
   userProfile?: any;
   styleDNA?: any;
@@ -33,11 +36,16 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
   setIsSelectionMode,
   selectedItemsForOutfit,
   setSelectedItemsForOutfit,
-  spinValue,
+  // spinValue, // Legacy prop removed
   onToggleItemSelection,
   userProfile,
   styleDNA,
 }) => {
+  const { theme } = useTheme();
+  const unifiedLoading = useUnifiedLoading();
+  
+  const styles = createStyles(theme);
+  
   return (
     <View style={{ marginTop: 20 }}>
       {/* Gender Selection */}
@@ -74,6 +82,7 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
               styleDNA={styleDNA}
               context="builder"
               size="large"
+              sharedLoading={unifiedLoading} // Pass the shared loading instance
               onOutfitGenerated={(outfit) => {
                 console.log('✅ AI Outfit Assistant generated outfit:', outfit);
               }}
@@ -90,29 +99,22 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
             </Text>
             
             <TouchableOpacity
-              onPress={onGenerateWeatherOutfit}
+              onPress={() => {
+                // Show unified loading when generating weather outfit
+                unifiedLoading.showLoading(LOADING_CONFIGS.WEATHER_OUTFIT_GENERATION);
+                
+                // Call the actual generation function
+                onGenerateWeatherOutfit();
+              }}
               disabled={generatingOutfit || savedItems.length < 2}
               style={[
                 styles.weatherOutfitButton,
                 (generatingOutfit || savedItems.length < 2) && styles.disabledButton
               ]}
             >
-              {generatingOutfit ? (
-                <Animated.View style={{
-                  transform: [{
-                    rotate: spinValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0deg', '360deg']
-                    })
-                  }]
-                }}>
-                  <Text style={styles.weatherOutfitButtonText}>🌪️</Text>
-                </Animated.View>
-              ) : (
-                <Text style={styles.weatherOutfitButtonText}>
-                  {savedItems.length < 2 ? '🚫 Need 2+ items' : '🌤️ Generate Weather Outfit'}
-                </Text>
-              )}
+              <Text style={styles.weatherOutfitButtonText}>
+                {savedItems.length < 2 ? '🚫 Need 2+ items' : '🌤️ Generate Weather Outfit'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -157,29 +159,25 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
             {/* Generate Button */}
             {isSelectionMode && selectedItemsForOutfit.length > 0 && (
               <TouchableOpacity
-                onPress={onGenerateOutfit}
+                onPress={() => {
+                  // Show unified loading when generating outfit from selected items
+                  unifiedLoading.showLoading(LOADING_CONFIGS.OUTFIT_GENERATION);
+                  
+                  // Call the actual generation function
+                  onGenerateOutfit();
+                }}
                 disabled={generatingOutfit}
                 style={[
                   styles.generateSelectedButton,
                   generatingOutfit && styles.disabledButton
                 ]}
               >
-                {generatingOutfit ? (
-                  <Animated.View style={{
-                    transform: [{
-                      rotate: spinValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg']
-                      })
-                    }]
-                  }}>
-                    <Text style={styles.generateSelectedButtonText}>🌪️</Text>
-                  </Animated.View>
-                ) : (
-                  <Text style={styles.generateSelectedButtonText}>
-                    ✨ Generate Outfit from {selectedItemsForOutfit.length} items
-                  </Text>
-                )}
+                <Text style={styles.generateSelectedButtonText}>
+                  {generatingOutfit 
+                    ? '✨ Generating...' 
+                    : `✨ Generate Outfit from ${selectedItemsForOutfit.length} items`
+                  }
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -234,44 +232,49 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
           )}
         </>
       )}
+      
+      {/* Unified Loading Overlay */}
+      <UnifiedLoadingOverlay
+        visible={unifiedLoading.isLoading}
+        title={unifiedLoading.loadingConfig?.title || ''}
+        subtitle={unifiedLoading.loadingConfig?.subtitle}
+        steps={unifiedLoading.loadingConfig?.steps}
+        style={unifiedLoading.loadingConfig?.style}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   genderSelectionContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 20,
     margin: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: theme.colors.primary,
   },
   genderSelectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 10,
   },
   genderSelectionSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 22,
   },
   genderSelectionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.medium,
   },
   genderSelectionButtonText: {
     color: 'white',
@@ -318,26 +321,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   customOutfitSection: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.card,
     borderRadius: 16,
     padding: 20,
     margin: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.large,
   },
   customOutfitTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   customOutfitSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -346,28 +345,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   selectionModeButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: theme.colors.border,
   },
   selectionModeButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   selectionModeButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   selectionModeButtonTextActive: {
     color: 'white',
   },
   selectionCounter: {
     fontSize: 14,
-    color: '#007AFF',
+    color: theme.colors.primary,
     marginTop: 8,
     fontWeight: '600',
   },
@@ -398,7 +397,7 @@ const styles = StyleSheet.create({
   selectionGridTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -410,15 +409,15 @@ const styles = StyleSheet.create({
   wardrobeItem: {
     width: '48%',
     marginBottom: 15,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 10,
     borderWidth: 2,
     borderColor: 'transparent',
   },
   wardrobeItemSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#e3f2fd',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.mode === 'dark' ? '#1a2332' : '#e3f2fd',
   },
   wardrobeItemImage: {
     width: '100%',
@@ -429,7 +428,7 @@ const styles = StyleSheet.create({
   wardrobeItemTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   selectionOverlay: {
@@ -439,7 +438,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

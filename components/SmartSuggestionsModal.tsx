@@ -14,6 +14,8 @@ import {
 import { SafeArea } from '../utils/SafeArea';
 import { SmartSuggestion, SuggestedItem } from '../services/SmartSuggestionsService';
 import { formatPrice } from '../utils/smartSuggestionsUtils';
+import { UnifiedLoadingOverlay } from './UnifiedLoadingOverlay';
+import { LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -83,13 +85,7 @@ export const SmartSuggestionsModal: React.FC<SmartSuggestionsModalProps> = ({
           <View style={styles.placeholder} />
         </View>
 
-        {isGenerating ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#667eea" />
-            <Text style={styles.loadingText}>🧠 AI is creating your perfect outfits...</Text>
-            <Text style={styles.loadingSubtext}>This might take a moment</Text>
-          </View>
-        ) : (
+        {!isGenerating && (
           <>
             {/* Suggestion Tabs */}
             {suggestions.length > 1 && (
@@ -296,6 +292,15 @@ export const SmartSuggestionsModal: React.FC<SmartSuggestionsModalProps> = ({
           </Modal>
         )}
       </SafeArea>
+      
+      {/* Unified Loading Overlay */}
+      <UnifiedLoadingOverlay
+        visible={isGenerating}
+        title={LOADING_CONFIGS.GENERATING_SUGGESTIONS.title}
+        subtitle={LOADING_CONFIGS.GENERATING_SUGGESTIONS.subtitle}
+        steps={LOADING_CONFIGS.GENERATING_SUGGESTIONS.steps}
+        style={LOADING_CONFIGS.GENERATING_SUGGESTIONS.style}
+      />
     </Modal>
   );
 };
@@ -347,25 +352,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 32,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  loadingText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  loadingSubtext: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
   },
   tabsContainer: {
     maxHeight: 60,

@@ -14,6 +14,7 @@ import { PhotoEditingToolbar } from './components/PhotoEditingToolbar';
 import { usePhotoEditor } from '../hooks/usePhotoEditor';
 import { BoundingBoxOverlay } from '../components/BoundingBoxOverlay';
 import { cropMultipleItems, getImageDimensions } from '../utils/imageCropping';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -30,6 +31,8 @@ interface DetectedItem {
   reason: string;
   uniqueFeatures?: string;
   originalImageUri?: string;
+  isPair?: boolean;
+  pairAnalysis?: string;
 }
 
 interface PhotoEditingScreenProps {
@@ -70,6 +73,9 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [croppedItems, setCroppedItems] = useState<any[]>([]);
   const [imageSize, setImageSize] = useState({ width: 1024, height: 1024 });
+  
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleSave = async () => {
     try {
@@ -112,10 +118,33 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
     onMultiItemSave(croppedResults);
   };
 
-  const handleItemSelect = (item: DetectedItem) => {
-    const index = detectedItems.findIndex(d => d.id === item.id);
-    setSelectedItemIndex(index);
-    setShowBoundingBoxes(false);
+  const handleItemSelect = async (item: DetectedItem) => {
+    try {
+      console.log(`🎯 Selected item: ${item.itemType} - ${item.description}`);
+      
+      // Crop the individual item immediately
+      const croppedResult = await cropMultipleItems(
+        photoUri,
+        [item], // Only crop the selected item
+        imageSize.width,
+        imageSize.height
+      );
+
+      if (croppedResult.length > 0) {
+        console.log(`✅ Successfully cropped selected item: ${item.itemType}`);
+        
+        // Show the cropped result or save it
+        // For now, let's save it directly to the wardrobe
+        if (onMultiItemSave) {
+          onMultiItemSave(croppedResult);
+        }
+      } else {
+        Alert.alert('Error', 'Failed to crop the selected item. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Failed to crop selected item:', error);
+      Alert.alert('Error', 'Failed to crop the selected item.');
+    }
   };
 
   const handleShowBoundingBoxes = () => {
@@ -171,14 +200,8 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
 
       {/* Photo Preview */}
       <View style={styles.photoContainer}>
-        <Image
-          source={{ uri: editingState.currentUri }}
-          style={styles.photo}
-          resizeMode="contain"
-        />
-        
-        {/* Multi-item bounding box overlay */}
-        {multiItemMode && showBoundingBoxes && (
+        {multiItemMode && showBoundingBoxes ? (
+          // Show full-screen bounding box overlay
           <BoundingBoxOverlay
             imageUri={photoUri}
             detectedItems={detectedItems}
@@ -186,6 +209,16 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
             visible={true}
             imageWidth={imageSize.width}
             imageHeight={imageSize.height}
+          />
+        ) : (
+          <Image
+            source={{ uri: editingState.currentUri }}
+            style={styles.photo}
+            resizeMode="contain"
+            onLoad={(event) => {
+              const { width, height } = event.nativeEvent.source;
+              setImageSize({ width, height });
+            }}
           />
         )}
         
@@ -208,21 +241,40 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
       {/* Multi-item controls or standard editing toolbar */}
       {multiItemMode ? (
         <View style={styles.multiItemControls}>
-          <TouchableOpacity 
-            style={styles.multiItemButton}
-            onPress={handleShowBoundingBoxes}
-          >
-            <Ionicons name="scan" size={20} color="#007AFF" />
-            <Text style={styles.multiItemButtonText}>Show Detected Items</Text>
-          </TouchableOpacity>
+          {!showBoundingBoxes ? (
+            <TouchableOpacity 
+              style={styles.multiItemButton}
+              onPress={handleShowBoundingBoxes}
+            >
+              <Ionicons name="scan" size={20} color="#007AFF" />
+              <Text style={styles.multiItemButtonText}>Show Detected Items</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.multiItemButton, styles.backButton]}
+              onPress={() => setShowBoundingBoxes(false)}
+            >
+              <Ionicons name="arrow-back" size={20} color="white" />
+              <Text style={[styles.multiItemButtonText, { color: 'white' }]}>Back to Preview</Text>
+            </TouchableOpacity>
+          )}
           
           <View style={styles.multiItemInfo}>
             <Text style={styles.multiItemInfoText}>
               {detectedItems.length} items detected
             </Text>
             <Text style={styles.multiItemInfoSubtext}>
-              Tap "Save All" to crop and save each item
+              {showBoundingBoxes 
+                ? "Tap any detected item to select it" 
+                : 'Tap "Save All" to crop and save each item'
+              }
             </Text>
+            {/* Show shoe pair summary if any pairs detected */}
+            {detectedItems.some(item => item.isPair) && (
+              <Text style={styles.pairSummaryText}>
+                👟 {detectedItems.filter(item => item.isPair).length} shoe pair{detectedItems.filter(item => item.isPair).length !== 1 ? 's' : ''} automatically grouped
+              </Text>
+            )}
           </View>
         </View>
       ) : (
@@ -327,10 +379,10 @@ export const PhotoEditingScreen: React.FC<PhotoEditingScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.mode === 'dark' ? '#000000' : '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -344,12 +396,12 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: '600',
   },
   saveButtonText: {
-    color: '#007AFF',
+    color: theme.colors.primary,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -358,10 +410,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: theme.colors.background,
+    marginHorizontal: 10,
+    marginVertical: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   photo: {
-    width: screenWidth,
-    height: screenWidth,
+    width: screenWidth - 20,
+    height: screenHeight * 0.6,
+    maxHeight: screenHeight - 250,
   },
   cropOverlay: {
     position: 'absolute',
@@ -481,22 +539,29 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   multiItemControls: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.colors.surface,
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
+    borderTopColor: theme.colors.border,
+    minHeight: 120,
   },
   multiItemButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.primary + '20',
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+  },
+  backButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   multiItemButtonText: {
-    color: '#007AFF',
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -505,15 +570,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   multiItemInfoText: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   multiItemInfoSubtext: {
-    color: '#8E8E93',
+    color: theme.colors.textSecondary,
     fontSize: 12,
     textAlign: 'center',
+  },
+  pairSummaryText: {
+    color: theme.colors.success,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+    fontWeight: '600',
   },
 });
 

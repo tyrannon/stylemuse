@@ -81,6 +81,11 @@ export const useOutfitGeneration = (
       
       // Show unified loading overlay
       const itemType = categorizeItem(selectedItem);
+      console.log('🎨 [OutfitGeneration] Showing unified loading overlay', {
+        timestamp: Date.now(),
+        itemType,
+        selectedItem: selectedItem.title,
+      });
       unifiedLoading.showLoading({
         ...LOADING_CONFIGS.OUTFIT_GENERATION,
         subtitle: `Building around your ${itemType}...`,
@@ -241,9 +246,13 @@ export const useOutfitGeneration = (
       }
       
     } catch (error) {
-      console.error('Error generating outfit suggestions:', error);
+      console.error('🎨 [OutfitGeneration] Error generating outfit suggestions:', error);
       Alert.alert('Failed to generate outfit suggestions. Please try again.');
     } finally {
+      console.log('🎨 [OutfitGeneration] Finishing outfit generation', {
+        timestamp: Date.now(),
+        hidingLoading: true,
+      });
       setGeneratingSuggestions(false);
       unifiedLoading.hideLoading();
     }

@@ -50,7 +50,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   const unifiedLoading = useUnifiedLoading();
   const [isInitializing, setIsInitializing] = useState(true);
-  const [multiItemMode, setMultiItemMode] = useState(false);
+  const [multiItemMode, setMultiItemMode] = useState(true); // Default to true for better discovery
   const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
 
   useEffect(() => {
@@ -128,6 +128,20 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       
       if (result.success !== false && result.items && result.items.length > 0) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        
+        // Check if shoes were detected and provide feedback
+        const shoeItems = result.items.filter((item: any) => 
+          item.itemType?.toLowerCase().includes('shoe') || 
+          item.itemType?.toLowerCase().includes('sneaker') || 
+          item.itemType?.toLowerCase().includes('boot') ||
+          item.itemType?.toLowerCase().includes('sandal') ||
+          item.itemType?.toLowerCase().includes('heel')
+        );
+        
+        if (shoeItems.length > 1) {
+          console.log(`🎉 Successfully detected ${shoeItems.length} shoes!`);
+        }
+        
         onMultiItemDetected!(result.items.map((item: any) => ({
           ...item,
           originalImageUri: photoUri
@@ -215,10 +229,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="black" />
       
-      {/* Camera View */}
+      {/* Camera View - Hide when processing multi-item */}
       <CameraView
         ref={cameraRef}
-        style={styles.camera}
+        style={[styles.camera, isProcessingMultiItem && styles.hiddenCamera]}
         facing={state.cameraType}
         flash={state.flashMode}
         zoom={state.zoom}
@@ -317,13 +331,13 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         <View style={styles.wardrobeOverlay}>
           <Text style={styles.overlayText}>
             {multiItemMode 
-              ? 'Position multiple clothing items in frame'
+              ? 'Position multiple items in frame (e.g. both shoes, multiple clothes)'
               : 'Center the clothing item in the frame'
             }
           </Text>
           {multiItemMode && (
             <Text style={styles.overlaySubtext}>
-              AI will detect and crop each item separately
+              AI will detect each shoe, shirt, pants, etc. separately
             </Text>
           )}
         </View>
@@ -361,6 +375,9 @@ const styles = StyleSheet.create({
     flex: 1,
     width: screenWidth,
     height: screenHeight,
+  },
+  hiddenCamera: {
+    opacity: 0,
   },
   gridOverlay: {
     position: 'absolute',

@@ -10,6 +10,7 @@ import {
   UserStyleProfile 
 } from '../services/SmartSuggestionsService';
 import { WardrobeItem, useWardrobeData } from './useWardrobeData';
+import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
 
 export interface SmartSuggestionsState {
   // State
@@ -50,6 +51,9 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
 
   // Access wardrobe data for storage functionality
   const { addSuggestedItem, moveToWishlistFromSuggestions } = useWardrobeData();
+  
+  // Unified loading system
+  const unifiedLoading = useUnifiedLoading();
 
   // Determine if smart button should be shown
   const shouldShowSmartButton = useCallback((wardrobeItems: WardrobeItem[]): boolean => {
@@ -90,7 +94,13 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
     styleDNA?: any
   ): Promise<SmartSuggestion | null> => {
     try {
+      console.log('🧠 [SmartSuggestions] Starting suggestions generation', {
+        timestamp: Date.now(),
+        userProfile: userProfile.age,
+        existingItemsCount: existingItems.length,
+      });
       setIsGenerating(true);
+      unifiedLoading.showLoading(LOADING_CONFIGS.GENERATING_SUGGESTIONS);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       console.log('🧠 Starting smart suggestions generation...');
@@ -127,7 +137,7 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
       }
 
     } catch (error) {
-      console.error('❌ Error generating smart suggestions:', error);
+      console.error('🧠 [SmartSuggestions] Error generating smart suggestions:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
       Alert.alert(
@@ -137,9 +147,14 @@ export const useSmartSuggestions = (): SmartSuggestionsState => {
       );
       return null;
     } finally {
+      console.log('🧠 [SmartSuggestions] Finishing suggestions generation', {
+        timestamp: Date.now(),
+        hidingLoading: true,
+      });
       setIsGenerating(false);
+      unifiedLoading.hideLoading();
     }
-  }, []);
+  }, [unifiedLoading]);
 
   // Select a specific suggestion to view
   const selectSuggestion = useCallback((suggestion: SmartSuggestion) => {

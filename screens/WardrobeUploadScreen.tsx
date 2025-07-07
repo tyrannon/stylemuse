@@ -46,7 +46,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
-import { styles } from './styles/WardrobeUploadScreen.styles';
+import { createStyles } from './styles/WardrobeUploadScreen.styles';
 
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
@@ -60,6 +60,8 @@ const WardrobeUploadScreen = () => {
   const wardrobeData = useWardrobeData();
   const navigationState = useNavigationState();
   const { theme, isDark } = useTheme();
+  const unifiedLoading = useUnifiedLoading();
+  const styles = createStyles(theme);
   
   // Extract data and functions from hooks
   const {
@@ -88,6 +90,7 @@ const WardrobeUploadScreen = () => {
     deleteWardrobeItem,
     deleteLovedOutfit,
     deleteBulkWardrobeItems,
+    saveBulkWardrobeItems,
   } = wardrobeData;
   
   const {
@@ -186,7 +189,7 @@ const WardrobeUploadScreen = () => {
   const modalState = useModalState();
   const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll);
   const smartSuggestions = useSmartSuggestions();
-  const styleDNALoading = useUnifiedLoading(); // For Style DNA analysis
+  // Removed separate styleDNALoading - now using main unifiedLoading
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
@@ -195,7 +198,7 @@ const WardrobeUploadScreen = () => {
   const [tags, setTags] = useState<string[]>([]);
 
   // Animation and UI states
-  const [spinValue] = useState(new Animated.Value(0));
+  // Legacy spinValue removed - now using unified loading
   const [analyzingProfile, setAnalyzingProfile] = useState(false);
   const [weatherData, setWeatherData] = useState<any | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
@@ -207,6 +210,8 @@ const WardrobeUploadScreen = () => {
   const [currentScale, setCurrentScale] = useState(1);
   const [builderShakeValue] = useState(new Animated.Value(0));
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
+  const [outfitsShakeValue] = useState(new Animated.Value(0));
+  const [profileShakeValue] = useState(new Animated.Value(0));
   
   // Multi-item detection state
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
@@ -423,7 +428,7 @@ const WardrobeUploadScreen = () => {
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
     if (!isBulkUpload) {
       imageHandling.setLoading(true);
-      startSpinAnimation(); // Start spinning animation for single image
+      // Single image analysis now uses unified loading - handled by imageHandling hook
       setDescription(null);
       setTitle(null);
       setTags([]);
@@ -592,7 +597,7 @@ const WardrobeUploadScreen = () => {
 
     if (!result.canceled && result.assets.length > 0) {
       imageHandling.setBulkUploading(true);
-      startSpinAnimation(); // Start spinning animation for bulk upload
+      // Bulk upload now uses unified loading - handled by imageHandling hook
       imageHandling.setBulkProgress({ current: 0, total: result.assets.length });
       
       alert(`Processing ${result.assets.length} images...`);
@@ -611,7 +616,7 @@ const WardrobeUploadScreen = () => {
       }
       
       imageHandling.setBulkUploading(false);
-      stopSpinAnimation(); // Stop spinning animation for bulk upload
+      // Bulk upload now uses unified loading - handled by imageHandling hook
       imageHandling.setBulkProgress({ current: 0, total: 0 });
       alert(`Successfully added ${result.assets.length} items to your wardrobe! 🎉`);
     }
@@ -756,24 +761,50 @@ const WardrobeUploadScreen = () => {
   // Function to handle multi-item save from photo editing
   const handleMultiItemSave = async (croppedItems: any[]) => {
     try {
+      console.log(`🔍 Processing ${croppedItems.length} cropped items for wardrobe save...`);
+      console.log('📋 Cropped items data:', croppedItems);
+      
+      // Validate cropped items
+      if (!croppedItems || croppedItems.length === 0) {
+        Alert.alert('Error', 'No items were successfully cropped. Please try again.');
+        return;
+      }
+      
+      // Validate that saveBulkWardrobeItems function exists
+      if (!saveBulkWardrobeItems) {
+        console.error('❌ saveBulkWardrobeItems function not available');
+        Alert.alert('Error', 'Save function not available. Please restart the app.');
+        return;
+      }
+      
+      // Close editing screen first
       modalState.setShowPhotoEditing(false);
       setCapturedPhotoUri(null);
       setDetectedItemsState([]);
       
-      console.log(`🔍 Processing ${croppedItems.length} cropped items for wardrobe save...`);
+      // Show loading state
+      unifiedLoading.showLoading(LOADING_CONFIGS.BULK_UPLOAD);
       
       // Use the bulk save function from wardrobe data hook
       await saveBulkWardrobeItems(croppedItems);
       
+      unifiedLoading.hideLoading();
+      
+      console.log(`✅ Successfully saved ${croppedItems.length} items to wardrobe`);
+      
       Alert.alert(
-        'Success!', 
+        '🎉 Success!', 
         `${croppedItems.length} items have been added to your wardrobe.`,
-        [{ text: 'OK', onPress: () => navigateToWardrobe() }]
+        [{ text: 'View Wardrobe', onPress: () => navigateToWardrobe() }]
       );
       
     } catch (error) {
+      unifiedLoading.hideLoading();
       console.error('❌ Error saving multi-item detection results:', error);
-      Alert.alert('Error', 'Failed to save items to wardrobe. Please try again.');
+      Alert.alert(
+        'Save Error', 
+        `Failed to save items to wardrobe: ${error.message || 'Unknown error'}. Please try again.`
+      );
     }
   };
 
@@ -796,7 +827,7 @@ const WardrobeUploadScreen = () => {
     }
 
     outfitGeneration.setGeneratingOutfit(true);
-    startSpinAnimation();
+    unifiedLoading.showLoading(LOADING_CONFIGS.OUTFIT_GENERATION);
     
     try {
       // Set the selected items for outfit display
@@ -863,14 +894,14 @@ const WardrobeUploadScreen = () => {
       alert("Failed to generate AI outfit. Please try again.");
     } finally {
       outfitGeneration.setGeneratingOutfit(false);
-      stopSpinAnimation();
+      unifiedLoading.hideLoading();
     }
   };
 
   // Function to analyze profile image and extract style DNA
   const analyzeProfileImage = async (imageUri: string) => {
     setAnalyzingProfile(true);
-    styleDNALoading.showLoading(LOADING_CONFIGS.STYLE_DNA_ANALYSIS);
+    unifiedLoading.showLoading(LOADING_CONFIGS.STYLE_DNA_ANALYSIS);
     
     try {
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
@@ -932,7 +963,7 @@ const WardrobeUploadScreen = () => {
       alert("Failed to analyze your style. Please try again.");
     } finally {
       setAnalyzingProfile(false);
-      styleDNALoading.hideLoading();
+      unifiedLoading.hideLoading();
     }
   };
 
@@ -1250,23 +1281,7 @@ const WardrobeUploadScreen = () => {
     return selectedItems.map(item => item.image);
   };
 
-  // Function to start the spinning animation
-  const startSpinAnimation = () => {
-    spinValue.setValue(0);
-    Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      })
-    ).start();
-  };
-
-  // Function to stop the spinning animation
-  const stopSpinAnimation = () => {
-    spinValue.stopAnimation();
-    spinValue.setValue(0);
-  };
+  // Legacy spinning animation functions removed - now using unified loading
 
   // Function to handle pinch zoom for outfit image
   const handlePinchZoom = (scale: number) => {
@@ -1808,130 +1823,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   </Text>
 </View>
 
-{/* Progress indicator during bulk upload */}
-{imageHandling.bulkUploading && (
-  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
-    {/* Spinning Icon */}
-    <Animated.View
-      style={{
-        transform: [{
-          rotate: spinValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg']
-          })
-        }]
-      }}
-    >
-      <Text style={{ fontSize: 48, marginBottom: 15 }}>📚</Text>
-    </Animated.View>
-    
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#007AFF' }}>
-      Processing images... ✨
-    </Text>
-    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 15 }}>
-      {imageHandling.bulkProgress.current} of {imageHandling.bulkProgress.total}
-    </Text>
-    <View style={{
-      width: 250,
-      height: 8,
-      backgroundColor: '#e0e0e0',
-      borderRadius: 4,
-      overflow: 'hidden',
-    }}>
-      <View style={{
-        width: `${(imageHandling.bulkProgress.current / imageHandling.bulkProgress.total) * 100}%`,
-        height: '100%',
-        backgroundColor: '#007AFF',
-        borderRadius: 4,
-      }} />
-    </View>
-    <Text style={{ fontSize: 12, color: '#666', marginTop: 8, textAlign: 'center' }}>
-      AI is analyzing each item and adding to your wardrobe
-    </Text>
-  </View>
-)}
+{/* Bulk upload progress is now handled by UnifiedLoadingOverlay */}
 
 {/* Style DNA Analysis now uses Unified Loading Overlay */}
 
 {/* Spinning animation and loading text for outfit generation */}
-{outfitGeneration.generatingOutfit && (
-  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
-    {/* Spinning Icon */}
-    <Animated.View
-      style={{
-        transform: [{
-          rotate: spinValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg']
-          })
-        }]
-      }}
-    >
-      <Text style={{ fontSize: 40 }}>✨</Text>
-    </Animated.View>
-    
-    {/* Loading Text */}
-    <Text style={{ 
-      fontSize: 18, 
-      fontWeight: 'bold', 
-      marginTop: 10,
-      color: '#007AFF' 
-    }}>
-      Creating Your Outfit...
-    </Text>
-    
-    {/* Sub-text */}
-    <Text style={{ 
-      fontSize: 14, 
-      color: '#666',
-      marginTop: 5,
-      textAlign: 'center' 
-    }}>
-      AI is designing the perfect look ✨
-    </Text>
-    
-    {/* Progress dots animation */}
-    <View style={{ flexDirection: 'row', marginTop: 15 }}>
-      {[0, 1, 2].map((index) => (
-        <Animated.View
-          key={index}
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: '#007AFF',
-            marginHorizontal: 3,
-            opacity: spinValue.interpolate({
-              inputRange: [0, 0.33, 0.66, 1],
-              outputRange: index === 0 ? [1, 0.3, 0.3, 1] : 
-                         index === 1 ? [0.3, 1, 0.3, 0.3] : 
-                                      [0.3, 0.3, 1, 0.3]
-            })
-          }}
-        />
-      ))}
-    </View>
-    
-    {/* Cancel button */}
-    <TouchableOpacity
-      onPress={() => {
-        outfitGeneration.setGeneratingOutfit(false);
-        stopSpinAnimation();
-        outfitGeneration.setIsSelectionMode(true);
-      }}
-      style={{
-        marginTop: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#ccc'
-      }}
-    >
-      <Text style={{ color: '#666' }}>Cancel</Text>
-    </TouchableOpacity>
-  </View>
-)}
+{/* Old spinning animation replaced with unified loading system - handled by useOutfitGeneration hook */}
 
 
 
@@ -1951,7 +1848,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       >
         <GestureHandlerRootView style={{ flex: 1 }}>
           <View style={styles.outfitModalOverlay}>
-            <View style={styles.outfitModalContent}>
+            <ScrollView 
+              style={[styles.outfitModalContent, { backgroundColor: theme.colors.background }]}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Header */}
               <View style={styles.outfitModalHeader}>
                 <Text style={styles.outfitModalTitle}>
@@ -2112,7 +2013,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                   <Text style={styles.actionButtonText}>✅ Keep This Outfit</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </GestureHandlerRootView>
       </Modal>
@@ -2716,42 +2617,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
 
-{/* Spinning animation and loading text for single image AI analysis */}
-{imageHandling.loading && (
-  <View style={{ marginTop: 20, alignItems: 'center', padding: 20 }}>
-    {/* Spinning Icon */}
-    <Animated.View
-      style={{
-        transform: [{
-          rotate: spinValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg']
-          })
-        }]
-      }}
-    >
-      <Text style={{ fontSize: 48, marginBottom: 15 }}>🤖</Text>
-    </Animated.View>
-    
-    {/* Loading Text */}
-    <Text style={{
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: '#007AFF',
-      textAlign: 'center',
-      marginBottom: 5
-    }}>
-      Analyzing with AI...
-    </Text>
-    <Text style={{
-      fontSize: 14,
-      color: '#666',
-      textAlign: 'center'
-    }}>
-      AI is identifying colors, materials, and style
-    </Text>
-  </View>
-)}
+{/* Single image AI analysis now uses unified loading - no need for custom loading UI */}
 
 
 
@@ -2776,6 +2642,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       styleDNA={styleDNA}
       context="builder"
       size="large"
+      sharedLoading={unifiedLoading} // Pass the shared loading instance
       onOutfitGenerated={(outfit) => {
         console.log('✅ AI Outfit Assistant generated outfit:', outfit);
         
@@ -2847,24 +2714,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       }}
     />
   </View>
-  
-  {/* Unified Loading Overlay - Outfit Generation */}
-  <UnifiedLoadingOverlay
-    visible={outfitGeneration.unifiedLoading.isLoading}
-    title={outfitGeneration.unifiedLoading.loadingConfig?.title || ''}
-    subtitle={outfitGeneration.unifiedLoading.loadingConfig?.subtitle}
-    steps={outfitGeneration.unifiedLoading.loadingConfig?.steps}
-    style={outfitGeneration.unifiedLoading.loadingConfig?.style}
-  />
-
-  {/* Unified Loading Overlay - Style DNA Analysis */}
-  <UnifiedLoadingOverlay
-    visible={styleDNALoading.isLoading}
-    title={styleDNALoading.loadingConfig?.title || ''}
-    subtitle={styleDNALoading.loadingConfig?.subtitle}
-    steps={styleDNALoading.loadingConfig?.steps}
-    style={styleDNALoading.loadingConfig?.style}
-  />
+  {/* Style DNA analysis now uses the main unified loading overlay */}
   
   {/* Gear Slot Grid */}
   <View style={styles.gearSlotGrid}>
@@ -3218,6 +3068,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         mainScrollViewRef={mainScrollViewRef}
         builderShakeValue={builderShakeValue}
         wardrobeShakeValue={wardrobeShakeValue}
+        outfitsShakeValue={outfitsShakeValue}
+        profileShakeValue={profileShakeValue}
       />
       {/* End of Profile Page */}
 
@@ -3446,6 +3298,15 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         onSelectSuggestion={smartSuggestions.selectSuggestion}
         onAddToWishlist={smartSuggestions.addSuggestedItemToWishlist}
         isGenerating={smartSuggestions.isGenerating}
+      />
+
+      {/* Unified Loading Overlay - Main Instance */}
+      <UnifiedLoadingOverlay
+        visible={unifiedLoading.isLoading}
+        title={unifiedLoading.loadingConfig?.title || ''}
+        subtitle={unifiedLoading.loadingConfig?.subtitle}
+        steps={unifiedLoading.loadingConfig?.steps}
+        style={unifiedLoading.loadingConfig?.style}
       />
     </SafeAreaView>
   );

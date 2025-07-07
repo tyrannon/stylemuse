@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AddItemPageProps {
   onCameraPress: () => void;
@@ -17,6 +18,9 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
   onBulkUploadPress,
   onTextEntryPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
   const handleOptionPress = (action: () => void) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     action();
@@ -133,10 +137,10 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -146,13 +150,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: theme.colors.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginBottom: 40,
     textAlign: 'center',
     lineHeight: 22,
@@ -163,19 +167,15 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     padding: 20,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.medium,
   },
   optionIcon: {
     width: 56,
     height: 56,
-    backgroundColor: '#f0f7ff',
+    backgroundColor: theme.colors.primary + '20',
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
@@ -190,30 +190,30 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   optionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   optionArrow: {
     fontSize: 24,
-    color: '#ccc',
+    color: theme.colors.textSecondary,
     marginLeft: 12,
   },
   tipsContainer: {
     marginTop: 40,
-    backgroundColor: '#fff9e6',
+    backgroundColor: theme.colors.warning + '20',
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ffe4b5',
+    borderColor: theme.colors.warning + '40',
   },
   tipsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   tip: {
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
   },
   tipBullet: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginRight: 8,
   },
   tipText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     flex: 1,
   },
 });

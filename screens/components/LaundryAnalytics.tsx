@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { WardrobeItem, LaundryStatus } from '../../hooks/useWardrobeData';
 import { SafeImage } from '../../utils/SafeImage';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface LaundryStats {
   totalItems: number;
@@ -58,6 +59,9 @@ export const LaundryAnalytics: React.FC<LaundryAnalyticsProps> = ({
   onItemPress,
   getItemsByLaundryStatus,
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
   // Helper function to safely format dates
   const formatDate = (date: any): string => {
     try {
@@ -317,10 +321,10 @@ export const LaundryAnalytics: React.FC<LaundryAnalyticsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
   },
   header: {
     padding: 20,
@@ -329,12 +333,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   statsGrid: {
@@ -347,7 +351,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: '47%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -376,31 +380,27 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
   },
   utilizationCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.medium,
   },
   utilizationTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -419,13 +419,13 @@ const styles = StyleSheet.create({
   },
   utilizationText: {
     fontSize: 14,
-    color: '#333',
+    color: theme.colors.text,
     fontWeight: '600',
     textAlign: 'center',
   },
   utilizationSubtext: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   section: {
@@ -434,20 +434,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     paddingHorizontal: 20,
     marginBottom: 12,
   },
   suggestionsCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     marginHorizontal: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.medium,
   },
   loadSuggestions: {
     flexDirection: 'row',
@@ -465,7 +461,7 @@ const styles = StyleSheet.create({
   },
   loadLabel: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   fullLoadSuggestion: {
@@ -488,7 +484,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
   dirtyItemsContainer: {
@@ -497,14 +493,10 @@ const styles = StyleSheet.create({
   },
   dirtyItemCard: {
     width: 100,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.small,
     borderWidth: 2,
     borderColor: '#FF5722',
   },
@@ -520,7 +512,7 @@ const styles = StyleSheet.create({
   dirtyItemTitle: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -540,16 +532,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mostWashedCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.medium,
     marginBottom: 8,
   },
   mostWashedRank: {
@@ -578,7 +566,7 @@ const styles = StyleSheet.create({
   mostWashedTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   mostWashedStats: {
@@ -589,7 +577,7 @@ const styles = StyleSheet.create({
   },
   mostWashedDate: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   statusBreakdown: {
     flexDirection: 'row',
@@ -600,16 +588,12 @@ const styles = StyleSheet.create({
   statusCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.small,
   },
   statusIcon: {
     width: 40,
@@ -628,29 +612,25 @@ const styles = StyleSheet.create({
   statusCount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
   },
   statusLabel: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   tipsCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.medium,
   },
   tipsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   tipsList: {
@@ -658,7 +638,7 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
 });

@@ -31,6 +31,8 @@ interface BottomNavigationProps {
   // Animation values
   builderShakeValue: Animated.Value;
   wardrobeShakeValue: Animated.Value;
+  outfitsShakeValue: Animated.Value;
+  profileShakeValue: Animated.Value;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -52,8 +54,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   mainScrollViewRef,
   builderShakeValue,
   wardrobeShakeValue,
+  outfitsShakeValue,
+  profileShakeValue,
 }) => {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
+  
   const shakeButton = (animatedValue: Animated.Value) => {
     Animated.sequence([
       Animated.timing(animatedValue, {
@@ -80,7 +86,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   return (
-    <View style={[styles.bottomNavigation, { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>
+    <View style={styles.bottomNavigation}>
       {/* Outfit Builder Toggle Button */}
       <Animated.View style={{
         transform: [{
@@ -149,69 +155,79 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       </TouchableOpacity>
 
       {/* Outfits Page Button */}
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('light');
-          // If outfit detail is open, just go back to outfits
-          if (showingOutfitDetail) {
-            goBackToOutfits();
-          } else if (!showOutfitsPage) {
-            navigateToOutfits();
-          } else if (showOutfitsPage) {
-            // If already on outfits page, scroll to top
-            mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          }
-        }}
-        style={styles.bottomNavButton}
-      >
-        <Text style={[styles.bottomNavIcon, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary }]}>
-          👗
-        </Text>
-        <Text style={[styles.bottomNavLabel, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitsPage ? 'bold' : '500' }]}>
-          Outfits
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{
+        transform: [{
+          translateX: outfitsShakeValue
+        }]
+      }}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
+            shakeButton(outfitsShakeValue);
+            // If outfit detail is open, just go back to outfits
+            if (showingOutfitDetail) {
+              goBackToOutfits();
+            } else if (!showOutfitsPage) {
+              navigateToOutfits();
+            } else if (showOutfitsPage) {
+              // If already on outfits page, scroll to top
+              mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }
+          }}
+          style={styles.bottomNavButton}
+        >
+          <Text style={[styles.bottomNavIcon, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary }]}>
+            👗
+          </Text>
+          <Text style={[styles.bottomNavLabel, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitsPage ? 'bold' : '500' }]}>
+            Outfits
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
 
 
       {/* Style DNA Profile Button */}
-      <TouchableOpacity
-        onPress={() => {
-          triggerHaptic('light');
-          if (!showProfilePage) {
-            navigateToProfile();
-          } else if (showProfilePage) {
-            // If already on profile page, scroll to top
-            mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          }
-        }}
-        style={styles.bottomNavButton}
-      >
-        <Text style={[styles.bottomNavIcon, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary }]}>
-          🧬
-        </Text>
-        <Text style={[styles.bottomNavLabel, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showProfilePage ? 'bold' : '500' }]}>
-          Profile
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{
+        transform: [{
+          translateX: profileShakeValue
+        }]
+      }}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
+            shakeButton(profileShakeValue);
+            if (!showProfilePage) {
+              navigateToProfile();
+            } else if (showProfilePage) {
+              // If already on profile page, scroll to top
+              mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }
+          }}
+          style={styles.bottomNavButton}
+        >
+          <Text style={[styles.bottomNavIcon, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary }]}>
+            🧬
+          </Text>
+          <Text style={[styles.bottomNavLabel, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showProfilePage ? 'bold' : '500' }]}>
+            Profile
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   bottomNavigation: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    borderTopColor: theme.colors.border,
+    ...theme.shadows.medium,
   },
   bottomNavButton: {
     flexDirection: 'column',
@@ -224,42 +240,33 @@ const styles = StyleSheet.create({
   bottomNavIcon: {
     fontSize: 24,
     marginBottom: 4,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   bottomNavIconActive: {
-    color: '#007AFF',
+    color: theme.colors.primary,
   },
   bottomNavLabel: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   bottomNavLabelActive: {
-    color: '#007AFF',
+    color: theme.colors.primary,
     fontWeight: 'bold',
   },
   centerAddButton: {
     width: 56,
     height: 56,
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 8,
+    ...theme.shadows.large,
   },
   centerAddButtonIcon: {
     fontSize: 32,
     color: 'white',
     fontWeight: '300',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
     marginHorizontal: 4,
   },
 });

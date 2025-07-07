@@ -1059,19 +1059,34 @@ export async function detectMultipleClothingItems(base64Image: string): Promise<
 
   console.log('🔍 Detecting multiple clothing items in photo...');
 
-  const prompt = `You are an AGGRESSIVE clothing detector who must find EVERY single clothing item in the image. Your job is to identify ALL separate clothing items, even if they're partially visible or overlapping.
+  const prompt = `You are an EXPERT clothing detector with advanced shoe pair recognition. Your job is to identify ALL clothing items with SPECIAL INTELLIGENCE for detecting shoe pairs.
 
-🔍 CRITICAL MISSION: Find EVERY piece of clothing in this image!
+🔍 CRITICAL MISSION: Find EVERY piece of clothing and intelligently group matching shoes!
 
 DETECTION STRATEGY:
 - Scan the ENTIRE image systematically from left to right, top to bottom
 - Look for ANY clothing item, even if partially visible or small
-- Different pairs of shoes = 2 separate items (left shoe + right shoe, OR different shoe types)
 - Different clothing pieces = separate items (shirt + pants = 2 items)
 - Be LIBERAL with detection - when in doubt, include it!
 
-WHAT TO DETECT (be aggressive):
-✅ SHOES: sneakers, boots, heels, sandals, slippers (each pair or individual shoe)
+👟 ADVANCED SHOE PAIR DETECTION:
+For shoes, you MUST analyze if they form a matching pair:
+✅ DETECT AS PAIR if shoes are:
+  - Same style (both sneakers, both heels, both boots, etc.)
+  - Same color and material 
+  - Same brand/design (if visible)
+  - Left and right shoe of the same pair
+  - Positioned near each other (suggesting they belong together)
+
+❌ DETECT AS SEPARATE if shoes are:
+  - Different styles (sneaker + heel, boot + sandal)
+  - Different colors or materials
+  - Different brands or designs
+  - Far apart suggesting they're different pairs
+  - One is clearly worn/used while other is new
+
+WHAT TO DETECT:
+✅ SHOES: Intelligently detect as pairs or individual shoes based on matching
 ✅ TOPS: shirts, t-shirts, tanks, blouses, sweaters, jackets, hoodies
 ✅ BOTTOMS: pants, jeans, shorts, skirts, leggings
 ✅ DRESSES: any type of dress or romper
@@ -1082,7 +1097,7 @@ WHAT TO DETECT (be aggressive):
 COORDINATE SYSTEM (0-100 scale):
 - top_left: [x, y] where (0,0) = top-left corner
 - bottom_right: [x, y] where (100,100) = bottom-right corner
-- Be generous with bounding boxes to capture the full item
+- For shoe pairs: create ONE bounding box that encompasses BOTH shoes
 
 Return ONLY valid JSON:
 {
@@ -1090,35 +1105,47 @@ Return ONLY valid JSON:
   "items": [
     {
       "id": 1,
-      "itemType": "t-shirt",
-      "description": "White cotton t-shirt with graphic print",
+      "itemType": "sneakers-pair",
+      "description": "White leather sneakers (matching pair)",
       "boundingBox": {
-        "top_left": [20, 15],
-        "bottom_right": [65, 60]
+        "top_left": [20, 60],
+        "bottom_right": [80, 95]
       },
       "confidence": 95,
       "suitable": true,
-      "reason": "Clear view of complete garment, good lighting",
-      "uniqueFeatures": "graphic print on front"
+      "reason": "Clear matching pair - same design, color, positioned together",
+      "uniqueFeatures": "white leather, matching left and right shoes",
+      "isPair": true,
+      "pairAnalysis": "Same style white sneakers, positioned together, clearly a matching pair"
     },
     {
       "id": 2,
-      "itemType": "cap", 
-      "description": "Blue baseball cap",
+      "itemType": "t-shirt",
+      "description": "Blue cotton t-shirt",
       "boundingBox": {
-        "top_left": [70, 10],
-        "bottom_right": [95, 35]
+        "top_left": [30, 15],
+        "bottom_right": [70, 60]
       },
       "confidence": 88,
       "suitable": true,
       "reason": "Clearly visible, distinct from other items",
-      "uniqueFeatures": "curved brim, solid color"
+      "uniqueFeatures": "solid blue color, cotton material",
+      "isPair": false
     }
   ],
   "quality": "good",
   "lighting": "adequate",
-  "recommendation": "All items have distinct boundaries suitable for individual cropping"
+  "recommendation": "All items have distinct boundaries suitable for individual cropping",
+  "shoePairsDetected": 1,
+  "individualShoesDetected": 0
 }
+
+IMPORTANT NOTES:
+- Add "isPair": true for shoe pairs, "isPair": false for everything else
+- Add "pairAnalysis" field for shoes explaining why they are/aren't a pair
+- Include "shoePairsDetected" and "individualShoesDetected" counts in response
+- For shoe pairs, use itemType like "sneakers-pair", "heels-pair", "boots-pair"
+- For individual shoes, use itemType like "sneaker-left", "heel-right", "boot-single"
 
 If NO clothing items found or image quality is poor, return:
 {
@@ -1126,7 +1153,9 @@ If NO clothing items found or image quality is poor, return:
   "items": [],
   "quality": "poor",
   "lighting": "inadequate", 
-  "recommendation": "Take a clearer photo with better lighting"
+  "recommendation": "Take a clearer photo with better lighting",
+  "shoePairsDetected": 0,
+  "individualShoesDetected": 0
 }`;
 
   const payload = {
@@ -1196,14 +1225,30 @@ If NO clothing items found or image quality is poor, return:
       const detectionResult = JSON.parse(cleanResult);
       
       console.log(`✅ Multi-item detection complete: ${detectionResult.itemsFound} items found`);
+      
+      // Log shoe pair detection results
+      if (detectionResult.shoePairsDetected > 0 || detectionResult.individualShoesDetected > 0) {
+        console.log(`👟 Shoe analysis: ${detectionResult.shoePairsDetected} pairs, ${detectionResult.individualShoesDetected} individual shoes`);
+      }
+      
       detectionResult.items?.forEach((item: any, index: number) => {
-        console.log(`  ${index + 1}. ${item.itemType}: ${item.description} (${item.confidence}% confidence)`);
+        const pairInfo = item.isPair ? ' (PAIR)' : '';
+        console.log(`  ${index + 1}. ${item.itemType}${pairInfo}: ${item.description} (${item.confidence}% confidence)`);
+        if (item.pairAnalysis) {
+          console.log(`     👟 Pair analysis: ${item.pairAnalysis}`);
+        }
       });
+
+      // Enhanced success message with shoe pair info
+      let message = `Detected ${detectionResult.itemsFound} clothing items`;
+      if (detectionResult.shoePairsDetected > 0) {
+        message += ` (including ${detectionResult.shoePairsDetected} shoe pair${detectionResult.shoePairsDetected !== 1 ? 's' : ''})`;
+      }
 
       return {
         ...detectionResult,
         success: true,
-        message: `Detected ${detectionResult.itemsFound} clothing items`
+        message: message
       };
 
     } catch (parseError) {

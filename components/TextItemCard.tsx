@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { WardrobeItem, LaundryStatus } from '../hooks/useWardrobeData';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface TextItemCardProps {
   item: WardrobeItem;
@@ -22,6 +23,8 @@ export const TextItemCard: React.FC<TextItemCardProps> = ({
   category,
   laundryStatus,
 }) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const getColorCircle = (color: string) => {
     const colorMap: { [key: string]: string } = {
       black: '#000000',
@@ -65,187 +68,165 @@ export const TextItemCard: React.FC<TextItemCardProps> = ({
       style={styles.container}
       activeOpacity={0.7}
     >
-      <View style={styles.visualContainer}>
+      {/* Image area with initials */}
+      <View style={styles.imageArea}>
         <View style={styles.iconContainer}>
           <Text style={styles.iconText}>
             {getInitials(item.title || item.description)}
           </Text>
         </View>
-        {item.color && getColorCircle(item.color)}
+        <View style={styles.textOnlyIndicator}>
+          <Text style={styles.textOnlyIndicatorText}>📝</Text>
+        </View>
       </View>
 
-      <View style={styles.infoContainer}>
+      {/* Info area - similar to regular wardrobe items */}
+      <View style={styles.infoArea}>
         <Text style={styles.title} numberOfLines={2}>
           {item.title || item.description}
         </Text>
 
-        {extractBrandFromTags(item.tags) && (
-          <Text style={styles.brand} numberOfLines={1}>
-            {extractBrandFromTags(item.tags)}
-          </Text>
-        )}
-
-        <View style={styles.metadataRow}>
-          {item.material && (
-            <View style={styles.metadataItem}>
-              <Text style={styles.metadataText}>{item.material}</Text>
+        {/* Tags row */}
+        <View style={styles.tagsContainer}>
+          {item.tags?.slice(0, 3).map((tag, tagIndex) => (
+            <View key={tagIndex} style={styles.tag}>
+              <Text style={styles.tagText}>{tag}</Text>
             </View>
-          )}
-          {item.style && (
-            <View style={styles.metadataItem}>
-              <Text style={styles.metadataText}>{item.style}</Text>
-            </View>
-          )}
+          ))}
         </View>
 
-        <View style={styles.bottomRow}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{category.toUpperCase()}</Text>
-          </View>
-
-          <View style={[styles.laundryBadge, { backgroundColor: laundryStatus.color }]}>
-            <Text style={styles.laundryEmoji}>{laundryStatus.emoji}</Text>
-            <Text style={styles.laundryText}>{laundryStatus.text}</Text>
-          </View>
+        {/* Category badge */}
+        <View style={styles.categoryBadge}>
+          <Text style={styles.categoryText}>{category.toUpperCase()}</Text>
         </View>
-      </View>
 
-      <View style={styles.textOnlyIndicator}>
-        <Text style={styles.textOnlyIndicatorText}>📝</Text>
+        {/* Laundry Status Indicator */}
+        <View style={[styles.laundryBadge, { backgroundColor: laundryStatus.color }]}>
+          <Text style={styles.laundryEmoji}>{laundryStatus.emoji}</Text>
+          <Text style={styles.laundryText}>{laundryStatus.text}</Text>
+        </View>
+
+        {/* Edit indicator */}
+        <View style={styles.editIndicator}>
+          <Text style={styles.editIndicatorText}>✏️ Tap to edit</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    width: '48%',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
-    marginHorizontal: 10,
-    marginBottom: 15,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3.84,
-    elevation: 5,
-    flexDirection: 'row',
+    padding: 12,
+    marginBottom: 16,
+    ...theme.shadows.medium,
+  },
+  imageArea: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: theme.colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
   },
-  visualContainer: {
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F0F0F0',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.primary + '40',
   },
   iconText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
   },
-  colorCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  whiteColorBorder: {
+  textOnlyIndicator: {
     position: 'absolute',
-    top: -1,
-    left: -1,
-    right: -1,
-    bottom: -1,
-    borderRadius: 12,
+    top: 8,
+    right: 8,
+    backgroundColor: theme.colors.warning + '30',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CCC',
+    borderColor: theme.colors.warning,
   },
-  infoContainer: {
+  textOnlyIndicatorText: {
+    fontSize: 12,
+  },
+  infoArea: {
     flex: 1,
-    justifyContent: 'space-between',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  brand: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 6,
   },
-  metadataRow: {
+  tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 8,
   },
-  metadataItem: {
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 4,
+  tag: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 4,
+    marginBottom: 2,
   },
-  metadataText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  tagText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   categoryBadge: {
-    backgroundColor: '#E8E8E8',
-    paddingHorizontal: 10,
+    backgroundColor: '#e8f5e8',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    marginRight: 8,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
   categoryText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#2e7d32',
   },
   laundryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
   laundryEmoji: {
-    fontSize: 12,
+    fontSize: 10,
     marginRight: 4,
   },
   laundryText: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: 'bold',
     color: 'white',
-    fontWeight: '600',
   },
-  textOnlyIndicator: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#FFF3CD',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  editIndicator: {
+    alignItems: 'center',
   },
-  textOnlyIndicatorText: {
-    fontSize: 14,
+  editIndicatorText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
   },
 });

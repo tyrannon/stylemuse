@@ -4,6 +4,7 @@ import { LovedOutfit, WardrobeItem } from '../../hooks/useWardrobeData';
 import { MarkAsWornModal } from './MarkAsWornModal';
 import { SafeImage } from '../../utils/SafeImage';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Helper function to safely format dates
 const formatDate = (date: any): string => {
@@ -41,6 +42,8 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
   categorizeItem,
 }) => {
   const [showMarkAsWornModal, setShowMarkAsWornModal] = useState(false);
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleDeleteOutfit = () => {
     Alert.alert(
@@ -229,17 +232,13 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   itemDetailContainer: {
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
     borderRadius: 16,
     margin: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.large,
   },
   itemDetailHeader: {
     flexDirection: 'row',
@@ -247,24 +246,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     flex: 0,
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: theme.colors.primary,
   },
   itemDetailTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     flex: 1,
     marginHorizontal: 16,
@@ -272,15 +271,15 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fee',
+    backgroundColor: theme.colors.error + '15',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#fbb',
+    borderColor: theme.colors.error + '40',
     flex: 0,
   },
   deleteButtonText: {
     fontSize: 18,
-    color: '#d32f2f',
+    color: theme.colors.error,
   },
   itemDetailImageContainer: {
     padding: 20,
@@ -303,13 +302,13 @@ const styles = StyleSheet.create({
   itemDetailLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginRight: 8,
     minWidth: 80,
   },
   itemDetailValue: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.textSecondary,
     flex: 1,
   },
   itemDetailActions: {
@@ -319,11 +318,11 @@ const styles = StyleSheet.create({
     marginTop: 30,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border,
     gap: 8,
   },
   itemDetailActionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
@@ -333,7 +332,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markAsWornButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.success,
   },
   itemDetailActionButtonText: {
     color: 'white',
@@ -346,12 +345,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border,
   },
   outfitItemsSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 15,
   },
   outfitItemsGrid: {
@@ -361,12 +360,13 @@ const styles = StyleSheet.create({
   },
   outfitItemCard: {
     width: '48%',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 10,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.colors.border,
+    ...theme.shadows.small,
   },
   outfitItemImage: {
     width: '100%',
@@ -380,17 +380,18 @@ const styles = StyleSheet.create({
   outfitItemTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   outfitItemCategory: {
     fontSize: 10,
-    color: '#666',
-    backgroundColor: '#e3f2fd',
+    color: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '20',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     overflow: 'hidden',
+    fontWeight: '600',
   },
 });

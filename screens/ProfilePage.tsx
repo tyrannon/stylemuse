@@ -36,7 +36,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   triggerHaptic,
   navigateToAvatarCustomization,
 }) => {
-  const { theme, themeMode, isDark, setThemeMode, toggleTheme } = useTheme();
+  const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme, toggleTheme } = useTheme();
+  const styles = createStyles(theme);
   return (
     <View style={{ marginTop: 20 }}>
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
@@ -142,21 +143,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             triggerHaptic('light');
             setShowGenderSelector(true);
           }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 15,
-            borderWidth: 2,
-            borderColor: !selectedGender ? '#ff6b6b' : '#e0e0e0',
-            borderRadius: 12,
-            backgroundColor: '#f8f9fa',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
+          style={[
+            styles.genderCard,
+            {
+              borderColor: !selectedGender ? theme.colors.error : theme.colors.border,
+            }
+          ]}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 24, marginRight: 10 }}>
@@ -164,11 +156,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                selectedGender === 'female' ? '👩' : 
                selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
             </Text>
-            <Text style={{ fontSize: 16, color: '#333' }}>
+            <Text style={[styles.genderText, { color: theme.colors.text }]}>
               {selectedGender ? selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1) : 'Select Gender'}
             </Text>
           </View>
-          <Text style={{ fontSize: 16, color: '#666' }}>▶️</Text>
+          <Text style={[styles.genderArrow, { color: theme.colors.textSecondary }]}>▶️</Text>
         </TouchableOpacity>
       </View>
 
@@ -358,6 +350,68 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </Text>
         </View>
 
+        {/* Color Scheme Toggle */}
+        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.settingHeader}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
+                🎨 Color Scheme
+              </Text>
+              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+                {colorScheme === 'tokyo' 
+                  ? (theme.mode === 'dark' 
+                    ? '🌃 Tokyo Cyber - Electric neon night vibes' 
+                    : '🌸 Tokyo Kawaii - Soft peachy sakura aesthetic')
+                  : '🎯 Default - Clean and classic colors'
+                }
+              </Text>
+            </View>
+          </View>
+          
+          {/* Color Scheme Options */}
+          <View style={styles.themeOptions}>
+            {(['default', 'tokyo'] as const).map((scheme) => (
+              <TouchableOpacity
+                key={scheme}
+                style={[
+                  styles.themeOption,
+                  {
+                    backgroundColor: colorScheme === scheme ? theme.colors.primary : theme.colors.surface,
+                    borderColor: colorScheme === scheme ? theme.colors.primary : theme.colors.border,
+                  }
+                ]}
+                onPress={async () => {
+                  await triggerHaptic('light');
+                  setColorScheme(scheme);
+                }}
+              >
+                <Text style={styles.themeOptionIcon}>
+                  {scheme === 'default' ? '🎯' : (theme.mode === 'dark' ? '🌃' : '🌸')}
+                </Text>
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    {
+                      color: colorScheme === scheme ? '#FFFFFF' : theme.colors.text,
+                    }
+                  ]}
+                >
+                  {scheme === 'default' ? 'Default' : (theme.mode === 'dark' ? 'Cyber' : 'Kawaii')}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
+            {colorScheme === 'tokyo' 
+              ? (theme.mode === 'dark' 
+                ? '⚡ Cyber mode: Electric neon colors for late-night style sessions! Perfect for channeling inner Tokyo street fashion energy 💫'
+                : '🍑 Kawaii mode: Soft peachy colors inspired by sakura blossoms and mochi! Perfect for cute, dreamy outfit planning 💕')
+              : '🌟 Experience Tokyo vibes with kawaii pastels (light) or cyber neon (dark) themes!'
+            }
+          </Text>
+        </View>
+
         {/* Future Settings Placeholder */}
         <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <View style={styles.settingHeader}>
@@ -374,7 +428,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       </View>
 
       {/* Backup & Data Management Section */}
-      <BackupSection />
+      <BackupSection theme={theme} styles={styles} />
 
     </View>
   );
@@ -383,7 +437,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 /**
  * 💾 BACKUP SECTION: Ultimate data persistence controls
  */
-const BackupSection: React.FC = () => {
+interface BackupSectionProps {
+  theme: any;
+  styles: any;
+}
+
+const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles }) => {
   const [backupInfo, setBackupInfo] = useState<{
     hasLocalBackup: boolean;
     lastBackupDate: Date | null;
@@ -503,9 +562,26 @@ const BackupSection: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
+  genderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    marginHorizontal: 20,
+    borderWidth: 2,
+    borderRadius: 12,
+    backgroundColor: theme.colors.card,
+    ...theme.shadows.medium,
+  },
+  genderText: {
+    fontSize: 16,
+  },
+  genderArrow: {
+    fontSize: 16,
+  },
   styleDNACard: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: theme.colors.card,
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
@@ -514,19 +590,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
+    color: theme.colors.text,
   },
   styleDNAText: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginBottom: 3,
   },
   styleDNALabel: {
     fontWeight: 'bold',
-    color: '#2E7D32',
+    color: theme.colors.success,
   },
   statCard: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: theme.colors.card,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -536,12 +612,12 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 5,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   // App Settings Section Styles
   settingsSection: {
@@ -624,23 +700,23 @@ const styles = StyleSheet.create({
   backupTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   backupSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
   },
   backupStatusCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.colors.border,
   },
   backupStatusHeader: {
     flexDirection: 'row',
@@ -651,7 +727,7 @@ const styles = StyleSheet.create({
   backupStatusTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
   },
   backupStatusBadge: {
     fontSize: 12,
@@ -661,12 +737,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   backupStatusGood: {
-    backgroundColor: '#d4edda',
-    color: '#155724',
+    backgroundColor: theme.colors.success + '20',
+    color: theme.colors.success,
   },
   backupStatusBad: {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
+    backgroundColor: theme.colors.error + '20',
+    color: theme.colors.error,
   },
   backupStatusDetails: {
     flexDirection: 'row',
@@ -674,7 +750,7 @@ const styles = StyleSheet.create({
   },
   backupStatusText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   backupActions: {
     flexDirection: 'row',
@@ -692,22 +768,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exportButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: theme.colors.primary,
   },
   importButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: theme.colors.success,
   },
   backupButtonIcon: {
     fontSize: 16,
   },
   backupButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
   backupNote: {
     fontSize: 12,
-    color: '#6c757d',
+    color: theme.colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
   },

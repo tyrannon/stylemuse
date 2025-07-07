@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  Animated,
 } from 'react-native';
+import { PinchGestureHandler, State, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -24,6 +26,8 @@ interface DetectedItem {
   reason: string;
   uniqueFeatures?: string;
   originalImageUri?: string;
+  isPair?: boolean;
+  pairAnalysis?: string;
 }
 
 interface BoundingBoxOverlayProps {
@@ -43,16 +47,69 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
   imageWidth,
   imageHeight,
 }) => {
+  const [scale, setScale] = useState(1);
+  const [lastScale, setLastScale] = useState(1);
+  const scaleValue = new Animated.Value(1);
+
   if (!visible || !detectedItems.length) {
     return null;
   }
 
+  const onPinchEvent = Animated.event(
+    [{ nativeEvent: { scale: scaleValue } }],
+    { useNativeDriver: false }
+  );
+
+  const onPinchStateChange = (event: any) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      const newScale = lastScale * event.nativeEvent.scale;
+      // Limit zoom between 1x and 3x
+      const clampedScale = Math.max(1, Math.min(3, newScale));
+      setScale(clampedScale);
+      setLastScale(clampedScale);
+      scaleValue.setValue(clampedScale);
+      
+      // Provide haptic feedback when zooming
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const getDisplayDimensions = () => {
+    // Calculate dimensions to fit image in available space while maintaining aspect ratio
+    // Leave more space for header (120px) and bottom controls (220px)
+    const availableHeight = screenHeight - 340; // Even more conservative space for UI
+    const availableWidth = screenWidth - 60; // More padding from edges
+    
+    const aspectRatio = imageWidth / imageHeight;
+    const availableAspectRatio = availableWidth / availableHeight;
+    
+    let displayWidth, displayHeight;
+    
+    if (aspectRatio > availableAspectRatio) {
+      // Image is wider than available space - fit to available width
+      displayWidth = availableWidth;
+      displayHeight = availableWidth / aspectRatio;
+    } else {
+      // Image is taller than available space - fit to available height
+      displayHeight = availableHeight;
+      displayWidth = availableHeight * aspectRatio;
+    }
+    
+    // Center the image in available space
+    const offsetX = (screenWidth - displayWidth) / 2;
+    const offsetY = 120 + (availableHeight - displayHeight) / 2; // Start after header with more space
+    
+    return { displayWidth, displayHeight, offsetX, offsetY };
+  };
+
   const convertBoundingBox = (bbox: DetectedItem['boundingBox']) => {
-    // Convert 0-100 coordinate system to actual pixel coordinates
-    const x = (bbox.top_left[0] / 100) * imageWidth;
-    const y = (bbox.top_left[1] / 100) * imageHeight;
-    const width = ((bbox.bottom_right[0] - bbox.top_left[0]) / 100) * imageWidth;
-    const height = ((bbox.bottom_right[1] - bbox.top_left[1]) / 100) * imageHeight;
+    const { displayWidth, displayHeight, offsetX, offsetY } = getDisplayDimensions();
+    
+    // Convert 0-100 coordinate system to display coordinates
+    const x = offsetX + (bbox.top_left[0] / 100) * displayWidth;
+    const y = offsetY + (bbox.top_left[1] / 100) * displayHeight;
+    const width = ((bbox.bottom_right[0] - bbox.top_left[0]) / 100) * displayWidth;
+    const height = ((bbox.bottom_right[1] - bbox.top_left[1]) / 100) * displayHeight;
     
     return { x, y, width, height };
   };
@@ -68,17 +125,32 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
     onItemSelect(item);
   };
 
+  const { displayWidth, displayHeight, offsetX, offsetY } = getDisplayDimensions();
+
   return (
-    <View style={styles.container}>
-      {/* Background Image */}
-      <Image 
-        source={{ uri: imageUri }} 
-        style={[styles.backgroundImage, { width: imageWidth, height: imageHeight }]}
-        resizeMode="contain"
-      />
-      
-      {/* Bounding Boxes */}
-      {detectedItems.map((item, index) => {
+    <GestureHandlerRootView style={styles.container}>
+      <PinchGestureHandler
+        onGestureEvent={onPinchEvent}
+        onHandlerStateChange={onPinchStateChange}
+      >
+        <Animated.View style={[styles.zoomableContainer, { transform: [{ scale: scaleValue }] }]}>
+          {/* Background Image - Full screen fit */}
+          <Image 
+            source={{ uri: imageUri }} 
+            style={[
+              styles.backgroundImage, 
+              {
+                width: displayWidth,
+                height: displayHeight,
+                left: offsetX,
+                top: offsetY,
+              }
+            ]}
+            resizeMode="contain"
+          />
+          
+          {/* Bounding Boxes */}
+          {detectedItems.map((item, index) => {
         const bbox = convertBoundingBox(item.boundingBox);
         const confidenceColor = getConfidenceColor(item.confidence);
         
@@ -102,6 +174,7 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
             <View style={[styles.itemLabel, { backgroundColor: confidenceColor }]}>
               <Text style={styles.itemLabelText} numberOfLines={1}>
                 {item.itemType}
+                {item.isPair ? ' 👟' : ''}
               </Text>
               <Text style={styles.confidenceText}>
                 {item.confidence}%
@@ -115,17 +188,25 @@ export const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
           </TouchableOpacity>
         );
       })}
+        </Animated.View>
+      </PinchGestureHandler>
       
-      {/* Instructions */}
+      {/* Instructions - Keep outside zoom container */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
           {detectedItems.length} item{detectedItems.length !== 1 ? 's' : ''} detected
         </Text>
         <Text style={styles.instructionsSubtext}>
-          Tap any item to select and crop it
+          Tap any item to crop and save it instantly • Pinch to zoom
         </Text>
+        {/* Show shoe pair info if any pairs detected */}
+        {detectedItems.some(item => item.isPair) && (
+          <Text style={styles.pairInfoText}>
+            👟 Shoe pairs detected and grouped together
+          </Text>
+        )}
       </View>
-    </View>
+    </GestureHandlerRootView>
   );
 };
 
@@ -133,8 +214,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: screenWidth,
+    height: screenHeight,
+  },
+  zoomableContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   backgroundImage: {
     position: 'absolute',
@@ -188,25 +274,50 @@ const styles = StyleSheet.create({
   },
   instructionsContainer: {
     position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    bottom: 100,
+    left: 30,
+    right: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 136, 0.3)',
   },
   instructionsText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#00FF88',
+    fontSize: 18,
+    fontWeight: 'bold',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    marginBottom: 2,
   },
   instructionsSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    fontWeight: '500',
+  },
+  pairInfoText: {
+    color: '#00FF88',
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 
