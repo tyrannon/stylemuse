@@ -311,13 +311,21 @@ export class BackupRestoreService {
       }
 
       // Process backup items
-      const restoredItems = backupItems.map(item => {
-        // Update image URI if we have a mapping
-        const newImageUri = imageMapping[item.imageUri] || imageMapping[item.id] || item.imageUri;
+      const restoredItems = backupItems.map((item, index) => {
+        // Update image URI if we have a mapping (WardrobeItem uses 'image' not 'imageUri')
+        const itemId = `item_${index}`;
+        const oldImageUri = item.image || item.imageUri; // Support both for compatibility
+        const newImageUri = imageMapping[oldImageUri] || imageMapping[itemId] || oldImageUri;
+        
+        console.log(`🔄 [BackupRestore] Restoring item ${index}:`, {
+          oldImage: oldImageUri,
+          newImage: newImageUri,
+          hasMapping: !!imageMapping[oldImageUri],
+        });
         
         return {
           ...item,
-          imageUri: newImageUri,
+          image: newImageUri, // Use 'image' field for WardrobeItem
           // Update any timestamps to current time if needed
           dateAdded: item.dateAdded || new Date().toISOString(),
         };
@@ -347,7 +355,19 @@ export class BackupRestoreService {
       await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(finalItems));
       count = restoredItems.length;
 
-      console.log(`✅ [BackupRestore] Restored ${count} wardrobe items (${mergeMode} mode)`);
+      console.log(`✅ [BackupRestore] Restored ${count} wardrobe items (${mergeMode} mode)`, {
+        finalItemsCount: finalItems.length,
+        firstItemSample: finalItems[0] ? {
+          hasImage: !!finalItems[0].image,
+          hasDescription: !!finalItems[0].description,
+        } : null,
+      });
+      
+      // Verify the data was actually saved
+      const verifyData = await AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS);
+      const verifyItems = verifyData ? JSON.parse(verifyData) : [];
+      console.log(`🔍 [BackupRestore] Verification: ${verifyItems.length} items saved to storage`);
+      
       return { count, errors, warnings };
     } catch (error) {
       console.error('❌ [BackupRestore] Failed to restore wardrobe items:', error);
@@ -405,7 +425,15 @@ export class BackupRestoreService {
       await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(finalOutfits));
       count = backupOutfits.length;
 
-      console.log(`✅ [BackupRestore] Restored ${count} loved outfits (${mergeMode} mode)`);
+      console.log(`✅ [BackupRestore] Restored ${count} loved outfits (${mergeMode} mode)`, {
+        finalOutfitsCount: finalOutfits.length,
+      });
+      
+      // Verify the data was actually saved
+      const verifyData = await AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS);
+      const verifyOutfits = verifyData ? JSON.parse(verifyData) : [];
+      console.log(`🔍 [BackupRestore] Verification: ${verifyOutfits.length} outfits saved to storage`);
+      
       return { count, errors, warnings };
     } catch (error) {
       console.error('❌ [BackupRestore] Failed to restore loved outfits:', error);

@@ -139,7 +139,13 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
         setTimeout(() => {
           setProgress(null);
           setOperationInProgress(false);
-          Alert.alert('Success', 'Backup restored successfully! Please restart the app to see changes.');
+          Alert.alert(
+            'Restore Complete!', 
+            `Successfully restored:\n• ${restoreResult.restoredCounts.wardrobeItems} wardrobe items\n• ${restoreResult.restoredCounts.lovedOutfits} outfits\n• ${restoreResult.restoredCounts.images} images\n\nPlease restart the app or navigate away and back to see your restored data.`,
+            [
+              { text: 'OK', onPress: () => onClose() } // Close the modal
+            ]
+          );
         }, 1500);
       } else {
         throw new Error(restoreResult.errors.join(', '));
