@@ -9,8 +9,13 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { FullBackupService } from '../services/FullBackupService';
 import { BackupRestoreService } from '../services/BackupRestoreService';
@@ -50,6 +55,8 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
   const [newBackupDescription, setNewBackupDescription] = useState('');
   const [progress, setProgress] = useState<{ message: string; percentage: number } | null>(null);
   const [resetConfirmation, setResetConfirmation] = useState('');
+  const [exportingBackupId, setExportingBackupId] = useState<string | null>(null);
+  const [importingFile, setImportingFile] = useState(false);
 
   const styles = createStyles(theme);
 
@@ -195,6 +202,307 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
     }
   };
 
+  const handleExportBackup = async (backupId: string) => {
+    try {
+      const backup = backups.find(b => b.id === backupId);
+      if (!backup) return;
+
+      setExportingBackupId(backupId);
+
+      // Load the full backup data
+      const backupData = await FullBackupService.loadBackup(backupId);
+      if (!backupData) {
+        Alert.alert('Error', 'Failed to load backup data');
+        return;
+      }
+
+      // Create a meaningful filename
+      const date = new Date(backup.timestamp);
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS format
+      const description = backup.userDescription ? `_${backup.userDescription.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+      const fileName = `StyleMuse_Backup_${dateStr}_${timeStr}${description}.json`;
+
+      // Create a temporary file for export
+      const tempFileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      
+      // Write the backup data to the temporary file
+      await FileSystem.writeAsStringAsync(tempFileUri, JSON.stringify(backupData, null, 2), {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // Check if sharing is available
+      const sharingAvailable = await Sharing.isAvailableAsync();
+      if (!sharingAvailable) {
+        Alert.alert('Error', 'Sharing is not available on this device');
+        return;
+      }
+
+      // Share the file
+      await Sharing.shareAsync(tempFileUri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Export StyleMuse Backup',
+        UTI: 'public.json',
+      });
+
+      // Clean up temporary file after a delay to allow sharing to complete
+      setTimeout(async () => {
+        try {
+          await FileSystem.deleteAsync(tempFileUri, { idempotent: true });
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup temporary export file:', cleanupError);
+        }
+      }, 5000);
+
+      Alert.alert(
+        'Export Complete',
+        `Backup exported successfully!\n\nFile: ${fileName}\nSize: ${formatBackupSize(backup.totalSizeMB)}\nItems: ${backup.itemCount} wardrobe items, ${backup.outfitCount} outfits`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Failed to export backup:', error);
+      Alert.alert('Error', `Failed to export backup: ${error.message}`);
+    } finally {
+      setExportingBackupId(null);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      setImportingFile(true);
+      
+      // Use DocumentPicker to select a JSON file
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        console.log('Import cancelled by user');
+        return;
+      }
+
+      const file = result.assets?.[0];
+      if (!file) {
+        Alert.alert('Error', 'No file selected');
+        return;
+      }
+
+      // Check file size (warn if > 50MB)
+      const fileInfo = await FileSystem.getInfoAsync(file.uri);
+      if (fileInfo.exists && 'size' in fileInfo && fileInfo.size > 50 * 1024 * 1024) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Large File Warning',
+            `The selected file is ${Math.round(fileInfo.size / (1024 * 1024))}MB. Large imports may take several minutes. Continue?`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continue', onPress: () => resolve(true) },
+            ]
+          );
+        });
+        
+        if (!confirmed) return;
+      }
+
+      setOperationInProgress(true);
+      setProgress({ message: 'Reading backup file...', percentage: 10 });
+      
+      // Read the file content
+      const fileContent = await FileSystem.readAsStringAsync(file.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      setProgress({ message: 'Validating backup file...', percentage: 20 });
+      
+      // Parse and validate the backup file
+      let backupData;
+      try {
+        backupData = JSON.parse(fileContent);
+      } catch (parseError) {
+        throw new Error('Invalid JSON file. Please select a valid StyleMuse backup file.');
+      }
+
+      // Validate backup structure
+      const validation = validateImportedBackup(backupData);
+      if (!validation.isValid) {
+        throw new Error(`Invalid backup file: ${validation.errors.join(', ')}`);
+      }
+
+      // Show import confirmation
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Import Backup',
+          `Import backup from ${validation.metadata.fileName || 'Unknown'}?\n\n` +
+          `Date: ${new Date(validation.metadata.timestamp).toLocaleString()}\n` +
+          `• ${validation.metadata.itemCount} wardrobe items\n` +
+          `• ${validation.metadata.outfitCount} outfits\n` +
+          `• ${validation.metadata.imageCount} images\n` +
+          `• Size: ${formatBackupSize(validation.metadata.totalSizeMB)}\n\n` +
+          'This will replace your current data. Continue?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Import', style: 'destructive', onPress: () => resolve(true) },
+          ]
+        );
+      });
+
+      if (!confirmed) {
+        setProgress(null);
+        setOperationInProgress(false);
+        return;
+      }
+
+      setProgress({ message: 'Importing backup...', percentage: 30 });
+      
+      // Import the backup using the existing infrastructure
+      const importedBackup = await importBackupFromData(backupData);
+      
+      setProgress({ message: 'Restoring data...', percentage: 60 });
+      
+      // Restore the imported backup
+      const restoreResult = await BackupRestoreService.restoreFromBackup(
+        importedBackup.id,
+        {}, // Default options (restore everything)
+        (progressInfo) => {
+          setProgress({
+            message: progressInfo.message,
+            percentage: 60 + (progressInfo.percentage * 0.4), // Scale to 60-100%
+          });
+        }
+      );
+
+      if (restoreResult.success) {
+        setProgress({ message: 'Import completed successfully!', percentage: 100 });
+        await loadAvailableBackups(); // Refresh backup list
+        onDataRestored?.(importedBackup.id);
+        
+        setTimeout(() => {
+          setProgress(null);
+          setOperationInProgress(false);
+          
+          // Trigger data refresh
+          onRefreshData?.('restore');
+          
+          Alert.alert(
+            'Import Complete!',
+            `Successfully imported backup:\n• ${restoreResult.restoredCounts.wardrobeItems} wardrobe items\n• ${restoreResult.restoredCounts.lovedOutfits} outfits\n• ${restoreResult.restoredCounts.images} images\n• Style DNA: ${restoreResult.restoredCounts.styleDNA ? '✅' : '❌'}\n• Profile Image: ${restoreResult.restoredCounts.profileImage ? '✅' : '❌'}\n\nData has been refreshed and should appear immediately!`,
+            [{ text: 'OK' }]
+          );
+        }, 1500);
+      } else {
+        throw new Error(restoreResult.errors.join(', '));
+      }
+    } catch (error) {
+      console.error('Failed to import backup:', error);
+      Alert.alert('Error', `Failed to import backup: ${error.message}`);
+      setProgress(null);
+      setOperationInProgress(false);
+    } finally {
+      setImportingFile(false);
+    }
+  };
+
+  const validateImportedBackup = (data: any): {
+    isValid: boolean;
+    errors: string[];
+    metadata: {
+      fileName?: string;
+      timestamp: number;
+      itemCount: number;
+      outfitCount: number;
+      imageCount: number;
+      totalSizeMB: number;
+    };
+  } => {
+    const errors: string[] = [];
+    
+    // Check if it's a StyleMuse backup
+    if (!data.metadata || !data.data || !data.images) {
+      errors.push('Not a valid StyleMuse backup file');
+      return {
+        isValid: false,
+        errors,
+        metadata: {
+          timestamp: Date.now(),
+          itemCount: 0,
+          outfitCount: 0,
+          imageCount: 0,
+          totalSizeMB: 0,
+        },
+      };
+    }
+
+    // Validate metadata structure
+    if (!data.metadata.id || !data.metadata.timestamp) {
+      errors.push('Invalid backup metadata');
+    }
+
+    // Validate data structure
+    if (!Array.isArray(data.data.wardrobeItems)) {
+      errors.push('Invalid wardrobe items data');
+    }
+    if (!Array.isArray(data.data.lovedOutfits)) {
+      errors.push('Invalid loved outfits data');
+    }
+
+    // Validate images structure
+    if (typeof data.images !== 'object') {
+      errors.push('Invalid images data');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      metadata: {
+        fileName: data.metadata.userDescription,
+        timestamp: data.metadata.timestamp || Date.now(),
+        itemCount: data.data.wardrobeItems?.length || 0,
+        outfitCount: data.data.lovedOutfits?.length || 0,
+        imageCount: Object.keys(data.images || {}).length,
+        totalSizeMB: data.metadata.totalSizeMB || 0,
+      },
+    };
+  };
+
+  const importBackupFromData = async (backupData: any): Promise<{ id: string }> => {
+    // Generate a new backup ID for the imported backup
+    const importedId = `imported_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    
+    // Update the backup metadata with new ID and import timestamp
+    const updatedBackup = {
+      ...backupData,
+      metadata: {
+        ...backupData.metadata,
+        id: importedId,
+        timestamp: Date.now(),
+        userDescription: `Imported: ${backupData.metadata.userDescription || 'Unknown'}`
+      },
+    };
+
+    // Save the backup file
+    const backupFilePath = `${FileSystem.documentDirectory}backups/${importedId}.json`;
+    
+    // Ensure backup directory exists
+    await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}backups/`, { intermediates: true });
+    
+    await FileSystem.writeAsStringAsync(backupFilePath, JSON.stringify(updatedBackup), {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    // Update backup index
+    const indexStr = await AsyncStorage.getItem('backup_index');
+    const index = indexStr ? JSON.parse(indexStr) : [];
+    index.push(updatedBackup.metadata);
+    index.sort((a: any, b: any) => b.timestamp - a.timestamp);
+    await AsyncStorage.setItem('backup_index', JSON.stringify(index));
+
+    console.log(`📥 [Import] Successfully imported backup: ${importedId}`);
+    
+    return { id: importedId };
+  };
+
   const handleCompleteReset = async () => {
     if (resetConfirmation !== 'RESET ALL DATA') {
       Alert.alert('Error', 'Please type "RESET ALL DATA" to confirm complete reset');
@@ -302,7 +610,7 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
   const renderBackupsTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.createBackupSection}>
-        <Text style={styles.sectionTitle}>Create New Backup</Text>
+        <Text style={styles.sectionTitle}>Backup Management</Text>
         <TextInput
           style={styles.textInput}
           placeholder="Optional description..."
@@ -311,14 +619,28 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
           onChangeText={setNewBackupDescription}
           maxLength={100}
         />
-        <TouchableOpacity
-          style={[styles.primaryButton, operationInProgress && styles.disabledButton]}
-          onPress={handleCreateBackup}
-          disabled={operationInProgress}
-        >
-          <Ionicons name="archive" size={20} color={theme.colors.background} />
-          <Text style={styles.primaryButtonText}>Create Backup</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.primaryButton, styles.halfButton, (operationInProgress || exportingBackupId !== null || importingFile) && styles.disabledButton]}
+            onPress={handleCreateBackup}
+            disabled={operationInProgress || exportingBackupId !== null || importingFile}
+          >
+            <Ionicons name="archive" size={20} color={theme.colors.background} />
+            <Text style={styles.primaryButtonText}>Create Backup</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.halfButton, (operationInProgress || exportingBackupId !== null || importingFile) && styles.disabledButton]}
+            onPress={handleImportBackup}
+            disabled={operationInProgress || exportingBackupId !== null || importingFile}
+          >
+            {importingFile ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Ionicons name="cloud-download" size={20} color={theme.colors.primary} />
+            )}
+            <Text style={styles.secondaryButtonText}>Import Backup</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.backupListSection}>
@@ -343,15 +665,26 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
                 <View style={styles.backupActions}>
                   <TouchableOpacity
                     style={styles.actionButton}
+                    onPress={() => handleExportBackup(backup.id)}
+                    disabled={operationInProgress || exportingBackupId === backup.id || importingFile}
+                  >
+                    {exportingBackupId === backup.id ? (
+                      <ActivityIndicator size="small" color={theme.colors.primary} />
+                    ) : (
+                      <Ionicons name="share-outline" size={18} color={theme.colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
                     onPress={() => handleRestoreBackup(backup.id)}
-                    disabled={operationInProgress}
+                    disabled={operationInProgress || exportingBackupId !== null || importingFile}
                   >
                     <Ionicons name="refresh" size={18} color={theme.colors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => handleDeleteBackup(backup.id)}
-                    disabled={operationInProgress}
+                    disabled={operationInProgress || exportingBackupId !== null || importingFile}
                   >
                     <Ionicons name="trash" size={18} color={theme.colors.error} />
                   </TouchableOpacity>
@@ -387,10 +720,10 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
         <TouchableOpacity
           style={[
             styles.dangerButton,
-            (operationInProgress || resetConfirmation !== 'RESET ALL DATA') && styles.disabledButton
+            (operationInProgress || exportingBackupId !== null || importingFile || resetConfirmation !== 'RESET ALL DATA') && styles.disabledButton
           ]}
           onPress={handleCompleteReset}
-          disabled={operationInProgress || resetConfirmation !== 'RESET ALL DATA'}
+          disabled={operationInProgress || exportingBackupId !== null || importingFile || resetConfirmation !== 'RESET ALL DATA'}
         >
           <Ionicons name="nuclear" size={20} color={theme.colors.background} />
           <Text style={styles.dangerButtonText}>RESET ALL DATA</Text>
@@ -408,9 +741,9 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
         </Text>
         
         <TouchableOpacity
-          style={[styles.primaryButton, operationInProgress && styles.disabledButton]}
+          style={[styles.primaryButton, (operationInProgress || exportingBackupId !== null || importingFile) && styles.disabledButton]}
           onPress={handleTestCycle}
-          disabled={operationInProgress}
+          disabled={operationInProgress || exportingBackupId !== null || importingFile}
         >
           <Ionicons name="flask" size={20} color={theme.colors.background} />
           <Text style={styles.primaryButtonText}>Run Test Cycle</Text>
@@ -462,7 +795,7 @@ export const BackupManagerModal: React.FC<BackupManagerModalProps> = ({
                 activeTab === tab.key && styles.activeTabButton
               ]}
               onPress={() => setActiveTab(tab.key as any)}
-              disabled={operationInProgress}
+              disabled={operationInProgress || exportingBackupId !== null || importingFile}
             >
               <Ionicons
                 name={tab.icon as any}
@@ -587,6 +920,30 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   createBackupSection: {
     marginBottom: 32,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfButton: {
+    flex: 1,
+  },
+  secondaryButton: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  secondaryButtonText: {
+    color: theme.colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   textInput: {
     borderWidth: 1,
