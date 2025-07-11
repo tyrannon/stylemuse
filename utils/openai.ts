@@ -511,11 +511,76 @@ Focus purely on fashion styling and coordination advice.
     }
 
     const json = await res.json();
-    console.log("✅ Safe Style DNA response:", json);
-    return json?.choices?.[0]?.message?.content ?? "No analysis received";
+    console.log("✅ Style DNA response:", json);
+    const content = json?.choices?.[0]?.message?.content;
+    
+    // Check if OpenAI rejected the request due to content policy
+    if (!content || content.includes("I'm sorry, I can't help") || content.includes("I can't assist") || content.includes("I cannot")) {
+      console.log("⚠️ OpenAI rejected style analysis - content policy violation detected");
+      console.log("🔄 Returning default Style DNA - user will need to manually update their profile");
+      
+      // Return a generic Style DNA that user can manually edit later
+      return JSON.stringify({
+        "appearance": {
+          "hair_color": "dark",
+          "hair_length": "medium", 
+          "hair_texture": "straight",
+          "hair_style": "natural",
+          "build": "average",
+          "complexion": "medium",
+          "height_impression": "average",
+          "approximate_age_range": "young adult",
+          "overall_vibe": "modern",
+          "eye_color": "brown",
+          "facial_structure": "oval"
+        },
+        "style_preferences": {
+          "aesthetic_shown": "casual modern",
+          "recommended_styles": ["contemporary", "classic", "minimalist"],
+          "color_harmony": ["neutrals", "earth tones", "jewel tones"],
+          "fit_recommendations": "tailored fit",
+          "styling_notes": "preference for coordinated, polished looks"
+        },
+        "outfit_coordination": "Create balanced, coordinated outfits using complementary colors and flattering silhouettes",
+        "fashion_prompt": "Modern, sophisticated styling with attention to fit and color coordination",
+        "_needs_manual_update": true,
+        "_auto_generated": true
+      });
+    }
+    
+    return content;
   } catch (error) {
     console.error("❌ analyzePersonalStyle Error:", error);
-    throw error;
+    console.log("🔄 Returning default Style DNA due to analysis error");
+    
+    // Return default Style DNA on any error
+    return JSON.stringify({
+      "appearance": {
+        "hair_color": "dark",
+        "hair_length": "medium",
+        "hair_texture": "straight", 
+        "hair_style": "natural",
+        "build": "average",
+        "complexion": "medium",
+        "height_impression": "average",
+        "approximate_age_range": "young adult",
+        "overall_vibe": "modern",
+        "eye_color": "brown",
+        "facial_structure": "oval"
+      },
+      "style_preferences": {
+        "aesthetic_shown": "casual modern",
+        "recommended_styles": ["contemporary", "classic", "minimalist"],
+        "color_harmony": ["neutrals", "earth tones", "jewel tones"],
+        "fit_recommendations": "tailored fit",
+        "styling_notes": "preference for coordinated, polished looks"
+      },
+      "outfit_coordination": "Create balanced, coordinated outfits using complementary colors and flattering silhouettes",
+      "fashion_prompt": "Modern, sophisticated styling with attention to fit and color coordination",
+      "_needs_manual_update": true,
+      "_auto_generated": true,
+      "_error_fallback": true
+    });
   }
 }
 

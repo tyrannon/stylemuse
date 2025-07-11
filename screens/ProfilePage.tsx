@@ -208,54 +208,75 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       {/* Style DNA Results Section */}
       {styleDNA && (
         <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
-            Style Analysis Results
+          <Text style={[{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }, { color: theme.colors.text }]}>
+            🧬 Style DNA Analysis
           </Text>
           
           {/* Appearance */}
           {styleDNA.appearance && (
-            <View style={styles.styleDNACard}>
-              <Text style={styles.styleDNACardTitle}>👤 Appearance</Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Hair:</Text> {styleDNA.appearance.hair_color || 'Not specified'}
+            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>👤 Physical Characteristics</Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Color:</Text> {styleDNA.appearance.hair_color || 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Build:</Text> {styleDNA.appearance.build || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Length:</Text> {styleDNA.appearance.hair_length || 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Complexion:</Text> {styleDNA.appearance.complexion || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Texture:</Text> {styleDNA.appearance.hair_texture || 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Age Range:</Text> {styleDNA.appearance.approximate_age_range || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Build:</Text> {styleDNA.appearance.build || 'Not specified'}
+              </Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Complexion:</Text> {styleDNA.appearance.complexion || 'Not specified'}
+              </Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Age Range:</Text> {styleDNA.appearance.age_range || styleDNA.appearance.approximate_age_range || 'Not specified'}
               </Text>
             </View>
           )}
 
           {/* Style Preferences */}
           {styleDNA.style_preferences && (
-            <View style={styles.styleDNACard}>
-              <Text style={styles.styleDNACardTitle}>🎨 Style Preferences</Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Current Style:</Text> {styleDNA.style_preferences.current_style_visible || 'Not specified'}
+            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>🎨 Style Preferences</Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Aesthetic:</Text> {styleDNA.style_preferences.aesthetic_shown || 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Preferred Styles:</Text> {styleDNA.style_preferences.preferred_styles?.join(', ') || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Recommended Styles:</Text> {Array.isArray(styleDNA.style_preferences.recommended_styles) ? styleDNA.style_preferences.recommended_styles.join(', ') : 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Color Palette:</Text> {styleDNA.style_preferences.color_palette?.join(', ') || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Color Harmony:</Text> {Array.isArray(styleDNA.style_preferences.color_harmony) ? styleDNA.style_preferences.color_harmony.join(', ') : 'Not specified'}
               </Text>
-              <Text style={styles.styleDNAText}>
-                <Text style={styles.styleDNALabel}>Fit Preferences:</Text> {styleDNA.style_preferences.fit_preferences || 'Not specified'}
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
+                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Fit Recommendations:</Text> {styleDNA.style_preferences.fit_recommendations || 'Not specified'}
+              </Text>
+              {styleDNA.style_preferences.styling_notes && (
+                <Text style={[styles.styleDNAText, { color: theme.colors.text, fontStyle: 'italic', marginTop: 5 }]}>
+                  <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Styling Notes:</Text> {styleDNA.style_preferences.styling_notes}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Outfit Coordination */}
+          {styleDNA.outfit_coordination && (
+            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>✨ Outfit Coordination</Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text, lineHeight: 18 }]}>
+                {styleDNA.outfit_coordination}
               </Text>
             </View>
           )}
 
-          {/* Outfit Generation Notes */}
-          {styleDNA.outfit_generation_notes && (
-            <View style={styles.styleDNACard}>
-              <Text style={styles.styleDNACardTitle}>✨ Outfit Generation</Text>
-              <Text style={[styles.styleDNAText, { lineHeight: 16 }]}>
-                {styleDNA.outfit_generation_notes}
+          {/* Fashion Prompt */}
+          {styleDNA.fashion_prompt && (
+            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>🎯 Fashion Direction</Text>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text, lineHeight: 18 }]}>
+                {styleDNA.fashion_prompt}
               </Text>
             </View>
           )}

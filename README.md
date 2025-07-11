@@ -2,23 +2,30 @@
 
 StyleMuse is an AI-powered virtual closet app that helps you organize your wardrobe and generate stunning outfit combinations using GPT-4o Vision and DALL-E 3.
 
-## 🆕 Latest Updates (July 2025)
+## 🆕 Latest Updates (January 2025)
 
-### 🎯 **SUPER ACCURATE IMAGE ANALYZER** ✨
+### 🎯 **MONETIZATION & USER EXPERIENCE OVERHAUL** ✨
+- **Tier-Based Monetization System**: Free, Pro, and Elite subscription tiers with usage tracking
+- **Smart Feature Restrictions**: 5 AI generations/month and 50 wardrobe items for free users
+- **Upgrade Prompts & Paywalls**: Contextual upgrade suggestions when limits are reached
+- **Usage Stats Dashboard**: Real-time tracking of AI generations, wardrobe items, and outfit limits
+- **Complete Onboarding System**: 6-screen onboarding flow with Style DNA opt-in and tier selection
+- **Comprehensive Debug System**: File-based logging with privacy filters and session tracking
+- **Enhanced Style DNA Display**: Detailed analysis results shown on Profile page with all AI insights
+
+### 🧬 **STYLE DNA ANALYSIS PERFECTION** 
+- **Comprehensive Profile Analysis**: AI analyzes physical characteristics, style preferences, and coordination guidelines
+- **Detailed Profile Display**: Beautiful cards showing hair, build, complexion, age range, style preferences, and fashion direction
+- **Real-time Updates**: Style DNA updates immediately after profile image analysis
+- **Theme Integration**: Full light/dark mode support for all analysis displays
+- **Fallback Protection**: Graceful handling when AI analysis is unavailable
+
+### 🎯 **SUPER ACCURATE IMAGE ANALYZER** (Previous)
 - **Microscopic AI Analysis**: Extreme precision clothing detection that exactly copies items into wardrobe
 - **Background Removal**: Automatic clothing isolation using Remove.bg API for cleaner analysis
 - **Photo Quality Assessment**: Real-time analysis with actionable feedback (blur, lighting, contrast)
 - **Smart Validation**: Multi-layer validation with retry logic ensuring 99%+ reliability
 - **Exact Outfit Replication**: Generated outfit images now look exactly like real clothing items
-
-### Previous Updates
-- **Text-Only Item Entry**: Add wardrobe items without photos for quick cataloging
-- **Unified Loading Animations**: Consistent AI analysis feedback across all features
-- **Avatar Customization**: Create and customize your 3D style avatar
-- **Smart Outfit Suggestions**: Context-aware AI recommendations
-- **Amazon Integration**: Find and shop similar items online
-- **Improved Navigation**: Single + button for all input methods
-- **Enhanced Performance**: Optimized loading states and animations
 
 ## Features 🚀
 

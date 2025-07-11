@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { Alert } from 'react-native';
 import { StorageService } from '../services/StorageService';
 import { WishlistItem } from '../types/StyleAdvice';
 import { SuggestedItem } from '../services/SmartSuggestionsService';
+import { useTierManagement } from './useTierManagement';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 
@@ -84,6 +86,9 @@ export interface SuggestedWardrobeItem extends WardrobeItem {
 }
 
 export const useWardrobeData = () => {
+  // Tier management for limits
+  const tierManagement = useTierManagement();
+  
   // Wardrobe items state
   const [savedItems, setSavedItems] = useState<WardrobeItem[]>([]);
   
@@ -118,7 +123,13 @@ export const useWardrobeData = () => {
         StorageService.loadSuggestedItems(),
       ]);
 
-      if (items) setSavedItems(JSON.parse(items));
+      if (items) {
+        const parsedItems = JSON.parse(items);
+        setSavedItems(parsedItems);
+        
+        // Update tier management with current wardrobe count
+        await tierManagement.updateWardrobeCount(parsedItems.length);
+      }
       if (outfits) {
         const parsedOutfits = JSON.parse(outfits).map((outfit: any) => ({
           ...outfit,
@@ -138,6 +149,9 @@ export const useWardrobeData = () => {
           ) : undefined,
         }));
         setLovedOutfits(parsedOutfits);
+        
+        // Update tier management with current outfit count
+        await tierManagement.updateOutfitCount(parsedOutfits.length);
       }
       if (dna) setStyleDNA(JSON.parse(dna));
       if (gender) setSelectedGender(gender as any);
@@ -1038,6 +1052,44 @@ export const useWardrobeData = () => {
 
   // BULK SAVE FUNCTION FOR MULTI-ITEM DETECTION
   
+  // Function to check if adding items would exceed wardrobe limits
+  const checkWardrobeLimit = useCallback(async (itemsToAdd: number = 1): Promise<boolean> => {
+    try {
+      const currentCount = savedItems.length;
+      const newCount = currentCount + itemsToAdd;
+      
+      const limitCheck = await tierManagement.checkWardrobeItem(newCount);
+      
+      if (!limitCheck.allowed) {
+        logger.warn(LogCategories.MONETIZATION, 'Wardrobe limit would be exceeded', {
+          currentCount,
+          itemsToAdd,
+          newCount,
+          limit: limitCheck.limit,
+          userTier: tierManagement.userTier
+        });
+        
+        Alert.alert(
+          'Wardrobe Limit Reached',
+          `You can only have ${limitCheck.limit} items in your wardrobe on the ${tierManagement.userTier} plan. You currently have ${currentCount} items and are trying to add ${itemsToAdd} more. Upgrade to StyleMuse Pro for unlimited wardrobe space!`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Upgrade Now', onPress: () => {
+              // TODO: Navigate to upgrade screen
+              console.log('Navigate to upgrade screen');
+            }}
+          ]
+        );
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      logger.error(LogCategories.MONETIZATION, 'Failed to check wardrobe limit', error);
+      return false;
+    }
+  }, [savedItems.length, tierManagement]);
+  
   // Function to save multiple wardrobe items at once (for multi-item detection)
   const saveBulkWardrobeItems = useCallback(async (croppedItems: Array<{
     id: number;
@@ -1048,6 +1100,16 @@ export const useWardrobeData = () => {
   }>): Promise<void> => {
     try {
       console.log(`🔄 Saving ${croppedItems.length} items to wardrobe...`);
+      
+      // Check wardrobe limits before adding items
+      const canAddItems = await checkWardrobeLimit(croppedItems.length);
+      if (!canAddItems) {
+        logger.warn(LogCategories.MONETIZATION, 'Bulk wardrobe save cancelled due to limits', {
+          itemsToAdd: croppedItems.length,
+          currentCount: savedItems.length
+        });
+        return;
+      }
       
       const newWardrobeItems: WardrobeItem[] = croppedItems.map((item, index) => ({
         image: item.croppedUri,
@@ -1083,15 +1145,25 @@ export const useWardrobeData = () => {
       // Save to storage
       await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
       
+      // Update tier management with new wardrobe count
+      await tierManagement.updateWardrobeCount(updatedItems.length);
+      
+      logger.info(LogCategories.MONETIZATION, 'Wardrobe items added successfully', {
+        itemsAdded: newWardrobeItems.length,
+        newTotalCount: updatedItems.length,
+        userTier: tierManagement.userTier
+      });
+      
       console.log(`✅ ${newWardrobeItems.length} items saved successfully to wardrobe`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
       console.error('❌ Error saving bulk wardrobe items:', error);
+      logger.error(LogCategories.WARDROBE, 'Failed to save bulk wardrobe items', error as Error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
-  }, [savedItems, categorizeItem]);
+  }, [savedItems, categorizeItem, checkWardrobeLimit, tierManagement]);
 
   return {
     // State
@@ -1123,6 +1195,7 @@ export const useWardrobeData = () => {
     toggleOutfitLove,
     getUniqueCategories,
     getItemsByCategory,
+    checkWardrobeLimit,
     
     // Outfit Memory & Re-Suggestion Functions
     markOutfitAsWorn,

@@ -5,6 +5,7 @@ import { WardrobeItem } from './useWardrobeData';
 import { generateIntelligentOutfitSelection } from '../utils/openai';
 import { generateClothingItemImage } from '../utils/openai';
 import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
+import { useTierManagement } from './useTierManagement';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 // import { useBackgroundTasks } from '../contexts/BackgroundTaskContext';
@@ -58,6 +59,7 @@ export const useOutfitGeneration = (
 ): OutfitGenerationState => {
   const localUnifiedLoading = useUnifiedLoading();
   const unifiedLoading = sharedLoading || localUnifiedLoading;
+  const tierManagement = useTierManagement();
   // const backgroundTasks = useBackgroundTasks();
   const [generatedOutfit, setGeneratedOutfit] = useState<string | null>(null);
   const [generatingOutfit, setGeneratingOutfit] = useState(false);
@@ -78,6 +80,30 @@ export const useOutfitGeneration = (
   // Function to generate outfit suggestions based on a selected item
   const generateOutfitSuggestions = async (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => {
     try {
+      // Check AI generation limits before proceeding
+      const aiLimitCheck = await tierManagement.checkAIGeneration();
+      
+      if (!aiLimitCheck.allowed) {
+        logger.warn(LogCategories.MONETIZATION, 'AI generation limit reached', {
+          remaining: aiLimitCheck.remaining,
+          limit: aiLimitCheck.limit,
+          userTier: tierManagement.userTier
+        });
+        
+        Alert.alert(
+          'AI Limit Reached',
+          `You've reached your AI generation limit of ${aiLimitCheck.limit} per month. Upgrade to StyleMuse Pro for unlimited AI outfit generation!`,
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Upgrade Now', onPress: () => {
+              // TODO: Navigate to upgrade screen
+              console.log('Navigate to upgrade screen');
+            }}
+          ]
+        );
+        return;
+      }
+      
       // Navigate to builder page first
       if (navigateToBuilder) {
         navigateToBuilder();
@@ -92,12 +118,23 @@ export const useOutfitGeneration = (
         itemType,
         selectedItem: selectedItem.title,
       });
+      // Use AI to generate intelligent outfit selection
+      const outfitContext = context || {
+        occasion: 'casual',
+        location: 'general',
+        weather: 'moderate',
+        time: 'day',
+        style: 'coordinated'
+      };
+      
       logger.info(LogCategories.OUTFIT_GENERATION, 'Starting outfit generation', {
         selectedItem: selectedItem.title,
         itemType,
         context: outfitContext,
         hasStyleDNA: !!styleDNA
       });
+      logger.debug(LogCategories.OUTFIT_GENERATION, 'Outfit context prepared', outfitContext);
+      
       unifiedLoading.showLoading({
         ...LOADING_CONFIGS.OUTFIT_GENERATION,
         subtitle: `Building around your ${itemType}...`,
@@ -108,17 +145,6 @@ export const useOutfitGeneration = (
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
       console.log('🎨 Generating smart outfit suggestions and opening builder...');
-      
-      // Use AI to generate intelligent outfit selection
-      const outfitContext = context || {
-        occasion: 'casual',
-        location: 'general',
-        weather: 'moderate',
-        time: 'day',
-        style: 'coordinated'
-      };
-      
-      logger.debug(LogCategories.OUTFIT_GENERATION, 'Outfit context prepared', outfitContext);
       
       const startTime = logger.startPerformanceTracking('outfit-generation');
       const aiOutfit = await generateIntelligentOutfitSelection(savedItems, outfitContext, styleDNA);
@@ -271,6 +297,13 @@ export const useOutfitGeneration = (
       
       // Success haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Increment AI usage counter after successful generation
+      await tierManagement.incrementAIUsage();
+      logger.info(LogCategories.MONETIZATION, 'AI usage incremented after successful outfit generation', {
+        remainingAfterUse: aiLimitCheck.remaining - 1,
+        userTier: tierManagement.userTier
+      });
       
       // Log AI reasoning for debugging
       if (aiOutfit.reasoning) {
