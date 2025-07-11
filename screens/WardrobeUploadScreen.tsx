@@ -19,6 +19,7 @@ import { useAmazonRecommendations } from '../hooks/useAmazonRecommendations';
 import { useModalState } from '../hooks/useModalState';
 import { useOutfitGeneration } from '../hooks/useOutfitGeneration';
 import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
+import { useRandomOutfit } from '../hooks/useRandomOutfit';
 
 // Components
 import { SafeImage } from '../utils/SafeImage';
@@ -37,6 +38,7 @@ import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
+import { RandomOutfitButton } from '../components/RandomOutfitButton';
 import { AddItemPage } from './AddItemPage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
@@ -209,12 +211,21 @@ const WardrobeUploadScreen = () => {
     console.log(`✅ [WardrobeUpload] ${operation} refresh complete`);
   }, [clearAllData, wardrobeData.loadWardrobeData]);
 
+  // Handle random outfit generation
+  const handleRandomOutfit = useCallback(async (options?: any) => {
+    const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
+    if (generatedOutfit) {
+      outfitGeneration.setGearSlots(generatedOutfit);
+    }
+  }, [randomOutfit, outfitGeneration]);
+
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
   const modalState = useModalState();
   const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll, unifiedLoading);
   const smartSuggestions = useSmartSuggestions();
+  const randomOutfit = useRandomOutfit(savedItems);
   // Removed separate styleDNALoading - now using main unifiedLoading
 
   // Image and description states (keeping these for backward compatibility)
@@ -2814,6 +2825,49 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       }}
     />
   </View>
+
+  {/* Random Outfit Generator */}
+  <View style={styles.randomOutfitSection}>
+    <Text style={styles.randomOutfitTitle}>
+      🎲 Instant Random Outfit
+    </Text>
+    <Text style={styles.randomOutfitSubtitle}>
+      Get instant outfit inspiration with our fast algorithmic generator
+    </Text>
+    
+    <View style={styles.randomOutfitButtonContainer}>
+      <RandomOutfitButton
+        onGenerate={handleRandomOutfit}
+        isGenerating={randomOutfit.isGenerating}
+        disabled={savedItems.length < 3}
+        size="large"
+        variant="primary"
+      />
+    </View>
+
+    {savedItems.length < 3 && (
+      <Text style={styles.randomOutfitWarning}>
+        ⚠️ Need at least 3 items for complete outfits
+      </Text>
+    )}
+
+    {randomOutfit.lastGeneration && (
+      <View style={styles.generationStatsContainer}>
+        <Text style={styles.generationStatsTitle}>✨ Last Generation:</Text>
+        <Text style={styles.generationStats}>
+          Style: {randomOutfit.lastGeneration.style} • 
+          Completeness: {Math.round(randomOutfit.lastGeneration.completeness)}% • 
+          {randomOutfit.lastGeneration.generationTime}ms
+        </Text>
+        {randomOutfit.lastGeneration.colorHarmony && (
+          <Text style={styles.colorHarmonyIndicator}>
+            🎨 Color harmony achieved
+          </Text>
+        )}
+      </View>
+    )}
+  </View>
+  
   {/* Style DNA analysis now uses the main unified loading overlay */}
   
   {/* Gear Slot Grid */}

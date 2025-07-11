@@ -2257,4 +2257,65 @@ export const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 20, // Larger spinner - was 16
     color: 'white',
   },
+  
+  // Random Outfit Generator Styles
+  randomOutfitSection: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#9C27B0', // Purple border for random section
+    ...theme.shadows.medium,
+  },
+  randomOutfitTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  randomOutfitSubtitle: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  randomOutfitButtonContainer: {
+    marginBottom: 15,
+  },
+  randomOutfitWarning: {
+    fontSize: 12,
+    color: theme.colors.warning || '#FF9500',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  generationStatsContainer: {
+    marginTop: 15,
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    width: '100%',
+  },
+  generationStatsTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  generationStats: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  colorHarmonyIndicator: {
+    fontSize: 10,
+    color: theme.colors.success || '#4CAF50',
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
 });
