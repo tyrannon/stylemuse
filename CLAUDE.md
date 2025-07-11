@@ -440,6 +440,36 @@ StyleMuse now includes a comprehensive 6-screen onboarding flow for new users:
 - App detects existing data and skips onboarding
 - Sets `onboardingCompleted` flag automatically
 
+## Builder Page Location & Architecture
+
+**IMPORTANT**: The builder functionality is NOT implemented in `/screens/BuilderPage.tsx`. Instead, it's implemented **inline within `/screens/WardrobeUploadScreen.tsx`**.
+
+### Builder Implementation Details:
+- **File**: `/screens/WardrobeUploadScreen.tsx` (lines ~2740-3000)
+- **Section**: "Outfit Builder - Always Show" (`showOutfitBuilder` condition)
+- **Components**: AI Outfit Assistant, Random Outfit Generator, Gear Slot Grid
+- **State Management**: Uses `useOutfitGeneration` hook for gear slots and outfit state
+- **Integration**: All builder features are inline, not separate components
+
+### Key Builder Features:
+- **AI Outfit Assistant**: Smart contextual outfit generation with Style DNA integration
+- **Random Outfit Generator**: Fast algorithmic outfit creation (< 100ms vs 10+ seconds AI)
+- **Gear Slot Grid**: Visual outfit builder with 6 slots (top, bottom, shoes, jacket, hat, accessories)
+- **Style DNA Integration**: Personalized suggestions based on user profile analysis
+
+### Random Outfit Generator Architecture:
+- **UI Location**: Lines ~2829-2869 in WardrobeUploadScreen.tsx (purple section)
+- **Styles**: In `/screens/styles/WardrobeUploadScreen.styles.ts` (lines 2261-2320)
+- **Hook**: `useRandomOutfit` in `/hooks/useRandomOutfit.ts`
+- **Core Algorithm**: `RandomOutfitGenerator` in `/utils/RandomOutfitGenerator.ts`
+- **Style Rules**: `StyleCompatibility` in `/utils/StyleCompatibility.ts`
+- **Features**: 6 style categories, color harmony, generation stats, instant results
+
+### Builder Navigation:
+- Access via bottom navigation 🎮 tab or programmatic `navigateToBuilder()` calls
+- Integrated with unified loading system and shared loading instances
+- Uses `outfitGeneration.gearSlots` for state management
+
 ## Recent Updates
 
 - ✅ **Complete onboarding system with 6 screens**

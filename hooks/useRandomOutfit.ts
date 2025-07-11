@@ -42,6 +42,13 @@ export const useRandomOutfit = (
   const generateRandomOutfit = useCallback(async (
     options: RandomOutfitOptions = {}
   ): Promise<GearSlots | null> => {
+    // Debug logging to see what's happening
+    console.log('🎲 [RandomOutfit] Generation requested', {
+      wardrobeSize: savedItems.length,
+      hasItems: savedItems.length > 0,
+      firstFewItems: savedItems.slice(0, 3).map(item => item.title)
+    });
+
     if (savedItems.length === 0) {
       const errorMsg = 'No items in wardrobe to generate outfit from';
       setState(prev => ({ ...prev, error: errorMsg }));

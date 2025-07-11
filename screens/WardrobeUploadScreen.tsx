@@ -213,11 +213,17 @@ const WardrobeUploadScreen = () => {
 
   // Handle random outfit generation
   const handleRandomOutfit = useCallback(async (options?: any) => {
+    console.log('🎲 [WardrobeUpload] Random outfit handler called', {
+      savedItemsLength: savedItems.length,
+      hasRandomOutfit: !!randomOutfit,
+      hasOutfitGeneration: !!outfitGeneration
+    });
+    
     const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
     if (generatedOutfit) {
       outfitGeneration.setGearSlots(generatedOutfit);
     }
-  }, [randomOutfit, outfitGeneration]);
+  }, [randomOutfit, outfitGeneration, savedItems]);
 
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
