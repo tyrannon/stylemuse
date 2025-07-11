@@ -38,7 +38,7 @@ import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
 import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
-import { RandomOutfitButton } from '../components/RandomOutfitButton';
+import { RandomOutfitButtons } from '../components/RandomOutfitButton';
 import { AddItemPage } from './AddItemPage';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
@@ -2842,12 +2842,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     </Text>
     
     <View style={styles.randomOutfitButtonContainer}>
-      <RandomOutfitButton
+      <RandomOutfitButtons
         onGenerate={handleRandomOutfit}
         isGenerating={randomOutfit.isGenerating}
         disabled={savedItems.length < 3}
-        size="large"
-        variant="primary"
       />
     </View>
 

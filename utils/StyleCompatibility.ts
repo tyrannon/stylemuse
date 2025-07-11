@@ -151,12 +151,25 @@ export class StyleCompatibility {
       accessories: []
     };
 
-    wardrobe.forEach(item => {
-      const category = this.categorizeItem(item);
-      const isCompatible = this.isItemCompatibleWithStyle(item, style);
-      
-      if (isCompatible && category in filtered) {
-        filtered[category as keyof FilteredWardrobe].push(item);
+    // Pre-filter to remove any null/undefined items
+    const validItems = wardrobe.filter((item, index) => {
+      if (!item || typeof item !== 'object') {
+        console.warn(`⚠️ [StyleCompatibility] Skipping invalid item at index ${index}`);
+        return false;
+      }
+      return true;
+    });
+
+    validItems.forEach((item) => {
+      try {
+        const category = this.categorizeItem(item);
+        const isCompatible = this.isItemCompatibleWithStyle(item, style);
+        
+        if (isCompatible && category in filtered) {
+          filtered[category as keyof FilteredWardrobe].push(item);
+        }
+      } catch (error) {
+        console.error(`❌ [StyleCompatibility] Error processing item ${item.title || 'Untitled'}:`, error);
       }
     });
 
@@ -167,76 +180,99 @@ export class StyleCompatibility {
    * Categorize a wardrobe item
    */
   static categorizeItem(item: WardrobeItem): string {
-    const category = item.category?.toLowerCase();
-    const tags = item.tags?.map(tag => tag.toLowerCase()) || [];
-    const title = item.title?.toLowerCase() || '';
+    if (!item || typeof item !== 'object') {
+      console.warn('⚠️ [StyleCompatibility] categorizeItem called with invalid item:', item);
+      return 'tops'; // Default fallback
+    }
+    
+    try {
+      const category = item.category?.toLowerCase?.() || '';
+      const tags = Array.isArray(item.tags) ? 
+        item.tags.map(tag => typeof tag === 'string' ? tag.toLowerCase() : '').filter(Boolean) : 
+        [];
+      const title = typeof item.title === 'string' ? item.title.toLowerCase() : '';
 
-    // Check category first
-    if (category === 'tops' || category === 'top') return 'tops';
-    if (category === 'bottoms' || category === 'bottom') return 'bottoms';
-    if (category === 'shoes' || category === 'shoe') return 'shoes';
-    if (category === 'jackets' || category === 'jacket') return 'jackets';
-    if (category === 'accessories' || category === 'accessory') return 'accessories';
+      // Check category first
+      if (category === 'tops' || category === 'top') return 'tops';
+      if (category === 'bottoms' || category === 'bottom') return 'bottoms';
+      if (category === 'shoes' || category === 'shoe') return 'shoes';
+      if (category === 'jackets' || category === 'jacket') return 'jackets';
+      if (category === 'accessories' || category === 'accessory') return 'accessories';
 
-    // Check tags and title for classification
-    const topKeywords = ['shirt', 'blouse', 'top', 'sweater', 'hoodie', 't-shirt', 'tank', 'polo'];
-    const bottomKeywords = ['pants', 'jeans', 'skirt', 'shorts', 'leggings', 'dress'];
-    const shoeKeywords = ['shoes', 'sneakers', 'boots', 'heels', 'flats', 'sandals'];
-    const jacketKeywords = ['jacket', 'blazer', 'coat', 'cardigan', 'vest'];
-    const accessoryKeywords = ['bag', 'hat', 'scarf', 'jewelry', 'belt', 'watch'];
+      // Check tags and title for classification
+      const topKeywords = ['shirt', 'blouse', 'top', 'sweater', 'hoodie', 't-shirt', 'tank', 'polo'];
+      const bottomKeywords = ['pants', 'jeans', 'skirt', 'shorts', 'leggings', 'dress'];
+      const shoeKeywords = ['shoes', 'sneakers', 'boots', 'heels', 'flats', 'sandals'];
+      const jacketKeywords = ['jacket', 'blazer', 'coat', 'cardigan', 'vest'];
+      const accessoryKeywords = ['bag', 'hat', 'scarf', 'jewelry', 'belt', 'watch'];
 
-    if (topKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+      if (topKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+        return 'tops';
+      }
+      if (bottomKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+        return 'bottoms';
+      }
+      if (shoeKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+        return 'shoes';
+      }
+      if (jacketKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+        return 'jackets';
+      }
+      if (accessoryKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
+        return 'accessories';
+      }
+
+      // Default to tops if unclear
       return 'tops';
+    } catch (error) {
+      console.error('⚠️ [StyleCompatibility] Error in categorizeItem:', error, 'Item:', item);
+      return 'tops'; // Safe fallback
     }
-    if (bottomKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
-      return 'bottoms';
-    }
-    if (shoeKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
-      return 'shoes';
-    }
-    if (jacketKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
-      return 'jackets';
-    }
-    if (accessoryKeywords.some(keyword => title.includes(keyword) || tags.includes(keyword))) {
-      return 'accessories';
-    }
-
-    // Default to tops if unclear
-    return 'tops';
   }
 
   /**
    * Check if an item is compatible with a specific style
    */
   static isItemCompatibleWithStyle(item: WardrobeItem, style: StyleCategory): boolean {
-    const category = this.categorizeItem(item);
-    const itemTags = item.tags?.map(tag => tag.toLowerCase()) || [];
-    const itemTitle = item.title?.toLowerCase() || '';
-    const itemStyle = item.style?.toLowerCase() || '';
-
-    // Check if item type is in the style's allowed types
-    const allowedTypes = style[category as keyof StyleCategory] as string[];
-    if (!allowedTypes || !Array.isArray(allowedTypes)) return false;
-
-    // Check if any of the item's characteristics match the style
-    const itemCharacteristics = [...itemTags, itemTitle, itemStyle, item.fit?.toLowerCase() || ''];
+    if (!item || !style) return false;
     
-    // If the style allows anything ('any'), it's compatible
-    if (allowedTypes.includes('any')) return true;
+    try {
+      const category = this.categorizeItem(item);
+      const itemTags = Array.isArray(item.tags) ? 
+        item.tags.map(tag => typeof tag === 'string' ? tag.toLowerCase() : '').filter(Boolean) : 
+        [];
+      const itemTitle = typeof item.title === 'string' ? item.title.toLowerCase() : '';
+      const itemStyle = typeof item.style === 'string' ? item.style.toLowerCase() : '';
+      const itemFit = typeof item.fit === 'string' ? item.fit.toLowerCase() : '';
 
-    // Check for direct matches
-    const hasDirectMatch = allowedTypes.some(allowedType => 
-      itemCharacteristics.some(char => char.includes(allowedType) || allowedType.includes(char))
-    );
+      // Check if item type is in the style's allowed types
+      const allowedTypes = style[category as keyof StyleCategory] as string[];
+      if (!allowedTypes || !Array.isArray(allowedTypes)) return false;
 
-    if (hasDirectMatch) return true;
+      // Check if any of the item's characteristics match the style
+      const itemCharacteristics = [...itemTags, itemTitle, itemStyle, itemFit].filter(Boolean);
+      
+      // If the style allows anything ('any'), it's compatible
+      if (allowedTypes.includes('any')) return true;
 
-    // Check occasion tags
-    const hasOccasionMatch = style.occasionTags.some(occasion =>
-      itemCharacteristics.some(char => char.includes(occasion))
-    );
+      // Check for direct matches
+      const hasDirectMatch = allowedTypes.some(allowedType => 
+        itemCharacteristics.some(char => char.includes(allowedType) || allowedType.includes(char))
+      );
 
-    return hasOccasionMatch;
+      if (hasDirectMatch) return true;
+
+      // Check occasion tags
+      const hasOccasionMatch = Array.isArray(style.occasionTags) ? 
+        style.occasionTags.some(occasion =>
+          itemCharacteristics.some(char => char.includes(occasion))
+        ) : false;
+
+      return hasOccasionMatch;
+    } catch (error) {
+      console.error('⚠️ [StyleCompatibility] Error in isItemCompatibleWithStyle:', error);
+      return false;
+    }
   }
 
   /**

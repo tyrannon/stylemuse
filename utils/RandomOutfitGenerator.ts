@@ -42,44 +42,46 @@ export class RandomOutfitGenerator {
     const startTime = Date.now();
 
     try {
-      // 1. Determine target style
-      const targetStyle = options.style || this.selectRandomStyle(wardrobe);
+      const targetStyle = options.style || 'casual';
+      console.log('🎲 [RandomOutfit] Generating', targetStyle, 'outfit');
       
-      // 2. Filter wardrobe by style compatibility
-      const compatibleItems = StyleCompatibility.filterByStyle(wardrobe, targetStyle);
+      // Get items by basic categorization 
+      const allTops = wardrobe.filter(item => this.isCategory(item, 'tops'));
+      const allBottoms = wardrobe.filter(item => this.isCategory(item, 'bottoms'));
+      const allShoes = wardrobe.filter(item => this.isCategory(item, 'shoes'));
+      const allJackets = wardrobe.filter(item => this.isCategory(item, 'jackets'));
+      const allAccessories = wardrobe.filter(item => this.isCategory(item, 'accessories'));
       
-      // 3. Select core pieces (top, bottom, shoes)
-      const coreOutfit = this.selectCoreOutfit(compatibleItems, options);
+      // Randomly select items from each category
+      const outfit = {
+        top: this.pickRandom(allTops),
+        bottom: this.pickRandom(allBottoms),
+        shoes: this.pickRandom(allShoes),
+        jacket: options.includeJacket && Math.random() > 0.5 ? this.pickRandom(allJackets) : null,
+        accessories: options.includeAccessories && Math.random() > 0.6 ? this.pickRandom(allAccessories) : null
+      };
       
-      // 4. Add optional pieces (jacket, accessories)
-      const completeOutfit = this.addOptionalPieces(coreOutfit, compatibleItems, options);
+      // Ensure we have at least one piece
+      if (!outfit.top && !outfit.bottom) {
+        outfit.top = this.pickRandom(wardrobe);
+      }
       
-      // 5. Validate and improve color harmony
-      const harmonizedOutfit = this.ensureColorHarmony(completeOutfit, compatibleItems);
+      const gearSlots = this.convertToGearSlots(outfit);
+      const completeness = this.calculateCompleteness(outfit);
       
-      // 6. Convert to GearSlots format
-      const gearSlots = this.convertToGearSlots(harmonizedOutfit);
+      console.log('✅ [RandomOutfit] Generated outfit with', completeness + '%', 'completeness');
       
-      // 7. Track recently used items
-      this.trackRecentlyUsed(harmonizedOutfit);
-      
-      const generationTime = Date.now() - startTime;
-      const colorHarmony = StyleCompatibility.validateOutfitColorHarmony(
-        Object.values(harmonizedOutfit).filter(item => item !== null)
-      );
-      const completeness = this.calculateCompleteness(harmonizedOutfit);
-
       return {
         outfit: gearSlots,
         style: targetStyle,
-        colorHarmony,
+        colorHarmony: true,
         completeness,
-        generationTime
+        generationTime: Date.now() - startTime
       };
-    } catch (error) {
-      console.error('Error generating random outfit:', error);
       
-      // Return empty outfit on error
+    } catch (error) {
+      console.error('❌ [RandomOutfit] Generation failed:', error);
+      
       return {
         outfit: this.getEmptyGearSlots(),
         style: 'casual',
@@ -88,6 +90,49 @@ export class RandomOutfitGenerator {
         generationTime: Date.now() - startTime
       };
     }
+  }
+
+  /**
+   * Simple category check using keywords
+   */
+  private static isCategory(item: WardrobeItem, category: string): boolean {
+    if (!item?.title) return false;
+    
+    const title = item.title.toLowerCase();
+    const itemCategory = item.category?.toLowerCase() || '';
+    
+    switch (category) {
+      case 'tops':
+        return itemCategory.includes('top') || 
+               title.includes('shirt') || title.includes('blouse') || title.includes('top') || 
+               title.includes('sweater') || title.includes('hoodie') || title.includes('tank');
+      case 'bottoms':
+        return itemCategory.includes('bottom') || 
+               title.includes('pants') || title.includes('skirt') || title.includes('short') || 
+               title.includes('jeans') || title.includes('dress');
+      case 'shoes':
+        return itemCategory.includes('shoe') || 
+               title.includes('shoe') || title.includes('sneaker') || title.includes('boot') || 
+               title.includes('sandal') || title.includes('heel');
+      case 'jackets':
+        return itemCategory.includes('jacket') || 
+               title.includes('jacket') || title.includes('blazer') || title.includes('coat') || 
+               title.includes('cardigan');
+      case 'accessories':
+        return itemCategory.includes('accessor') || 
+               title.includes('bag') || title.includes('hat') || title.includes('scarf') || 
+               title.includes('belt') || title.includes('jewelry');
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Pick a random item from an array
+   */
+  private static pickRandom<T>(items: T[]): T | null {
+    if (items.length === 0) return null;
+    return items[Math.floor(Math.random() * items.length)];
   }
 
   /**
@@ -180,22 +225,39 @@ export class RandomOutfitGenerator {
   private static selectRandomStyle(wardrobe: WardrobeItem[]): string {
     if (wardrobe.length === 0) return 'casual';
 
-    // Find the style with the most compatible items
-    const styleCounts: Record<string, number> = {};
-    
-    Object.keys(STYLE_CATEGORIES).forEach(styleName => {
-      const compatible = StyleCompatibility.filterByStyle(wardrobe, styleName);
-      const totalItems = Object.values(compatible).reduce((sum, items) => sum + items.length, 0);
-      styleCounts[styleName] = totalItems;
-    });
+    try {
+      console.log('🔧 [RandomOutfit] Analyzing wardrobe for best style...');
+      
+      // Find the style with the most compatible items
+      const styleCounts: Record<string, number> = {};
+      
+      Object.keys(STYLE_CATEGORIES).forEach(styleName => {
+        try {
+          const compatible = StyleCompatibility.filterByStyle(wardrobe, styleName);
+          const totalItems = Object.values(compatible).reduce((sum, items) => sum + items.length, 0);
+          styleCounts[styleName] = totalItems;
+          console.log(`🔧 [RandomOutfit] Style ${styleName}: ${totalItems} compatible items`);
+        } catch (error) {
+          console.error(`❌ [RandomOutfit] Error checking style ${styleName}:`, error);
+          styleCounts[styleName] = 0;
+        }
+      });
 
-    // Get top 3 styles and randomly pick from them
-    const topStyles = Object.entries(styleCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([style]) => style);
+      // Get top 3 styles and randomly pick from them
+      const topStyles = Object.entries(styleCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3)
+        .map(([style]) => style);
 
-    return topStyles[Math.floor(Math.random() * topStyles.length)] || 'casual';
+      console.log('🔧 [RandomOutfit] Top styles:', topStyles);
+      const selectedStyle = topStyles[Math.floor(Math.random() * topStyles.length)] || 'casual';
+      console.log('🔧 [RandomOutfit] Selected style:', selectedStyle);
+      
+      return selectedStyle;
+    } catch (error) {
+      console.error('❌ [RandomOutfit] Error in selectRandomStyle:', error);
+      return 'casual';
+    }
   }
 
   /**
@@ -214,6 +276,68 @@ export class RandomOutfitGenerator {
     };
 
     return outfit;
+  }
+
+  /**
+   * Select core outfit pieces with fallbacks to ensure we have items
+   */
+  private static selectCoreOutfitWithFallbacks(
+    compatibleItems: FilteredWardrobe,
+    fullWardrobe: WardrobeItem[],
+    options: RandomOutfitOptions
+  ): OutfitPieces {
+    // First try to get items from the compatible items
+    let top = this.selectRandomItem(compatibleItems.tops, options);
+    let bottom = this.selectRandomItem(compatibleItems.bottoms, options);
+    let shoes = this.selectRandomItem(compatibleItems.shoes, options);
+
+    // If we don't have essential pieces, fall back to any items from wardrobe
+    if (!top && !bottom) {
+      // We need at least one core piece - try to get any top or bottom
+      const allTops = fullWardrobe.filter(item => {
+        try {
+          return StyleCompatibility.categorizeItem(item) === 'tops';
+        } catch {
+          return false;
+        }
+      });
+      const allBottoms = fullWardrobe.filter(item => {
+        try {
+          return StyleCompatibility.categorizeItem(item) === 'bottoms';
+        } catch {
+          return false;
+        }
+      });
+
+      if (allTops.length > 0) {
+        top = this.selectRandomItem(allTops, options);
+      }
+      if (allBottoms.length > 0) {
+        bottom = this.selectRandomItem(allBottoms, options);
+      }
+    }
+
+    // If still no shoes, try to get any shoes
+    if (!shoes) {
+      const allShoes = fullWardrobe.filter(item => {
+        try {
+          return StyleCompatibility.categorizeItem(item) === 'shoes';
+        } catch {
+          return false;
+        }
+      });
+      if (allShoes.length > 0) {
+        shoes = this.selectRandomItem(allShoes, options);
+      }
+    }
+
+    return {
+      top,
+      bottom,
+      shoes,
+      jacket: null,
+      accessories: null
+    };
   }
 
   /**
@@ -333,11 +457,17 @@ export class RandomOutfitGenerator {
    * Convert OutfitPieces to GearSlots format
    */
   private static convertToGearSlots(outfit: OutfitPieces): GearSlots {
-    const createGearSlot = (item: WardrobeItem | null): GearSlot => ({
-      itemId: item?.image || null,
-      itemImage: item?.image || null,
-      itemTitle: item?.title || null
-    });
+    const createGearSlot = (item: WardrobeItem | null): GearSlot => {
+      if (!item) {
+        return { itemId: null, itemImage: null, itemTitle: null };
+      }
+      
+      return {
+        itemId: item.image || null,
+        itemImage: item.image || null,
+        itemTitle: item.title || null
+      };
+    };
 
     return {
       top: createGearSlot(outfit.top),

@@ -42,13 +42,6 @@ export const useRandomOutfit = (
   const generateRandomOutfit = useCallback(async (
     options: RandomOutfitOptions = {}
   ): Promise<GearSlots | null> => {
-    // Debug logging to see what's happening
-    console.log('🎲 [RandomOutfit] Generation requested', {
-      wardrobeSize: savedItems.length,
-      hasItems: savedItems.length > 0,
-      firstFewItems: savedItems.slice(0, 3).map(item => item.title)
-    });
-
     if (savedItems.length === 0) {
       const errorMsg = 'No items in wardrobe to generate outfit from';
       setState(prev => ({ ...prev, error: errorMsg }));
@@ -59,23 +52,9 @@ export const useRandomOutfit = (
     setState(prev => ({ ...prev, isGenerating: true, error: null }));
     
     try {
-      logger.info(LogCategories.OUTFIT_GENERATION, 'Starting random outfit generation', {
-        wardrobeSize: savedItems.length,
-        requestedStyle: options.style,
-        includeAccessories: options.includeAccessories,
-        includeJacket: options.includeJacket
-      });
-
       // Generate the outfit
       const result = RandomOutfitGenerator.generate(savedItems, options);
       
-      logger.info(LogCategories.OUTFIT_GENERATION, 'Random outfit generated successfully', {
-        style: result.style,
-        colorHarmony: result.colorHarmony,
-        completeness: result.completeness,
-        generationTime: result.generationTime
-      });
-
       // Haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -90,7 +69,7 @@ export const useRandomOutfit = (
 
     } catch (error) {
       const errorMsg = `Failed to generate random outfit: ${error}`;
-      logger.error(LogCategories.OUTFIT_GENERATION, 'Random outfit generation failed', error as Error);
+      console.error('❌ [RandomOutfit] Generation failed:', error);
       
       setState(prev => ({
         ...prev,
