@@ -5,6 +5,8 @@ import { WardrobeItem } from './useWardrobeData';
 import { generateIntelligentOutfitSelection } from '../utils/openai';
 import { generateClothingItemImage } from '../utils/openai';
 import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
 // import { useBackgroundTasks } from '../contexts/BackgroundTaskContext';
 
 export interface GearSlot {
@@ -90,6 +92,12 @@ export const useOutfitGeneration = (
         itemType,
         selectedItem: selectedItem.title,
       });
+      logger.info(LogCategories.OUTFIT_GENERATION, 'Starting outfit generation', {
+        selectedItem: selectedItem.title,
+        itemType,
+        context: outfitContext,
+        hasStyleDNA: !!styleDNA
+      });
       unifiedLoading.showLoading({
         ...LOADING_CONFIGS.OUTFIT_GENERATION,
         subtitle: `Building around your ${itemType}...`,
@@ -110,6 +118,9 @@ export const useOutfitGeneration = (
         style: 'coordinated'
       };
       
+      logger.debug(LogCategories.OUTFIT_GENERATION, 'Outfit context prepared', outfitContext);
+      
+      const startTime = logger.startPerformanceTracking('outfit-generation');
       const aiOutfit = await generateIntelligentOutfitSelection(savedItems, outfitContext, styleDNA);
       
       if (!aiOutfit) {
@@ -117,6 +128,14 @@ export const useOutfitGeneration = (
       }
       
       console.log('🤖 AI outfit result:', aiOutfit);
+      logger.info(LogCategories.OUTFIT_GENERATION, 'AI outfit generated', {
+        styleScore: aiOutfit.styleScore,
+        confidence: aiOutfit.confidence,
+        completionStatus: aiOutfit.completionStatus,
+        formality: aiOutfit.formality,
+        suggestedItemsCount: aiOutfit.suggestedItems?.length || 0
+      });
+      startTime();
       
       const itemCategory = categorizeItem(selectedItem);
       const suggestions = {
@@ -163,6 +182,11 @@ export const useOutfitGeneration = (
         for (const suggestedItem of aiOutfit.suggestedItems) {
           try {
             console.log(`🎨 Creating suggested item: ${suggestedItem.title}`);
+            logger.debug(LogCategories.OUTFIT_GENERATION, 'Generating image for suggested item', {
+              title: suggestedItem.title,
+              category: suggestedItem.category,
+              priority: suggestedItem.priority
+            });
             
             // Generate image for the suggested item
             const generatedImageUrl = await generateClothingItemImage(suggestedItem);
@@ -235,6 +259,15 @@ export const useOutfitGeneration = (
       const newItemsCount = suggestedItems.length;
       
       console.log(`✅ Generated outfit with ${suggestedCount} items (${newItemsCount} AI-suggested)`);
+      logger.info(LogCategories.OUTFIT_GENERATION, 'Outfit generation completed', {
+        suggestedCount,
+        newItemsCount,
+        slots: Object.entries(newGearSlots).map(([slot, item]) => ({
+          slot,
+          hasItem: !!item.itemId,
+          itemTitle: item.itemTitle
+        }))
+      });
       
       // Success haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -251,6 +284,10 @@ export const useOutfitGeneration = (
       
     } catch (error) {
       console.error('🎨 [OutfitGeneration] Error generating outfit suggestions:', error);
+      logger.error(LogCategories.OUTFIT_GENERATION, 'Failed to generate outfit suggestions', error as Error, {
+        selectedItem: selectedItem.title,
+        context: outfitContext
+      });
       Alert.alert('Failed to generate outfit suggestions. Please try again.');
     } finally {
       console.log('🎨 [OutfitGeneration] Finishing outfit generation', {

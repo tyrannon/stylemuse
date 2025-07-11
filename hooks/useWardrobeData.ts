@@ -4,6 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { StorageService } from '../services/StorageService';
 import { WishlistItem } from '../types/StyleAdvice';
 import { SuggestedItem } from '../services/SmartSuggestionsService';
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
 
 // Storage keys for AsyncStorage (legacy - migrating to StorageService)
 const STORAGE_KEYS = {
@@ -103,6 +105,9 @@ export const useWardrobeData = () => {
   // Load wardrobe data function
   const loadWardrobeData = useCallback(async () => {
     try {
+      logger.info(LogCategories.WARDROBE, 'Loading wardrobe data');
+      const startTime = logger.startPerformanceTracking('wardrobe-data-load');
+      
       const [items, outfits, dna, gender, profile, wishlist, suggestions] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS),
         AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS),
@@ -141,8 +146,19 @@ export const useWardrobeData = () => {
       // Load wishlist and suggested items
       setWishlistItems(wishlist);
       setSuggestedItems(suggestions);
+      
+      logger.info(LogCategories.WARDROBE, 'Wardrobe data loaded', {
+        itemsCount: items ? JSON.parse(items).length : 0,
+        outfitsCount: outfits ? JSON.parse(outfits).length : 0,
+        hasStyleDNA: !!dna,
+        hasProfile: !!profile,
+        wishlistCount: wishlist.length,
+        suggestionsCount: suggestions.length
+      });
+      startTime();
     } catch (error) {
       console.error('Error loading wardrobe data:', error);
+      logger.error(LogCategories.WARDROBE, 'Failed to load wardrobe data', error as Error);
     }
   }, []);
 
@@ -258,6 +274,11 @@ export const useWardrobeData = () => {
   // Function to save field updates
   const saveFieldUpdate = useCallback(async (item: WardrobeItem, field: string, value: string | string[]) => {
     try {
+      logger.debug(LogCategories.WARDROBE, 'Updating wardrobe item field', {
+        itemTitle: item.title,
+        field,
+        newValue: value
+      });
       const updatedItem = {
         ...item,
         [field]: value
@@ -273,9 +294,19 @@ export const useWardrobeData = () => {
       await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
+      logger.info(LogCategories.WARDROBE, 'Wardrobe item field updated', {
+        itemTitle: item.title,
+        field,
+        success: true
+      });
+      
       return updatedItem;
     } catch (error) {
       console.error('Error saving field update:', error);
+      logger.error(LogCategories.WARDROBE, 'Failed to update wardrobe item field', error as Error, {
+        itemTitle: item.title,
+        field
+      });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
@@ -317,6 +348,12 @@ export const useWardrobeData = () => {
   // Function to mark an outfit as worn
   const markOutfitAsWorn = useCallback(async (outfitId: string, rating?: number, event?: string, location?: string) => {
     try {
+      logger.info(LogCategories.WARDROBE, 'Marking outfit as worn', {
+        outfitId,
+        rating,
+        event,
+        location
+      });
       const wearRecord: WearRecord = {
         wornAt: new Date(),
         rating,
@@ -353,9 +390,18 @@ export const useWardrobeData = () => {
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
+      logger.info(LogCategories.WARDROBE, 'Outfit marked as worn successfully', {
+        outfitId,
+        newTimesWorn: wornOutfit?.timesWorn,
+        itemsMarkedDirty: wornOutfit?.selectedItems.length
+      });
+      
       return wornOutfit;
     } catch (error) {
       console.error('Error marking outfit as worn:', error);
+      logger.error(LogCategories.WARDROBE, 'Failed to mark outfit as worn', error as Error, {
+        outfitId
+      });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     }
@@ -542,6 +588,13 @@ export const useWardrobeData = () => {
   // Function to update item laundry status
   const updateLaundryStatus = useCallback(async (item: WardrobeItem, newStatus: LaundryStatus, washType?: string, dryingMethod?: string, notes?: string) => {
     try {
+      logger.info(LogCategories.WARDROBE, 'Updating laundry status', {
+        itemTitle: item.title,
+        oldStatus: item.laundryStatus,
+        newStatus,
+        washType,
+        dryingMethod
+      });
       const laundryRecord: LaundryRecord = {
         status: newStatus,
         changedAt: new Date(),

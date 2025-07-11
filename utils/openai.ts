@@ -1,4 +1,6 @@
 import Constants from 'expo-constants';
+import { logger } from './DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
 
 const OPENAI_API_KEY = Constants.expoConfig?.extra?.openAIApiKey;
 
@@ -9,6 +11,11 @@ if (!OPENAI_API_KEY) {
 }
 
 export async function describeClothingItem(base64Image: string) {
+  logger.info(LogCategories.AI_ANALYSIS, 'Starting clothing item description', {
+    imageSize: base64Image.length,
+    timestamp: new Date().toISOString()
+  });
+
   const prompt = `
 You are an expert fashion stylist and clothing analyst with deep expertise in textile identification, color theory, and garment construction. Your task is to analyze clothing items with EXTREME PRECISION for digital wardrobe management and outfit generation.
 
@@ -109,7 +116,13 @@ CRITICAL: Be so precise that two people analyzing the same item would get nearly
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 Clothing analysis attempt ${attempt}/${maxRetries}`);
+      logger.debug(LogCategories.API_CALLS, `Clothing analysis API call attempt ${attempt}`, {
+        endpoint: 'chat/completions',
+        model: 'gpt-4o',
+        attempt
+      });
       
+      const startTime = Date.now();
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -122,6 +135,12 @@ CRITICAL: Be so precise that two people analyzing the same item would get nearly
       if (!res.ok) {
         const errorText = await res.text();
         console.error(`🚨 OpenAI API Error (attempt ${attempt}):`, res.status, errorText);
+        logger.error(LogCategories.API_CALLS, 'OpenAI API error', null, {
+          status: res.status,
+          errorText,
+          attempt,
+          duration: Date.now() - startTime
+        });
         
         // Don't retry on certain errors
         if (res.status === 401 || res.status === 403) {
@@ -142,6 +161,12 @@ CRITICAL: Be so precise that two people analyzing the same item would get nearly
       const json = await res.json();
       const rawContent = json?.choices?.[0]?.message?.content;
       
+      logger.debug(LogCategories.API_CALLS, 'OpenAI API response received', {
+        duration: Date.now() - startTime,
+        contentLength: rawContent?.length || 0,
+        attempt
+      });
+      
       if (!rawContent) {
         lastError = new Error("No content received from OpenAI");
         continue;
@@ -154,6 +179,11 @@ CRITICAL: Be so precise that two people analyzing the same item would get nearly
       
       if (validatedResponse) {
         console.log("✅ Clothing analysis completed successfully");
+        logger.info(LogCategories.AI_ANALYSIS, 'Clothing analysis completed', {
+          title: validatedResponse.title,
+          category: validatedResponse.tags?.[0],
+          duration: Date.now() - startTime
+        });
         return JSON.stringify(validatedResponse);
       } else {
         lastError = new Error(`Invalid JSON response on attempt ${attempt}`);
@@ -168,6 +198,10 @@ CRITICAL: Be so precise that two people analyzing the same item would get nearly
     } catch (error) {
       console.error(`❌ describeClothingItem Error (attempt ${attempt}):`, error);
       lastError = error instanceof Error ? error : new Error('Unknown error');
+      logger.error(LogCategories.AI_ANALYSIS, 'Clothing analysis error', lastError, {
+        attempt,
+        willRetry: attempt < maxRetries
+      });
       
       if (attempt < maxRetries) {
         const waitTime = Math.pow(2, attempt) * 500; // Exponential backoff
@@ -314,6 +348,11 @@ function generateFallbackResponse(errorMessage: string): any {
 
 
 export async function generateOutfitImage(clothingItems: any[]) {
+  logger.info(LogCategories.OUTFIT_GENERATION, 'Starting outfit image generation', {
+    itemCount: clothingItems.length,
+    items: clothingItems.map(item => item.title || item.description)
+  });
+
   // Create a more detailed prompt using the enhanced item data
   const detailedDescriptions = clothingItems.map(item => {
     // If item has the enhanced structure, use detailed info
@@ -352,6 +391,12 @@ Style: Contemporary fashion photography, similar to high-end clothing catalogs
   };
 
   try {
+    const startTime = Date.now();
+    logger.debug(LogCategories.API_CALLS, 'Calling DALL-E 3 for outfit image', {
+      prompt: outfitPrompt.substring(0, 200) + '...',
+      model: 'dall-e-3'
+    });
+
     const res = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
@@ -364,15 +409,26 @@ Style: Contemporary fashion photography, similar to high-end clothing catalogs
     if (!res.ok) {
       const errorText = await res.text();
       console.error("🚨 OpenAI Image API Error:", res.status, errorText);
+      logger.error(LogCategories.API_CALLS, 'DALL-E 3 API error', new Error(errorText), {
+        status: res.status,
+        duration: Date.now() - startTime
+      });
       throw new Error("OpenAI image generation failed");
     }
 
     const json = await res.json();
     console.log("✅ OpenAI image response:", json);
     
-    return json?.data?.[0]?.url ?? null;
+    const imageUrl = json?.data?.[0]?.url ?? null;
+    logger.info(LogCategories.OUTFIT_GENERATION, 'Outfit image generated successfully', {
+      duration: Date.now() - startTime,
+      hasImage: !!imageUrl
+    });
+    
+    return imageUrl;
   } catch (error) {
     console.error("❌ generateOutfitImage Error:", error);
+    logger.error(LogCategories.OUTFIT_GENERATION, 'Failed to generate outfit image', error as Error);
     throw error;
   }
 }
@@ -1058,6 +1114,9 @@ export async function detectMultipleClothingItems(base64Image: string): Promise<
   }
 
   console.log('🔍 Detecting multiple clothing items in photo...');
+  logger.info(LogCategories.IMAGE_PROCESSING, 'Starting multi-item detection', {
+    imageSize: base64Image.length
+  });
 
   const prompt = `You are an EXPERT clothing detector with advanced shoe pair recognition. Your job is to identify ALL clothing items with SPECIAL INTELLIGENCE for detecting shoe pairs.
 
@@ -1183,6 +1242,12 @@ If NO clothing items found or image quality is poor, return:
   };
 
   try {
+    const startTime = Date.now();
+    logger.debug(LogCategories.API_CALLS, 'Calling OpenAI for multi-item detection', {
+      model: 'gpt-4o',
+      maxTokens: 1000
+    });
+
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -1231,6 +1296,18 @@ If NO clothing items found or image quality is poor, return:
         console.log(`👟 Shoe analysis: ${detectionResult.shoePairsDetected} pairs, ${detectionResult.individualShoesDetected} individual shoes`);
       }
       
+      logger.info(LogCategories.IMAGE_PROCESSING, 'Multi-item detection completed', {
+        itemsFound: detectionResult.itemsFound,
+        shoePairsDetected: detectionResult.shoePairsDetected || 0,
+        individualShoesDetected: detectionResult.individualShoesDetected || 0,
+        duration: Date.now() - startTime,
+        items: detectionResult.items?.map((item: any) => ({
+          type: item.itemType,
+          confidence: item.confidence,
+          isPair: item.isPair
+        }))
+      });
+      
       detectionResult.items?.forEach((item: any, index: number) => {
         const pairInfo = item.isPair ? ' (PAIR)' : '';
         console.log(`  ${index + 1}. ${item.itemType}${pairInfo}: ${item.description} (${item.confidence}% confidence)`);
@@ -1264,6 +1341,7 @@ If NO clothing items found or image quality is poor, return:
 
   } catch (error) {
     console.error("❌ detectMultipleClothingItems Error:", error);
+    logger.error(LogCategories.IMAGE_PROCESSING, 'Multi-item detection failed', error as Error);
     return { 
       items: [], 
       success: false, 
