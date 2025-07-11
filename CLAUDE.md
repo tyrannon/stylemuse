@@ -363,8 +363,89 @@ endTracking(); // Automatically logs duration
 - ✅ Wardrobe operations (load, save, laundry) logged
 - ✅ Global error handling and crash reporting
 
+## User Onboarding System
+
+### Complete Implementation
+StyleMuse now includes a comprehensive 6-screen onboarding flow for new users:
+
+**Flow Architecture:**
+1. **WelcomeScreen** - Animated benefits with value propositions
+2. **StyleGoalsScreen** - Multi-select user goals (organize, outfits, shopping, etc.)
+3. **StyleQuizScreen** - 5-question style assessment (colors, styles, occasions, body type, budget)
+4. **StyleDNAOptInScreen** - Advanced AI personalization with privacy transparency
+5. **PrivacyChoicesScreen** - Granular privacy controls with clear benefits
+6. **TierSelectionScreen** - Pricing tiers with 7-day trial offers
+
+### Integration Points
+
+**App.js Integration:**
+- First launch detection via `AsyncStorage.getItem('onboardingCompleted')`
+- Smart existing user detection (users with data skip onboarding)
+- Conditional rendering: `OnboardingNavigator` vs `WardrobeUploadScreen`
+- Loading screen during onboarding status check
+
+**Data Management:**
+- Progress tracking with `onboardingStep` and `onboardingData`
+- Graceful resumption if onboarding interrupted
+- User preferences saved to AsyncStorage
+- Tier selection persisted as `userTier`
+
+### Start Fresh Feature
+
+**Profile Page Integration:**
+- Complete "Start Fresh" feature in settings section
+- Shows current data size and item count
+- Automatic backup creation before reset
+- Comprehensive data clearing via `DataResetService`
+- Double confirmation dialogs for safety
+
+**DataResetService Utility:**
+- Clears 25+ AsyncStorage keys comprehensively
+- Validates reset completion
+- Creates backup before clearing data
+- Detailed logging and error handling
+- Selective reset by category (wardrobe, profile, etc.)
+
+### Industry Standards Followed
+
+**First Launch Detection:**
+- Check for `onboardingCompleted` flag
+- Detect existing user data to avoid re-onboarding
+- Graceful fallback on errors (assume completed to avoid blocking)
+
+**Progressive Onboarding:**
+- Skippable steps with sensible defaults
+- Clear progress indicators
+- Resume capability if interrupted
+- Minimal friction with immediate value
+
+**Privacy-First Design:**
+- Transparent data collection with clear benefits
+- Granular opt-in controls
+- Easy to change later in settings
+- GDPR/CCPA compliant patterns
+
+### Testing the Onboarding
+
+**For New Users:**
+- Clear app data completely
+- Restart app → onboarding shows automatically
+
+**For Testing:**
+- Use "Start Fresh" button in Profile → Settings
+- Creates backup then clears all data
+- Restarts onboarding flow immediately
+
+**For Existing Users:**
+- App detects existing data and skips onboarding
+- Sets `onboardingCompleted` flag automatically
+
 ## Recent Updates
 
+- ✅ **Complete onboarding system with 6 screens**
+- ✅ **App.js integration with first launch detection**
+- ✅ **Start Fresh feature with comprehensive data reset**
+- ✅ **Industry-standard onboarding patterns**
 - ✅ **Implemented comprehensive debug logging system**
 - ✅ **Added privacy-first data sanitization**
 - ✅ **Integrated logging across all major features**

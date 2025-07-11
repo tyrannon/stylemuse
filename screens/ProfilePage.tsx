@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
 import { EnhancedStyleDNA } from '../types/Avatar';
 import { PersistenceService } from '../services/PersistenceService';
 import { useTheme } from '../contexts/ThemeContext';
 import { BackupManagerModal } from '../components/BackupManagerModal';
+import { DataResetService } from '../utils/DataResetService';
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
 interface ProfilePageProps {
@@ -415,6 +419,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </Text>
         </View>
 
+        {/* Start Fresh Feature */}
+        <StartFreshSection theme={theme} styles={styles} />
+
         {/* Future Settings Placeholder */}
         <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <View style={styles.settingHeader}>
@@ -546,6 +553,197 @@ const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles, onRefreshD
         onDataRestored={handleDataRestored}
         onRefreshData={onRefreshData}
       />
+    </View>
+  );
+};
+
+/**
+ * 🔄 START FRESH SECTION: Complete data reset and onboarding restart
+ */
+interface StartFreshSectionProps {
+  theme: any;
+  styles: any;
+}
+
+const StartFreshSection: React.FC<StartFreshSectionProps> = ({ theme, styles }) => {
+  const [isResetting, setIsResetting] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<{
+    totalKeys: number;
+    totalSizeMB: number;
+    keys: string[];
+  }>({ totalKeys: 0, totalSizeMB: 0, keys: [] });
+
+  useEffect(() => {
+    loadStorageInfo();
+  }, []);
+
+  const loadStorageInfo = async () => {
+    try {
+      const info = await DataResetService.getStorageInfo();
+      setStorageInfo(info);
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Failed to load storage info', error);
+    }
+  };
+
+  const showStartFreshConfirmation = () => {
+    Alert.alert(
+      '🔄 Start Fresh',
+      `This will completely reset StyleMuse and take you through onboarding again.\n\n` +
+      `Current data:\n` +
+      `• ${storageInfo.totalKeys} stored items\n` +
+      `• ${storageInfo.totalSizeMB.toFixed(1)} MB of data\n\n` +
+      `A backup will be created automatically before reset.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            logger.info(LogCategories.USER_ACTION, 'Start fresh cancelled');
+          }
+        },
+        {
+          text: 'Start Fresh',
+          style: 'destructive',
+          onPress: showFinalConfirmation
+        }
+      ]
+    );
+  };
+
+  const showFinalConfirmation = () => {
+    Alert.alert(
+      '⚠️ Final Confirmation',
+      'Are you absolutely sure? This action cannot be undone without restoring from backup.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Yes, Start Fresh',
+          style: 'destructive',
+          onPress: handleStartFresh
+        }
+      ]
+    );
+  };
+
+  const handleStartFresh = async () => {
+    setIsResetting(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    try {
+      logger.info(LogCategories.USER_ACTION, 'Starting fresh - full data reset initiated');
+
+      // Create backup before reset
+      const backupId = await DataResetService.createBackupBeforeReset();
+      if (backupId) {
+        logger.info(LogCategories.STORAGE, 'Backup created before reset', { backupId });
+      }
+
+      // Reset all data
+      const resetStats = await DataResetService.resetAllData();
+      
+      logger.info(LogCategories.USER_ACTION, 'Data reset completed', {
+        clearedItems: resetStats.clearedItems,
+        totalSizeMB: resetStats.totalSizeMB,
+        errors: resetStats.errors.length
+      });
+
+      // Validate reset
+      const isValid = await DataResetService.validateReset();
+      
+      if (isValid) {
+        Alert.alert(
+          '✅ Reset Complete',
+          `Successfully reset ${resetStats.clearedItems} items (${resetStats.totalSizeMB.toFixed(1)} MB).\n\n` +
+          `${backupId ? 'Backup created: ' + String(backupId).substring(0, 8) + '...\n\n' : 'No backup created\n\n'}` +
+          `The app will restart to onboarding.`,
+          [
+            {
+              text: 'Restart Now',
+              onPress: async () => {
+                // Set a flag to force app restart
+                try {
+                  await AsyncStorage.setItem('forceAppRestart', 'true');
+                  logger.info(LogCategories.USER_ACTION, 'Restart flag set, app will restart');
+                  
+                  // For React Native, we need to restart differently
+                  if (typeof window !== 'undefined' && window.location) {
+                    window.location.reload();
+                  } else {
+                    // For mobile, show message that app needs to be restarted manually
+                    Alert.alert(
+                      '📱 Restart Required',
+                      'Please close and reopen the app to complete the reset.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                } catch (error) {
+                  logger.error(LogCategories.STORAGE, 'Failed to set restart flag', error);
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '⚠️ Reset Incomplete',
+          `Some data may not have been cleared. Check the backup manager for details.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Failed to start fresh', error);
+      Alert.alert(
+        '❌ Reset Failed',
+        `Failed to reset data: ${error.message}\n\nYour data is safe. Please try again or contact support.`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  return (
+    <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <View style={styles.settingHeader}>
+        <View style={styles.settingInfo}>
+          <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
+            🔄 Start Fresh
+          </Text>
+          <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+            Reset all data and go through onboarding again
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.startFreshInfo}>
+        <Text style={[styles.startFreshInfoText, { color: theme.colors.textSecondary }]}>
+          Current data: {storageInfo.totalKeys} items ({storageInfo.totalSizeMB.toFixed(1)} MB)
+        </Text>
+        <Text style={[styles.startFreshInfoText, { color: theme.colors.textSecondary }]}>
+          ✅ Backup created automatically
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.startFreshButton, { backgroundColor: theme.colors.error }]}
+        onPress={showStartFreshConfirmation}
+        disabled={isResetting}
+        activeOpacity={0.8}
+      >
+        {isResetting ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.startFreshButtonText}>🔄 Start Fresh</Text>
+        )}
+      </TouchableOpacity>
+
+      <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
+        Perfect for testing onboarding or completely starting over. Creates a backup first, so you can restore if needed.
+      </Text>
     </View>
   );
 };
@@ -778,5 +976,28 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // Start Fresh Section Styles
+  startFreshInfo: {
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  startFreshInfoText: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  startFreshButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    minHeight: 44,
+  },
+  startFreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
