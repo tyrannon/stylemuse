@@ -141,7 +141,16 @@ export class TierManager {
 
   static async updateUsageStats(stats: Partial<UsageStats>): Promise<void> {
     try {
-      const currentStats = await this.getUsageStats();
+      // Get current stats without triggering reset logic to avoid infinite recursion
+      const statsJson = await AsyncStorage.getItem('usageStats');
+      const currentStats: UsageStats = statsJson ? JSON.parse(statsJson) : {
+        aiGenerationsThisMonth: 0,
+        currentWardrobeItems: 0,
+        currentSavedOutfits: 0,
+        monthlyResetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        lastUsageUpdate: new Date().toISOString(),
+      };
+      
       const updatedStats = {
         ...currentStats,
         ...stats,

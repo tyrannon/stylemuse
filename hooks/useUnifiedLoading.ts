@@ -32,45 +32,20 @@ export const useUnifiedLoading = (): UseUnifiedLoadingReturn => {
   const startTimeRef = useRef<number | null>(null);
   const instanceIdRef = useRef<number>(++hookInstanceCounter);
 
-  // Log instance creation
+  // Log instance creation (simplified)
   React.useEffect(() => {
-    console.log('🟢 [UnifiedLoading] Hook instance created', {
-      instanceId: instanceIdRef.current,
-      timestamp: Date.now(),
-    });
+    console.log('🟢 [UnifiedLoading] Hook instance created:', instanceIdRef.current);
     return () => {
-      console.log('🟢 [UnifiedLoading] Hook instance destroyed', {
-        instanceId: instanceIdRef.current,
-        timestamp: Date.now(),
-      });
+      console.log('🟢 [UnifiedLoading] Hook instance destroyed:', instanceIdRef.current);
     };
   }, []);
 
   const showLoading = useCallback((config: LoadingConfig) => {
     const timestamp = Date.now();
-    console.log('🟢 [UnifiedLoading] showLoading() called', {
-      instanceId: instanceIdRef.current,
-      timestamp,
-      config: {
-        title: config.title,
-        subtitle: config.subtitle,
-        style: config.style,
-        minimumDuration: config.minimumDuration,
-        stepsCount: config.steps?.length || 0,
-      },
-      previousLoadingState: isLoading,
-    });
-    
     startTimeRef.current = timestamp;
     setLoadingConfig(config);
     setIsLoading(true);
-    
-    console.log('🟢 [UnifiedLoading] Loading state set to true', {
-      instanceId: instanceIdRef.current,
-      timestamp,
-      newConfig: config.title,
-    });
-  }, [isLoading]);
+  }, []);
 
   const hideLoading = useCallback(() => {
     const hideTimestamp = Date.now();
@@ -78,82 +53,40 @@ export const useUnifiedLoading = (): UseUnifiedLoadingReturn => {
     const elapsed = startTime ? hideTimestamp - startTime : 0;
     const minimumDuration = loadingConfig?.minimumDuration || 0;
     const remaining = minimumDuration - elapsed;
-    
-    console.log('🟢 [UnifiedLoading] hideLoading() called', {
-      instanceId: instanceIdRef.current,
-      timestamp: hideTimestamp,
-      startTime,
-      elapsed,
-      minimumDuration,
-      remaining,
-      currentConfig: loadingConfig?.title || 'null',
-      currentLoadingState: isLoading,
-    });
 
     const hideWithDelay = () => {
-      console.log('🟢 [UnifiedLoading] Actually hiding loading', {
-        instanceId: instanceIdRef.current,
-        timestamp: Date.now(),
-        finalElapsed: startTime ? Date.now() - startTime : 0,
-      });
       setIsLoading(false);
       setLoadingConfig(null);
       startTimeRef.current = null;
     };
 
     // Ensure minimum display duration if specified
-    if (startTimeRef.current && loadingConfig?.minimumDuration) {
-      if (remaining > 0) {
-        console.log('🟢 [UnifiedLoading] Delaying hide by', remaining, 'ms', {
-          instanceId: instanceIdRef.current,
-        });
-        setTimeout(hideWithDelay, remaining);
-      } else {
-        console.log('🟢 [UnifiedLoading] Minimum duration already met, hiding immediately', {
-          instanceId: instanceIdRef.current,
-        });
-        hideWithDelay();
-      }
+    if (startTimeRef.current && loadingConfig?.minimumDuration && remaining > 0) {
+      setTimeout(hideWithDelay, remaining);
     } else {
-      console.log('🟢 [UnifiedLoading] No minimum duration, hiding immediately', {
-        instanceId: instanceIdRef.current,
-      });
       hideWithDelay();
     }
-  }, [loadingConfig?.minimumDuration, isLoading]);
+  }, [loadingConfig?.minimumDuration]);
 
   const updateSteps = useCallback((steps: LoadingStep[]) => {
-    console.log('🟢 [UnifiedLoading] updateSteps() called', {
-      instanceId: instanceIdRef.current,
-      timestamp: Date.now(),
-      stepsCount: steps.length,
-      currentConfig: loadingConfig?.title || 'null',
-    });
     setLoadingConfig(prev => prev ? { ...prev, steps } : null);
   }, []);
 
-  // Track state changes
+  // Track state changes (reduced logging)
   React.useEffect(() => {
-    console.log('🟢 [UnifiedLoading] isLoading state changed', {
-      instanceId: instanceIdRef.current,
-      timestamp: Date.now(),
-      isLoading,
-      config: loadingConfig?.title || 'null',
-      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n'),
-    });
+    if (isLoading) {
+      console.log('🟢 [UnifiedLoading] Loading started:', loadingConfig?.title || 'Unknown');
+    } else {
+      console.log('🟢 [UnifiedLoading] Loading stopped');
+    }
   }, [isLoading, loadingConfig?.title]);
 
-  // Track rapid show/hide cycles
+  // Track long-running operations
   React.useEffect(() => {
     if (isLoading) {
       const timer = setTimeout(() => {
-        console.log('🟢 [UnifiedLoading] WARNING: Loading has been active for 5+ seconds', {
-          instanceId: instanceIdRef.current,
-          timestamp: Date.now(),
-          config: loadingConfig?.title || 'null',
-          duration: startTimeRef.current ? Date.now() - startTimeRef.current : 'unknown',
-        });
-      }, 5000);
+        console.warn('🟢 [UnifiedLoading] WARNING: Loading active for 10+ seconds:', loadingConfig?.title || 'Unknown');
+      }, 10000);
       return () => clearTimeout(timer);
     }
   }, [isLoading, loadingConfig?.title]);

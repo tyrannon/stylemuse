@@ -76,7 +76,7 @@ export const useTierManagement = (): TierManagementState & TierManagementActions
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.message || 'Failed to load tier information',
+        error: (error as Error)?.message || 'Failed to load tier information',
       }));
     }
   }, []);
