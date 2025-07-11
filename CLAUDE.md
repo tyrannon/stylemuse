@@ -327,8 +327,47 @@ export const useOutfitGeneration = (
 - **Simple UI**: Clean header loading bar instead of modal overlays
 - **Student-Friendly**: Intuitive loading feedback without complexity
 
+## Debug Logging System
+
+StyleMuse includes a comprehensive debug logging system for development and production monitoring.
+
+### Key Features
+- **🛠️ Robust Logging**: 5 log levels with file rotation and cleanup
+- **🔒 Privacy Protection**: Automatic sanitization of sensitive data
+- **📊 Performance Tracking**: Built-in timing helpers for operations
+- **💾 File Management**: Auto-rotation at 5MB, keeps 10 files max
+- **🎯 17 Log Categories**: Covering all app functionality
+
+### Usage
+```typescript
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
+
+// Basic logging
+logger.info(LogCategories.USER_ACTION, 'Button clicked');
+logger.error(LogCategories.API_CALLS, 'Request failed', error);
+
+// Performance tracking
+const endTracking = logger.startPerformanceTracking('operation');
+await doWork();
+endTracking(); // Automatically logs duration
+```
+
+### Documentation
+- **Full Guide**: `DEBUG_SYSTEM_DOCUMENTATION.md`
+- **Quick Reference**: `DEBUG_QUICK_REFERENCE.md`
+
+### Integration
+- ✅ All API calls (OpenAI/DALL-E) logged with timing
+- ✅ AI outfit generation workflow fully tracked
+- ✅ Wardrobe operations (load, save, laundry) logged
+- ✅ Global error handling and crash reporting
+
 ## Recent Updates
 
+- ✅ **Implemented comprehensive debug logging system**
+- ✅ **Added privacy-first data sanitization**
+- ✅ **Integrated logging across all major features**
 - ✅ Expanded dark mode app-wide (BuilderPage, WardrobePage, ProfilePage)
 - ✅ Implemented unified loading animations across key operations
 - ✅ **Fixed shared loading instance architecture for complete outfit feature**
