@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Animated }
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
+import { RandomOutfitButton } from '../components/RandomOutfitButton';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
+import { useRandomOutfit } from '../hooks/useRandomOutfit';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface BuilderPageProps {
@@ -22,6 +24,9 @@ interface BuilderPageProps {
   onToggleItemSelection: (imageUri: string) => void;
   userProfile?: any;
   styleDNA?: any;
+  // Random outfit functionality
+  gearSlots?: any;
+  setGearSlots?: (slots: any) => void;
 }
 
 export const BuilderPage: React.FC<BuilderPageProps> = ({
@@ -40,11 +45,22 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
   onToggleItemSelection,
   userProfile,
   styleDNA,
+  gearSlots,
+  setGearSlots,
 }) => {
   const { theme } = useTheme();
   const unifiedLoading = useUnifiedLoading();
+  const randomOutfit = useRandomOutfit(savedItems);
   
   const styles = createStyles(theme);
+
+  // Handle random outfit generation
+  const handleRandomOutfit = async (options?: any) => {
+    const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
+    if (generatedOutfit && setGearSlots) {
+      setGearSlots(generatedOutfit);
+    }
+  };
   
   return (
     <View style={{ marginTop: 20 }}>
@@ -87,6 +103,48 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
                 console.log('✅ AI Outfit Assistant generated outfit:', outfit);
               }}
             />
+          </View>
+
+          {/* Random Outfit Generator */}
+          <View style={styles.randomOutfitSection}>
+            <Text style={styles.randomOutfitTitle}>
+              🎲 Instant Random Outfit
+            </Text>
+            <Text style={styles.randomOutfitSubtitle}>
+              Get instant outfit inspiration with our fast algorithmic generator
+            </Text>
+            
+            <View style={styles.randomOutfitButtonContainer}>
+              <RandomOutfitButton
+                onGenerate={handleRandomOutfit}
+                isGenerating={randomOutfit.isGenerating}
+                disabled={savedItems.length < 3}
+                size="large"
+                variant="primary"
+              />
+            </View>
+
+            {savedItems.length < 3 && (
+              <Text style={styles.randomOutfitWarning}>
+                ⚠️ Need at least 3 items for complete outfits
+              </Text>
+            )}
+
+            {randomOutfit.lastGeneration && (
+              <View style={styles.generationStatsContainer}>
+                <Text style={styles.generationStatsTitle}>✨ Last Generation:</Text>
+                <Text style={styles.generationStats}>
+                  Style: {randomOutfit.lastGeneration.style} • 
+                  Completeness: {Math.round(randomOutfit.lastGeneration.completeness)}% • 
+                  {randomOutfit.lastGeneration.generationTime}ms
+                </Text>
+                {randomOutfit.lastGeneration.colorHarmony && (
+                  <Text style={styles.colorHarmonyIndicator}>
+                    🎨 Color harmony achieved
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Weather-Based Outfit Generation */}
@@ -283,6 +341,65 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   aiAssistantSection: {
     marginVertical: 8,
+  },
+  randomOutfitSection: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#9C27B0', // Purple border for random section
+    ...theme.shadows.medium,
+  },
+  randomOutfitTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  randomOutfitSubtitle: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  randomOutfitButtonContainer: {
+    marginBottom: 15,
+  },
+  randomOutfitWarning: {
+    fontSize: 12,
+    color: theme.colors.warning || '#FF9500',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  generationStatsContainer: {
+    marginTop: 15,
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    width: '100%',
+  },
+  generationStatsTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  generationStats: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  colorHarmonyIndicator: {
+    fontSize: 10,
+    color: theme.colors.success || '#4CAF50',
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   weatherOutfitSection: {
     backgroundColor: '#e8f5e8',
