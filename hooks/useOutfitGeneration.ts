@@ -38,7 +38,7 @@ export interface OutfitGenerationState {
   setSelectedItemsForOutfit: (items: string[]) => void;
   gearSlots: GearSlots;
   setGearSlots: (slots: GearSlots) => void;
-  generateOutfitSuggestions: (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => Promise<void>;
+  generateOutfitSuggestions: (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => Promise<void>;
   clearGearSlots: () => void;
   setGearSlotItem: (slotType: keyof GearSlots, item: WardrobeItem | null) => void;
   // Unified loading state
@@ -77,8 +77,8 @@ export const useOutfitGeneration = (
     accessories: { itemId: null, itemImage: null, itemTitle: null },
   });
 
-  // Function to generate outfit suggestions based on a selected item
-  const generateOutfitSuggestions = async (selectedItem: WardrobeItem, styleDNA?: any, context?: any) => {
+  // Function to generate outfit suggestions based on a selected item (or general suggestions if selectedItem is null)
+  const generateOutfitSuggestions = async (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => {
     try {
       // Check AI generation limits before proceeding
       const aiLimitCheck = await tierManagement.checkAIGeneration();
@@ -112,11 +112,11 @@ export const useOutfitGeneration = (
       }
       
       // Show unified loading overlay
-      const itemType = categorizeItem(selectedItem);
+      const itemType = selectedItem ? categorizeItem(selectedItem) : 'general';
       console.log('🎨 [OutfitGeneration] Showing unified loading overlay', {
         timestamp: Date.now(),
         itemType,
-        selectedItem: selectedItem.title,
+        selectedItem: selectedItem?.title || 'general outfit generation',
       });
       // Use AI to generate intelligent outfit selection
       const outfitContext = context || {
@@ -128,7 +128,7 @@ export const useOutfitGeneration = (
       };
       
       logger.info(LogCategories.OUTFIT_GENERATION, 'Starting outfit generation', {
-        selectedItem: selectedItem.title,
+        selectedItem: selectedItem?.title || 'general outfit generation',
         itemType,
         context: outfitContext,
         hasStyleDNA: !!styleDNA
@@ -137,7 +137,7 @@ export const useOutfitGeneration = (
       
       unifiedLoading.showLoading({
         ...LOADING_CONFIGS.OUTFIT_GENERATION,
-        subtitle: `Building around your ${itemType}...`,
+        subtitle: selectedItem ? `Building around your ${itemType}...` : 'Creating AI outfit suggestions...',
       });
       
       // Show loading state for suggestions (separate from outfit generation)
@@ -163,7 +163,6 @@ export const useOutfitGeneration = (
       });
       startTime();
       
-      const itemCategory = categorizeItem(selectedItem);
       const suggestions = {
         top: null as WardrobeItem | null,
         bottom: null as WardrobeItem | null,
@@ -173,8 +172,11 @@ export const useOutfitGeneration = (
         accessories: null as WardrobeItem | null,
       };
       
-      // Start with the selected item
-      suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
+      // Start with the selected item if one is provided
+      if (selectedItem) {
+        const itemCategory = categorizeItem(selectedItem);
+        suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
+      }
       
       // Use AI suggestions to fill outfit slots
       const findItemByTitle = (title: string | null) => {
@@ -318,7 +320,7 @@ export const useOutfitGeneration = (
     } catch (error) {
       console.error('🎨 [OutfitGeneration] Error generating outfit suggestions:', error);
       logger.error(LogCategories.OUTFIT_GENERATION, 'Failed to generate outfit suggestions', error as Error, {
-        selectedItem: selectedItem.title,
+        selectedItem: selectedItem?.title || 'general outfit generation',
         context: outfitContext
       });
       Alert.alert('Failed to generate outfit suggestions. Please try again.');
