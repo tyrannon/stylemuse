@@ -217,8 +217,17 @@ export const useOutfitGeneration = (
               priority: suggestedItem.priority
             });
             
-            // Generate image for the suggested item
-            const generatedImageUrl = await generateClothingItemImage(suggestedItem);
+            // Generate image for the suggested item in background (no await for speed)
+            let generatedImageUrl = 'ai-generated';
+            generateClothingItemImage(suggestedItem).then(url => {
+              if (url) {
+                // Update the item image in the background
+                console.log(`🖼️ Generated image for ${suggestedItem.title}: ${url}`);
+                // TODO: Update the gear slot with the real image URL
+              }
+            }).catch(err => {
+              console.warn(`⚠️ Failed to generate image for ${suggestedItem.title}:`, err);
+            });
             
             // Create wardrobe item from AI suggestion
             const newWardrobeItem: WardrobeItem = {

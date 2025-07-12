@@ -37,7 +37,7 @@ import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { RandomOutfitButtons } from '../components/RandomOutfitButton';
 import { AddItemPage } from './AddItemPage';
-import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
+import { AIOutfitAssistant, AIOutfitAssistantRef } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
@@ -62,6 +62,9 @@ const WardrobeUploadScreen = () => {
   const { theme, isDark } = useTheme();
   const unifiedLoading = useUnifiedLoading();
   const styles = createStyles(theme);
+  
+  // Ref for AIOutfitAssistant to trigger modal
+  const aiOutfitAssistantRef = useRef<AIOutfitAssistantRef>(null);
   
   // Extract data and functions from hooks
   const {
@@ -984,9 +987,7 @@ const WardrobeUploadScreen = () => {
             return newOutfits;
           });
           
-          const message = currentWeather ? 
-            `Perfect for ${currentWeather.temperature}°F and ${currentWeather.description}! 🌤️` :
-            (styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸");
+          const message = styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸";
           alert(message + "\n\n✨ Outfit automatically saved to your Loved collection!");
         } catch (downloadError) {
           console.error('Failed to download outfit:', downloadError);
@@ -2445,17 +2446,34 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       <RandomOutfitButtons
         onGenerate={handleRandomOutfit}
         onAIGenerate={() => {
-          // Open the AI outfit assistant modal with configuration options
-          const userProfile = {
-            gender: selectedGender || 'unspecified',
-            stylePreference: 'versatile',
-          };
-          smartSuggestions.generateSuggestions(userProfile, savedItems, styleDNA);
+          // Open the AI outfit assistant modal via ref
+          aiOutfitAssistantRef.current?.openConfigModal();
         }}
         isGenerating={randomOutfit.isGenerating}
         disabled={savedItems.length < 3}
       />
     </View>
+    
+    {/* AI Outfit Assistant (hidden, modal only) */}
+    <AIOutfitAssistant
+      ref={aiOutfitAssistantRef}
+      context="builder"
+      styleDNA={styleDNA}
+      size="medium"
+      onOutfitGenerated={(outfit) => {
+        // When AI outfit assistant generates suggestions, fill the gear slots
+        console.log('🎯 AI Outfit Assistant generated outfit, filling slots...');
+        generateOutfitSuggestions(null, styleDNA, {
+          occasion: outfit.occasion || 'casual',
+          style: 'coordinated',
+          weather: 'moderate',
+          time: 'day',
+          location: 'general'
+        });
+      }}
+      sharedLoading={unifiedLoading}
+      renderButton={false}
+    />
 
     {savedItems.length < 3 && (
       <Text style={styles.randomOutfitWarning}>
@@ -3039,8 +3057,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           />
         </View>
       )}
-
-      {/* REMOVED: Legacy Smart Suggestion Modal - now using unified AIOutfitAssistant + SmartSuggestionsModal */}
 
       {/* Text Item Entry Modal */}
       <TextItemEntryModal

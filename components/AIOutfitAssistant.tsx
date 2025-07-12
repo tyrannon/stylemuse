@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   View,
   Text,
@@ -26,9 +26,14 @@ interface AIOutfitAssistantProps {
   onOutfitGenerated?: (outfit: any) => void;
   currentItem?: WardrobeItem;
   sharedLoading?: any; // Optional shared loading instance to use instead of creating a new one
+  renderButton?: boolean; // Optional prop to control if button should be rendered
 }
 
-export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
+export interface AIOutfitAssistantRef {
+  openConfigModal: () => void;
+}
+
+export const AIOutfitAssistant = forwardRef<AIOutfitAssistantRef, AIOutfitAssistantProps>(({
   userProfile,
   styleDNA,
   context = 'standalone',
@@ -36,7 +41,8 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   size = 'medium',
   onOutfitGenerated,
   sharedLoading,
-}) => {
+  renderButton: shouldRenderButton = true,
+}, ref) => {
   // Smart suggestions state
   const smartSuggestions = useSmartSuggestions();
   const { savedItems } = useWardrobeData();
@@ -48,6 +54,11 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [includeNewItems, setIncludeNewItems] = useState(true);
   const [selectedOccasion, setSelectedOccasion] = useState<string>('casual');
+
+  // Expose modal control to parent component
+  useImperativeHandle(ref, () => ({
+    openConfigModal: () => setShowConfigModal(true),
+  }));
   const [selectedStyle, setSelectedStyle] = useState<string>('versatile');
   
   // Configuration options
@@ -179,6 +190,23 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
         stylePreference: selectedStyle as any,
       };
 
+      // For builder context, always call the outfit generation directly to fill slots
+      if (context === 'builder') {
+        console.log('🎯 Builder context - calling outfit generation to fill slots');
+        
+        if (onOutfitGenerated) {
+          onOutfitGenerated({
+            occasion: selectedOccasion,
+            stylePreference: selectedStyle,
+            includeNewItems: includeNewItems,
+            profile: profile
+          });
+        }
+        
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        return;
+      }
+
       if (includeNewItems) {
         // Show unified loading while generating suggestions
         unifiedLoading.showLoading(LOADING_CONFIGS.GENERATING_SUGGESTIONS);
@@ -307,7 +335,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
 
   return (
     <>
-      {renderButton()}
+      {shouldRenderButton && renderButton()}
       
       {/* Configuration Modal */}
       <Modal
@@ -411,7 +439,7 @@ export const AIOutfitAssistant: React.FC<AIOutfitAssistantProps> = ({
       </Modal>
     </>
   );
-};
+});
 
 const createStyles = (theme: any) => StyleSheet.create({
   // Small button (replaces confusing AI button in wardrobe)
