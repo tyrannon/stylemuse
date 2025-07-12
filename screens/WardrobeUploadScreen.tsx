@@ -2445,8 +2445,12 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
       <RandomOutfitButtons
         onGenerate={handleRandomOutfit}
         onAIGenerate={() => {
-          // Trigger the AI outfit generation using the existing function
-          generateOutfitSuggestions(null, styleDNA);
+          // Open the AI outfit assistant modal with configuration options
+          const userProfile = {
+            gender: selectedGender || 'unspecified',
+            stylePreference: 'versatile',
+          };
+          smartSuggestions.generateSuggestions(userProfile, savedItems, styleDNA);
         }}
         isGenerating={randomOutfit.isGenerating}
         disabled={savedItems.length < 3}

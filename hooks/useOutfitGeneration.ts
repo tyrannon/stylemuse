@@ -173,8 +173,9 @@ export const useOutfitGeneration = (
       };
       
       // Start with the selected item if one is provided
+      let itemCategory = null;
       if (selectedItem) {
-        const itemCategory = categorizeItem(selectedItem);
+        itemCategory = categorizeItem(selectedItem);
         suggestions[itemCategory as keyof typeof suggestions] = selectedItem;
       }
       
