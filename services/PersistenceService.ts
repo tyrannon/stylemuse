@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
-import { EnhancedStyleDNA } from '../types/Avatar';
+import { EnhancedStyleDNA } from '../types/StyleDNA';
 import { WishlistItem } from '../types/StyleAdvice';
 import { SuggestedItem } from '../services/SmartSuggestionsService';
 import { STORAGE_KEYS } from '../constants/storage';

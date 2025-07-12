@@ -4,10 +4,8 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { describeClothingItem } from '../utils/openai';
-import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage, generateWeatherBasedOutfit } from '../utils/openai';
-import * as Location from 'expo-location';
+import { generateOutfitImage, analyzePersonalStyle, generatePersonalizedOutfitImage } from '../utils/openai';
 import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
-import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -32,7 +30,6 @@ import { WardrobePage } from './WardrobePage';
 import { DataMigrationModal } from '../components/DataMigrationModal';
 import { OutfitsPage } from './OutfitsPage';
 import { ProfilePage } from './ProfilePage';
-import { AvatarCustomizationPage } from './AvatarCustomizationPage';
 import { CameraScreen } from './CameraScreen';
 import { PhotoEditingScreen } from './PhotoEditingScreen';
 import { SmartSuggestionsModal } from '../components/SmartSuggestionsModal';
@@ -54,7 +51,6 @@ import { createStyles } from './styles/WardrobeUploadScreen.styles';
 
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
-import { EnhancedStyleDNA } from '../types/Avatar';
 import { STORAGE_KEYS } from '../constants/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -105,7 +101,6 @@ const WardrobeUploadScreen = () => {
     showWardrobe,
     showOutfitsPage,
     showProfilePage,
-    showAvatarCustomization,
     showAddItemPage,
     showingItemDetail,
     showingOutfitDetail,
@@ -118,7 +113,6 @@ const WardrobeUploadScreen = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
-    navigateToAvatarCustomization,
     navigateToAddItem,
     goBackToProfile,
     goBackToWardrobe,
@@ -185,7 +179,6 @@ const WardrobeUploadScreen = () => {
     navigationState.setShowLovedItems(false);
     navigationState.setShowProfilePage(false);
     navigationState.setShowOutfitsPage(false);
-    navigationState.setShowAvatarCustomization(false);
     navigationState.setShowAddItemPage(false);
     
     // Scroll to top after a short delay
@@ -243,9 +236,6 @@ const WardrobeUploadScreen = () => {
   // Animation and UI states
   // Legacy spinValue removed - now using unified loading
   const [analyzingProfile, setAnalyzingProfile] = useState(false);
-  const [weatherData, setWeatherData] = useState<any | null>(null);
-  const [loadingWeather, setLoadingWeather] = useState(false);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [outfitModalVisible, setOutfitModalVisible] = useState(false);
   const [outfitScale] = useState(new Animated.Value(1));
   const [outfitTranslateX] = useState(new Animated.Value(0));
@@ -960,13 +950,8 @@ const WardrobeUploadScreen = () => {
       // Set the selected items for outfit display
       outfitGeneration.setSelectedItemsForOutfit(equippedItems.map(item => item.image));
       
-      // Get weather data if we have it, otherwise use regular generation
-      const currentWeather = weatherData || await getLocationAndWeather();
-      
-      // Generate weather-appropriate outfit if we have weather data
-      const generatedImageUrl = currentWeather ? 
-        await generateWeatherBasedOutfit(equippedItems, styleDNA, currentWeather, selectedGender) :
-        await generatePersonalizedOutfitImage(equippedItems, styleDNA, selectedGender);
+      // Generate personalized outfit based on style DNA
+      const generatedImageUrl = await generatePersonalizedOutfitImage(equippedItems, styleDNA, selectedGender);
       
       if (generatedImageUrl) {
         // Download the generated outfit locally
@@ -981,8 +966,7 @@ const WardrobeUploadScreen = () => {
           const newLovedOutfit = {
             id: Date.now().toString(),
             image: localImageUri, // Use local URI instead of URL
-            weatherData: weatherData || null,
-            styleDNA: styleDNA || null,
+                  styleDNA: styleDNA || null,
             selectedItems: equippedItems.map(item => item.image),
             gender: selectedGender || null,
             createdAt: new Date(),
@@ -1120,293 +1104,7 @@ const WardrobeUploadScreen = () => {
     }
   };
 
-  // Function to fetch weather data based on location
-  const fetchWeatherData = async (lat: number, lon: number) => {
-    try {
-      // Use app config for API key
-      const API_KEY = Constants.expoConfig?.extra?.openWeatherApiKey;
-      
-      if (!API_KEY) {
-        throw new Error('Weather API key not found in app config');
-      }
-      
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=imperial`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Weather API request failed');
-      }
-      
-      const data = await response.json();
-      return {
-        temperature: Math.round(data.main.temp),
-        feels_like: Math.round(data.main.feels_like),
-        humidity: data.main.humidity,
-        description: data.weather[0].description,
-        main: data.weather[0].main,
-        wind_speed: Math.round(data.wind.speed),
-        city: data.name
-      };
-    } catch (error) {
-      console.error('❌ Weather fetch error:', error);
-      throw error;
-    }
-  };
 
-  // Function to get location and weather data
-  const getLocationAndWeather = async () => {
-    setLoadingWeather(true);
-    
-    try {
-      // Get location permission
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Permission to access location is required for weather-based outfits!');
-        setLoadingWeather(false);
-        return null;
-      }
-
-      // Get current location
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = currentLocation.coords;
-      setLocation({ latitude, longitude });
-
-      // Get weather data
-      const weather = await fetchWeatherData(latitude, longitude);
-      setWeatherData(weather);
-      
-      return weather;
-    } catch (error) {
-      console.error('❌ Location/Weather error:', error);
-      alert('Failed to get location/weather data');
-      return null;
-    } finally {
-      setLoadingWeather(false);
-    }
-  };
-
-  // Enhanced function to select weather-appropriate items with context awareness
-  // This function considers location context (indoor/outdoor) and improved weather logic
-  const selectWeatherAppropriateItems = (items: any[], weather: any, location: string = 'general', occasion: string = 'casual') => {
-    const temp = weather.temperature;
-    const feelsLike = weather.feels_like || temp; // Use feels_like if available
-    const isRaining = weather.description.includes('rain');
-    const isSnowing = weather.description.includes('snow');
-    
-    // Determine if location is primarily indoor or outdoor
-    const indoorLocations = ['office', 'restaurant', 'home', 'club'];
-    const outdoorLocations = ['outdoors', 'city', 'beach'];
-    const isIndoorContext = indoorLocations.some(loc => location.includes(loc));
-    const isOutdoorContext = outdoorLocations.some(loc => location.includes(loc));
-    
-    // Categorize items by type
-    const categorizedItems = {
-      tops: [],
-      bottoms: [],
-      outerwear: [],
-      shoes: [],
-      accessories: []
-    };
-    
-    items.forEach(item => {
-      const tags = item.tags || [];
-      const style = item.style?.toLowerCase() || '';
-      const title = item.title?.toLowerCase() || '';
-      
-      // Categorize each item
-      if (tags.some(tag => ['top', 't-shirt', 'shirt', 'blouse', 'tank', 'crop'].includes(tag.toLowerCase())) ||
-          style.includes('shirt') || style.includes('top') || style.includes('blouse')) {
-        categorizedItems.tops.push(item);
-      } else if (tags.some(tag => ['bottom', 'pants', 'jeans', 'shorts', 'skirt', 'dress'].includes(tag.toLowerCase())) ||
-                 style.includes('jeans') || style.includes('pants') || style.includes('shorts') || 
-                 style.includes('skirt') || style.includes('dress')) {
-        categorizedItems.bottoms.push(item);
-      } else if (tags.some(tag => ['jacket', 'coat', 'blazer', 'cardigan', 'sweater'].includes(tag.toLowerCase())) ||
-                 style.includes('jacket') || style.includes('coat') || style.includes('blazer')) {
-        categorizedItems.outerwear.push(item);
-      } else if (tags.some(tag => ['shoes', 'boots', 'sandals', 'sneakers'].includes(tag.toLowerCase())) ||
-                 style.includes('shoes') || style.includes('boots')) {
-        categorizedItems.shoes.push(item);
-      } else {
-        categorizedItems.accessories.push(item);
-      }
-    });
-    
-    // Enhanced weather filtering with improved temperature thresholds
-    const filterByWeather = (categoryItems) => {
-      return categoryItems.filter(item => {
-        const tags = item.tags || [];
-        const material = item.material?.toLowerCase() || '';
-        const style = item.style?.toLowerCase() || '';
-        
-        // Use feels_like temperature for more accurate comfort assessment
-        const effectiveTemp = feelsLike;
-        
-        // Very cold weather (under 40°F) - Heavy winter gear
-        if (effectiveTemp < 40) {
-          return tags.some(tag => 
-            ['winter', 'heavy', 'wool', 'down', 'thermal', 'long-sleeve', 'pants', 'jeans', 'boots', 'coat', 'jacket', 'sweater', 'scarf', 'gloves'].includes(tag.toLowerCase())
-          ) || ['wool', 'fleece', 'down', 'cashmere', 'denim', 'thermal'].includes(material) ||
-             style.includes('winter') || style.includes('heavy') || style.includes('warm');
-        }
-        
-        // Cold weather (40-55°F) - Layers recommended
-        if (effectiveTemp >= 40 && effectiveTemp < 55) {
-          return tags.some(tag => 
-            ['warm', 'layer', 'long-sleeve', 'pants', 'jeans', 'boots', 'cardigan', 'sweater', 'light-jacket'].includes(tag.toLowerCase())
-          ) || ['wool', 'fleece', 'cotton', 'denim'].includes(material) ||
-             style.includes('long') || style.includes('jeans') || style.includes('pants') || style.includes('layer');
-        }
-        
-        // Cool weather (55-68°F) - Light layers, versatile pieces
-        if (effectiveTemp >= 55 && effectiveTemp < 68) {
-          return tags.some(tag => 
-            ['light', 'layer', 'versatile', 'jeans', 'pants', 'long-sleeve', 'short-sleeve', 'light-cardigan'].includes(tag.toLowerCase())
-          ) || style.includes('jeans') || style.includes('pants') || style.includes('layer') || 
-             (!style.includes('shorts') && !style.includes('tank'));
-        }
-        
-        // Comfortable weather (68-78°F) - Most versatile range
-        if (effectiveTemp >= 68 && effectiveTemp < 78) {
-          return tags.some(tag => 
-            ['comfortable', 'versatile', 'light', 'short-sleeve', 'long-sleeve', 'jeans', 'pants', 'shorts', 'skirt', 'dress'].includes(tag.toLowerCase())
-          ) || !style.includes('heavy') && !style.includes('winter');
-        }
-        
-        // Warm weather (78-85°F) - Light, breathable fabrics
-        if (effectiveTemp >= 78 && effectiveTemp < 85) {
-          return tags.some(tag => 
-            ['summer', 'light', 'breathable', 'short', 'shorts', 'skirt', 'dress', 't-shirt', 'tank', 'sandals'].includes(tag.toLowerCase())
-          ) || ['cotton', 'linen', 'silk', 'bamboo'].includes(material) ||
-             style.includes('short') || style.includes('light') || style.includes('summer');
-        }
-        
-        // Hot weather (85°F+) - Minimal, ultra-light clothing
-        if (effectiveTemp >= 85) {
-          return tags.some(tag => 
-            ['hot-weather', 'ultra-light', 'minimal', 'shorts', 'tank', 'sundress', 'sandals', 'flip-flops'].includes(tag.toLowerCase())
-          ) || ['linen', 'silk', 'cotton', 'bamboo'].includes(material) ||
-             style.includes('tank') || style.includes('shorts') || style.includes('minimal');
-        }
-        
-        return true; // Include if no specific weather rules apply
-      });
-    };
-    
-    // Get weather-appropriate items from each category
-    const weatherTops = filterByWeather(categorizedItems.tops);
-    const weatherBottoms = filterByWeather(categorizedItems.bottoms);
-    const weatherOuterwear = filterByWeather(categorizedItems.outerwear);
-    const weatherShoes = filterByWeather(categorizedItems.shoes);
-    
-    // Build a balanced outfit
-    const selectedItems = [];
-    
-    // Always pick at least 1 top
-    if (weatherTops.length > 0) {
-      selectedItems.push(weatherTops[0]);
-    } else if (categorizedItems.tops.length > 0) {
-      // Fallback to any top if no weather-appropriate tops
-      selectedItems.push(categorizedItems.tops[0]);
-    }
-    
-    // Always pick at least 1 bottom (unless it's a dress)
-    if (weatherBottoms.length > 0) {
-      const bottom = weatherBottoms[0];
-      // Check if the selected top is a dress
-      const selectedTop = selectedItems[0];
-      const isTopADress = selectedTop && (
-        selectedTop.style?.toLowerCase().includes('dress') ||
-        selectedTop.tags?.some(tag => tag.toLowerCase() === 'dress')
-      );
-      
-      if (!isTopADress) {
-        selectedItems.push(bottom);
-      }
-    } else if (categorizedItems.bottoms.length > 0) {
-      // Fallback to any bottom
-      const selectedTop = selectedItems[0];
-      const isTopADress = selectedTop && (
-        selectedTop.style?.toLowerCase().includes('dress') ||
-        selectedTop.tags?.some(tag => tag.toLowerCase() === 'dress')
-      );
-      
-      if (!isTopADress) {
-        selectedItems.push(categorizedItems.bottoms[0]);
-      }
-    }
-    
-    // Context-aware outerwear logic - NO mandatory jackets for indoor occasions!
-    const effectiveTemp = feelsLike; // Define effectiveTemp for this context
-    
-    const shouldAddOuterwear = () => {
-      // For indoor contexts, only add outerwear if it's very cold or if it's part of the style
-      if (isIndoorContext) {
-        // Indoor spaces are typically climate controlled
-        // Only add outerwear for style (blazers, cardigans) or if extremely cold outside
-        if (effectiveTemp < 45 && occasion === 'work') {
-          return true; // Professional blazer for very cold commute to work
-        }
-        if (effectiveTemp < 35) {
-          return true; // Extremely cold, might need layer even indoors
-        }
-        // For restaurants, clubs, home - no outerwear needed regardless of outside temp
-        return false;
-      }
-      
-      // For outdoor contexts, consider weather more seriously
-      if (isOutdoorContext) {
-        if (effectiveTemp < 65) return true; // Outdoor activities need warmth
-        if (isRaining || isSnowing) return true; // Weather protection
-        return false;
-      }
-      
-      // For general/mixed contexts, use moderate thresholds
-      if (effectiveTemp < 55) return true; // Cooler weather
-      if (isRaining || isSnowing) return true; // Weather protection
-      
-      return false;
-    };
-
-    // Apply the context-aware outerwear logic
-    if (shouldAddOuterwear() && weatherOuterwear.length > 0) {
-      selectedItems.push(weatherOuterwear[0]);
-      console.log(`🧥 Added outerwear for ${isIndoorContext ? 'indoor' : isOutdoorContext ? 'outdoor' : 'general'} context at ${effectiveTemp}°F`);
-    } else if (selectedItems.length < 3 && categorizedItems.outerwear.length > 0 && !isIndoorContext) {
-      // Only add optional outerwear for non-indoor contexts
-      selectedItems.push(categorizedItems.outerwear[0]);
-      console.log(`👔 Added optional outerwear for non-indoor context`);
-    } else {
-      console.log(`🚫 No outerwear needed - ${isIndoorContext ? 'indoor' : isOutdoorContext ? 'outdoor' : 'general'} context at ${effectiveTemp}°F`);
-    }
-    
-    // Add shoes if available and slots remain
-    if (selectedItems.length < 4 && weatherShoes.length > 0) {
-      selectedItems.push(weatherShoes[0]);
-    } else if (selectedItems.length < 4 && categorizedItems.shoes.length > 0) {
-      selectedItems.push(categorizedItems.shoes[0]);
-    }
-    
-    // Fill remaining slots with weather-appropriate accessories or any remaining items
-    while (selectedItems.length < 4 && selectedItems.length < items.length) {
-      const remainingItems = items.filter(item => 
-        !selectedItems.some(selected => selected.image === item.image)
-      );
-      
-      if (remainingItems.length === 0) break;
-      
-      // Prefer weather-appropriate items
-      const weatherAppropriate = filterByWeather(remainingItems);
-      if (weatherAppropriate.length > 0) {
-        selectedItems.push(weatherAppropriate[0]);
-      } else {
-        selectedItems.push(remainingItems[0]);
-      }
-    }
-    
-    return selectedItems.map(item => item.image);
-  };
 
   // Legacy spinning animation functions removed - now using unified loading
 
@@ -1603,7 +1301,6 @@ const WardrobeUploadScreen = () => {
     const newLovedOutfit = {
       id: Date.now().toString(),
       image: outfitGeneration.generatedOutfit,
-      weatherData: weatherData || null,
       styleDNA: styleDNA || null,
       selectedItems: equippedItems.map(item => item.image),
       gender: selectedGender || null,
@@ -2478,14 +2175,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
             {/* Outfit Info */}
             {lovedOutfits[currentLovedOutfitIndex] && (
               <View style={styles.outfitInfoContainer}>
-                {/* Weather info if available */}
-                {lovedOutfits[currentLovedOutfitIndex].weatherData && (
-                  <View style={styles.weatherInfo}>
-                    <Text style={styles.weatherText}>
-                      🌡️ {lovedOutfits[currentLovedOutfitIndex].weatherData.temperature}°F • {lovedOutfits[currentLovedOutfitIndex].weatherData.description}
-                    </Text>
-                  </View>
-                )}
 
                 {/* Style DNA indicator */}
                 {lovedOutfits[currentLovedOutfitIndex].styleDNA && (
@@ -2749,101 +2438,16 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     🎮 Outfit Builder
   </Text>
   
-  {/* AI Outfit Assistant - Unified Smart Suggestions */}
-  <View style={{ marginBottom: 20 }}>
-    <AIOutfitAssistant
-      userProfile={{
-        gender: selectedGender,
-        stylePreference: 'versatile',
-      }}
-      styleDNA={styleDNA}
-      context="builder"
-      size="large"
-      sharedLoading={unifiedLoading} // Pass the shared loading instance
-      onOutfitGenerated={(outfit) => {
-        console.log('✅ AI Outfit Assistant generated outfit:', outfit);
-        
-        // Fill the gear slots with the AI-generated outfit
-        if (outfit && outfit.items) {
-          const updatedSlots = { ...outfitGeneration.gearSlots };
-          
-          outfit.items.forEach((item: any) => {
-            let slotKey = item.category;
-            
-            // Map AI categories to gear slot keys
-            if (slotKey === 'outerwear') slotKey = 'jacket';
-            
-            if (['top', 'bottom', 'shoes', 'jacket', 'hat', 'accessories'].includes(slotKey)) {
-              // For existing wardrobe items, use their image
-              if (item.isFromWardrobe && !item.isPlaceholder) {
-                // Try exact match first
-                let wardrobeItem = savedItems.find(w => w.title === item.title);
-                
-                // If exact match fails, try fuzzy matching
-                if (!wardrobeItem) {
-                  const itemLower = item.title.toLowerCase();
-                  wardrobeItem = savedItems.find(w => {
-                    const titleLower = (w.title || '').toLowerCase();
-                    return titleLower.includes(itemLower.split(' ')[0]) || // Match first word
-                           itemLower.includes(titleLower.split(' ')[0]) ||  // Or vice versa
-                           (item.color && titleLower.includes(item.color.toLowerCase())) || // Match by color
-                           (item.style && titleLower.includes(item.style.toLowerCase()));   // Match by style
-                  });
-                  
-                  if (wardrobeItem) {
-                    console.log(`🔄 Found fuzzy match: "${item.title}" → "${wardrobeItem.title}"`);
-                  }
-                }
-                
-                if (wardrobeItem) {
-                  console.log(`🎯 Adding ${slotKey}: ${item.title} to gear slot`);
-                  updatedSlots[slotKey as keyof typeof updatedSlots] = {
-                    itemId: wardrobeItem.image,
-                    itemImage: wardrobeItem.image,
-                    itemTitle: wardrobeItem.title || 'Untitled Item',
-                  };
-                } else {
-                  console.log(`❌ Could not find wardrobe item: ${item.title} (category: ${slotKey})`);
-                  console.log(`💡 Available ${slotKey} items:`, savedItems.filter(w => w.category === slotKey || w.tags?.includes(slotKey)).map(w => w.title));
-                }
-              } else {
-                console.log(`⏭️ Skipping ${slotKey}: ${item.title} (isFromWardrobe: ${item.isFromWardrobe}, isPlaceholder: ${item.isPlaceholder})`);
-              }
-              // For suggested items, we'll show them in the Smart Suggestions modal
-            }
-          });
-          
-          // Update all gear slots at once
-          outfitGeneration.setGearSlots(updatedSlots);
-          
-          // Show success message with a delay to not conflict with Smart Suggestions modal
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          
-          // Delay the alert to let the Smart Suggestions modal appear first
-          setTimeout(() => {
-            Alert.alert(
-              '✨ Outfit Generated!',
-              `"${outfit.outfitName}" has been created! Your gear slots have been filled with existing wardrobe items.`,
-              [{ text: 'Great!' }]
-            );
-          }, 500);
-        }
-      }}
-    />
-  </View>
 
   {/* Random Outfit Generator */}
   <View style={styles.randomOutfitSection}>
-    <Text style={styles.randomOutfitTitle}>
-      🎲 Instant Random Outfit
-    </Text>
-    <Text style={styles.randomOutfitSubtitle}>
-      Get instant outfit inspiration with our fast algorithmic generator
-    </Text>
-    
     <View style={styles.randomOutfitButtonContainer}>
       <RandomOutfitButtons
         onGenerate={handleRandomOutfit}
+        onAIGenerate={() => {
+          // Trigger the AI outfit generation using the existing function
+          generateOutfitSuggestions(null, styleDNA);
+        }}
         isGenerating={randomOutfit.isGenerating}
         disabled={savedItems.length < 3}
       />
@@ -3164,20 +2768,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     setShowGenderSelector={modalState.setShowGenderSelector}
     onUpdateStyleDNA={updateStyleDNA}
     triggerHaptic={triggerHaptic}
-    navigateToAvatarCustomization={navigateToAvatarCustomization}
     onRefreshData={handleDataRefresh}
   />
 )}
 
-{/* Avatar Customization Page */}
-{showAvatarCustomization && (
-  <AvatarCustomizationPage
-    currentStyleDNA={styleDNA}
-    selectedGender={selectedGender}
-    onSave={updateStyleDNA}
-    onBack={goBackToProfile}
-  />
-)}
 
 {/* Outfits Page */}
 {showOutfitsPage && (

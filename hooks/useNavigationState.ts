@@ -7,7 +7,6 @@ export const useNavigationState = () => {
   const [showLovedItems, setShowLovedItems] = useState(false);
   const [showOutfitsPage, setShowOutfitsPage] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
-  const [showAvatarCustomization, setShowAvatarCustomization] = useState(false);
   const [showAddItemPage, setShowAddItemPage] = useState(false);
   
   // Camera and photo editing states
@@ -54,7 +53,6 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowAvatarCustomization(false);
     setShowAddItemPage(false);
     closeAllDetails();
   };
@@ -65,7 +63,6 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowAvatarCustomization(false);
     setShowAddItemPage(false);
     closeAllDetails();
   };
@@ -76,7 +73,6 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowProfilePage(false);
-    setShowAvatarCustomization(false);
     setShowAddItemPage(false);
     closeAllDetails();
   };
@@ -87,21 +83,10 @@ export const useNavigationState = () => {
     setShowWardrobe(false);
     setShowLovedItems(false);
     setShowOutfitsPage(false);
-    setShowAvatarCustomization(false);
     setShowAddItemPage(false);
     closeAllDetails();
   };
 
-  const navigateToAvatarCustomization = () => {
-    setShowAvatarCustomization(true);
-    setShowOutfitBuilder(false);
-    setShowWardrobe(false);
-    setShowLovedItems(false);
-    setShowProfilePage(false);
-    setShowOutfitsPage(false);
-    setShowAddItemPage(false);
-    closeAllDetails();
-  };
 
   const navigateToAddItem = () => {
     setShowAddItemPage(true);
@@ -110,12 +95,10 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowAvatarCustomization(false);
     closeAllDetails();
   };
 
   const goBackToProfile = () => {
-    setShowAvatarCustomization(false);
     setShowProfilePage(true);
   };
 
@@ -127,7 +110,6 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
-    setShowAvatarCustomization(false);
     setShowAddItemPage(false);
     setShowPhotoEditingScreen(false);
     closeAllDetails();
@@ -207,8 +189,6 @@ export const useNavigationState = () => {
     setShowOutfitsPage,
     showProfilePage,
     setShowProfilePage,
-    showAvatarCustomization,
-    setShowAvatarCustomization,
     showAddItemPage,
     setShowAddItemPage,
     
@@ -279,7 +259,6 @@ export const useNavigationState = () => {
     navigateToWardrobe,
     navigateToOutfits,
     navigateToProfile,
-    navigateToAvatarCustomization,
     navigateToAddItem,
     goBackToProfile,
     navigateToCamera,

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { STORAGE_KEYS } from '../constants/storage';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
-import { EnhancedStyleDNA } from '../types/Avatar';
+import { EnhancedStyleDNA } from '../types/StyleDNA';
 
 // Backup metadata interface
 interface BackupMetadata {

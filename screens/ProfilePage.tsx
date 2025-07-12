@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
-import { EnhancedStyleDNA } from '../types/Avatar';
 import { PersistenceService } from '../services/PersistenceService';
 import { useTheme } from '../contexts/ThemeContext';
 import { BackupManagerModal } from '../components/BackupManagerModal';
@@ -14,7 +13,7 @@ import * as Haptics from 'expo-haptics';
 
 interface ProfilePageProps {
   profileImage: string | null;
-  styleDNA: EnhancedStyleDNA | null;
+  styleDNA: any | null;
   selectedGender: 'male' | 'female' | 'nonbinary' | null;
   savedItems: WardrobeItem[];
   lovedOutfits: LovedOutfit[];
@@ -22,9 +21,8 @@ interface ProfilePageProps {
   pickProfileImage: () => void;
   analyzeProfileImage: (imageUri: string) => void;
   setShowGenderSelector: (show: boolean) => void;
-  onUpdateStyleDNA: (updatedStyleDNA: EnhancedStyleDNA) => void;
+  onUpdateStyleDNA: (updatedStyleDNA: any) => void;
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
-  navigateToAvatarCustomization: () => void;
   onRefreshData?: () => void; // Add refresh callback
 }
 
@@ -40,7 +38,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   setShowGenderSelector,
   onUpdateStyleDNA,
   triggerHaptic,
-  navigateToAvatarCustomization,
   onRefreshData,
 }) => {
   const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme, toggleTheme } = useTheme();
@@ -51,63 +48,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         🧬 Style DNA Profile
       </Text>
       
-      {/* Profile Images Section */}
+      {/* Profile Photo Section */}
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-          {/* Real Profile Photo */}
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Your Photo</Text>
-            <TouchableOpacity
-              onPress={pickProfileImage}
-              style={{ position: 'relative' }}
-            >
-              {profileImage ? (
-                <Image 
-                  source={{ uri: profileImage }} 
-                  style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }} 
-                />
-              ) : (
-                <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#e0e0e0' }}>
-                  <Text style={{ fontSize: 30 }}>🧬</Text>
-                </View>
-              )}
-              <View style={{ position: 'absolute', top: 2, right: 2, width: 25, height: 25, borderRadius: 12.5, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: 'white', fontSize: 12 }}>✏️</Text>
-              </View>
-            </TouchableOpacity>
+        <TouchableOpacity
+          onPress={pickProfileImage}
+          style={{ position: 'relative' }}
+        >
+          {profileImage ? (
+            <Image 
+              source={{ uri: profileImage }} 
+              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }} 
+            />
+          ) : (
+            <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#e0e0e0' }}>
+              <Text style={{ fontSize: 40 }}>🧬</Text>
+            </View>
+          )}
+          <View style={{ position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderRadius: 18, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: 'white', fontSize: 18 }}>📷</Text>
           </View>
-
-          {/* Generated Avatar */}
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Your Avatar</Text>
-            <TouchableOpacity
-              onPress={() => {
-                triggerHaptic('medium');
-                navigateToAvatarCustomization();
-              }}
-              style={{ position: 'relative' }}
-            >
-              {styleDNA?.avatar_image_url ? (
-                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', borderWidth: 3, borderColor: '#007AFF' }}>
-                  <SafeImage 
-                    uri={styleDNA.avatar_image_url}
-                    style={{ width: '100%', height: '100%' }}
-                    fallbackStyle={{ width: '100%', height: '100%', backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }}
-                  />
-                </View>
-              ) : (
-                <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#e0e0e0' }}>
-                  <Text style={{ fontSize: 20 }}>🎨</Text>
-                  <Text style={{ fontSize: 8, color: '#666', textAlign: 'center' }}>Customize to generate</Text>
-                </View>
-              )}
-              {/* Edit indicator */}
-              <View style={{ position: 'absolute', top: 2, right: 2, width: 25, height: 25, borderRadius: 12.5, backgroundColor: '#8e24aa', justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: 'white', fontSize: 12 }}>🎨</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
+        <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 10 }}>Tap to upload your photo</Text>
         
         {profileImage && (
           <TouchableOpacity
@@ -171,39 +132,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Avatar Customization Button */}
-      <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('medium');
-            navigateToAvatarCustomization();
-          }}
-          style={{
-            backgroundColor: '#8e24aa',
-            borderRadius: 12,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 24, marginRight: 10 }}>🎨</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white', marginBottom: 2 }}>
-              Customize Your Avatar
-            </Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
-              Add details about your style, sizes, and preferences
-            </Text>
-          </View>
-          <Text style={{ fontSize: 16, color: 'white' }}>▶️</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Style DNA Results Section */}
       {styleDNA && (
@@ -952,12 +880,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.error,
   },
   backupStatusDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 4,
   },
   backupStatusText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
+    flexWrap: 'wrap',
   },
   backupActions: {
     flexDirection: 'row',

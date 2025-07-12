@@ -13,6 +13,7 @@ import { StyleCompatibility } from '../utils/StyleCompatibility';
 
 interface RandomOutfitButtonsProps {
   onGenerate: (options?: RandomOutfitOptions) => void;
+  onAIGenerate?: () => void;  // New prop for AI generation
   isGenerating: boolean;
   disabled?: boolean;
   style?: any;
@@ -67,11 +68,18 @@ const STYLE_BUTTONS: StyleButtonData[] = [
     emoji: '🎉',
     name: 'Party',
     colors: ['#A29BFE', '#6C5CE7']
+  },
+  {
+    style: 'ai', // Special AI style
+    emoji: '🤖',
+    name: 'AI',
+    colors: ['#00D2FF', '#3A7BFF'] // Futuristic blue gradient
   }
 ];
 
 export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
   onGenerate,
+  onAIGenerate,
   isGenerating,
   disabled = false,
   style
@@ -96,6 +104,14 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
       rotateAnimations[index].setValue(0);
     });
 
+    // Handle AI button differently
+    if (buttonData.style === 'ai') {
+      if (onAIGenerate) {
+        onAIGenerate();
+      }
+      return;
+    }
+
     const options: RandomOutfitOptions = {
       style: buttonData.style,
       includeAccessories: Math.random() > 0.6, // 40% chance
@@ -108,9 +124,6 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Quick Outfit Styles
-      </Text>
       
       <View style={styles.buttonsGrid}>
         {STYLE_BUTTONS.map((buttonData, index) => {

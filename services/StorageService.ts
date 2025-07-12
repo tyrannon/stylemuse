@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storage';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
-import { EnhancedStyleDNA } from '../types/Avatar';
+import { EnhancedStyleDNA } from '../types/StyleDNA';
 import { WishlistItem } from '../types/StyleAdvice';
 import { SuggestedItem } from '../services/SmartSuggestionsService';
 import { ensureDateObject } from '../utils/dateUtils';
