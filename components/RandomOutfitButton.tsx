@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { RandomOutfitOptions } from '../utils/RandomOutfitGenerator';
@@ -24,6 +25,7 @@ interface StyleButtonData {
   emoji: string;
   name: string;
   colors: string[];
+  icon: any; // PNG image require
 }
 
 const STYLE_BUTTONS: StyleButtonData[] = [
@@ -31,49 +33,57 @@ const STYLE_BUTTONS: StyleButtonData[] = [
     style: undefined,
     emoji: '🎲',
     name: 'Surprise',
-    colors: ['#FF6B6B', '#4ECDC4'] // Gradient colors
+    colors: ['#FF6B6B', '#4ECDC4'], // Gradient colors
+    icon: require('../assets/surprise.png')
   },
   {
     style: 'casual',
     emoji: '👕',
     name: 'Casual',
-    colors: ['#74B9FF', '#0984E3']
+    colors: ['#74B9FF', '#0984E3'],
+    icon: require('../assets/casual.png')
   },
   {
     style: 'business',
     emoji: '💼',
     name: 'Business',
-    colors: ['#636E72', '#2D3436']
+    colors: ['#636E72', '#2D3436'],
+    icon: require('../assets/business.png')
   },
   {
     style: 'sporty',
     emoji: '🏃‍♀️',
     name: 'Sporty',
-    colors: ['#00B894', '#00A085']
+    colors: ['#00B894', '#00A085'],
+    icon: require('../assets/sporty.png')
   },
   {
     style: 'date_night',
     emoji: '💃',
     name: 'Date Night',
-    colors: ['#E84393', '#D63031']
+    colors: ['#E84393', '#D63031'],
+    icon: require('../assets/datenight.png')
   },
   {
     style: 'weekend',
     emoji: '🏠',
     name: 'Weekend',
-    colors: ['#FDCB6E', '#E17055']
+    colors: ['#FDCB6E', '#E17055'],
+    icon: require('../assets/weekend.png')
   },
   {
     style: 'party',
     emoji: '🎉',
     name: 'Party',
-    colors: ['#A29BFE', '#6C5CE7']
+    colors: ['#A29BFE', '#6C5CE7'],
+    icon: require('../assets/party.png')
   },
   {
     style: 'ai', // Special AI style
     emoji: '🤖',
     name: 'AI',
-    colors: ['#00D2FF', '#3A7BFF'] // Futuristic blue gradient
+    colors: ['#00D2FF', '#3A7BFF'], // Futuristic blue gradient
+    icon: require('../assets/ai.png')
   }
 ];
 
@@ -138,10 +148,8 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
             <TouchableOpacity
               key={buttonData.style || 'random'}
               style={[
-                styles.styleButton,
+                styles.iconOnlyButton,
                 {
-                  backgroundColor: buttonData.colors[0],
-                  borderColor: buttonData.colors[1],
                   opacity: isButtonDisabled ? 0.5 : 1
                 }
               ]}
@@ -149,16 +157,17 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
               disabled={isButtonDisabled}
               activeOpacity={0.8}
             >
-              <Animated.Text
-                style={[
-                  styles.emojiIcon,
-                  { transform: [{ rotate: rotateInterpolate }] }
-                ]}
+              <Animated.View
+                style={[{ transform: [{ rotate: rotateInterpolate }] }]}
               >
-                {buttonData.emoji}
-              </Animated.Text>
+                <Image
+                  source={buttonData.icon}
+                  style={styles.iconOnlyImage}
+                  resizeMode="contain"
+                />
+              </Animated.View>
               
-              <Text style={[styles.styleName, { color: '#FFFFFF' }]}>
+              <Text style={styles.iconOnlyLabel}>
                 {buttonData.name}
               </Text>
             </TouchableOpacity>
@@ -211,6 +220,27 @@ const styles = StyleSheet.create({
   emojiIcon: {
     fontSize: 24,
     marginBottom: 4,
+  },
+  iconImage: {
+    width: 32,
+    height: 32,
+    marginBottom: 4,
+  },
+  iconOnlyButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 8,
+  },
+  iconOnlyImage: {
+    width: 50,
+    height: 50,
+    marginBottom: 6,
+  },
+  iconOnlyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#333333',
   },
   styleName: {
     fontSize: 10,

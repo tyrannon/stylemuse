@@ -221,6 +221,41 @@ const WardrobeUploadScreen = () => {
     }
   }, [randomOutfit, outfitGeneration, savedItems]);
 
+  // Helper functions to get theme-appropriate images
+  const getGenerateOutfitIcon = () => {
+    if (theme.colorScheme === 'tokyo') {
+      return theme.mode === 'dark' 
+        ? require('../assets/GenerateOutfitCyber.png')
+        : require('../assets/GenerateOutfitBrown.png');
+    }
+    return require('../assets/generateoutfit.png');
+  };
+
+  const getClearAllSlotsIcon = () => {
+    if (theme.colorScheme === 'tokyo') {
+      return theme.mode === 'dark'
+        ? require('../assets/ClearAllSlotsCyber.png')
+        : require('../assets/ClearAllSlotsKawaii.png');
+    }
+    return require('../assets/ClearAllSlotsGrey.png');
+  };
+
+  // Bounce animation helper
+  const createBounceAnimation = (animatedValue: Animated.Value) => {
+    return Animated.sequence([
+      Animated.timing(animatedValue, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      })
+    ]);
+  };
+
   // Use our custom hooks for refactored functionality
   const imageHandling = useImageHandling();
   const amazonRecommendations = useAmazonRecommendations();
@@ -248,6 +283,18 @@ const WardrobeUploadScreen = () => {
   const [wardrobeShakeValue] = useState(new Animated.Value(0));
   const [outfitsShakeValue] = useState(new Animated.Value(0));
   const [profileShakeValue] = useState(new Animated.Value(0));
+
+  // Bounce animations for outfit builder icons
+  const [gearSlotBounces] = useState(() => ({
+    top: new Animated.Value(1),
+    bottom: new Animated.Value(1),
+    shoes: new Animated.Value(1),
+    jacket: new Animated.Value(1),
+    hat: new Animated.Value(1),
+    accessories: new Animated.Value(1)
+  }));
+  const [generateOutfitBounce] = useState(new Animated.Value(1));
+  const [clearAllBounce] = useState(new Animated.Value(1));
   
   // Multi-item detection state
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
@@ -2535,159 +2582,261 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <View style={styles.gearSlotGrid}>
     {/* First Row */}
     <View style={styles.gearRow}>
-      <TouchableOpacity
-        onPress={() => openSlotSelection('top')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.top.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.top.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('top')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>👕</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          TOP {outfitGeneration.gearSlots.top.itemImage && `(${getItemsByCategory('top').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.top }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.top).start();
+            openSlotSelection('top');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.top.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.top.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.top.itemImage} style={styles.gearSlotImage} category="top" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('top')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                TOP
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/top.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.top.itemImage && styles.gearSlotLabelFilled]}>
+                TOP
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
-      <TouchableOpacity
-        onPress={() => openSlotSelection('bottom')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.bottom.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.bottom.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.bottom.itemImage} style={styles.gearSlotImage} category="bottom" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('bottom')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>👖</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          BOTTOM {outfitGeneration.gearSlots.bottom.itemImage && `(${getItemsByCategory('bottom').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.bottom }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.bottom).start();
+            openSlotSelection('bottom');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.bottom.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.bottom.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.bottom.itemImage} style={styles.gearSlotImage} category="bottom" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('bottom')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                BOTTOM
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/bottom.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.bottom.itemImage && styles.gearSlotLabelFilled]}>
+                BOTTOM
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
-      <TouchableOpacity
-        onPress={() => openSlotSelection('shoes')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.shoes.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.shoes.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.shoes.itemImage} style={styles.gearSlotImage} category="shoes" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('shoes')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>👟</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          SHOES {outfitGeneration.gearSlots.shoes.itemImage && `(${getItemsByCategory('shoes').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.shoes }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.shoes).start();
+            openSlotSelection('shoes');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.shoes.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.shoes.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.shoes.itemImage} style={styles.gearSlotImage} category="shoes" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('shoes')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                SHOES
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/shoes.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.shoes.itemImage && styles.gearSlotLabelFilled]}>
+                SHOES
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
     </View>
 
     {/* Second Row */}
     <View style={styles.gearRow}>
-      <TouchableOpacity
-        onPress={() => openSlotSelection('jacket')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.jacket.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.jacket.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.jacket.itemImage} style={styles.gearSlotImage} category="jacket" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('jacket')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>🧥</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          JACKET {outfitGeneration.gearSlots.jacket.itemImage && `(${getItemsByCategory('jacket').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.jacket }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.jacket).start();
+            openSlotSelection('jacket');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.jacket.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.jacket.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.jacket.itemImage} style={styles.gearSlotImage} category="jacket" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('jacket')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                JACKET
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/jacket.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.jacket.itemImage && styles.gearSlotLabelFilled]}>
+                JACKET
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
-      <TouchableOpacity
-        onPress={() => openSlotSelection('hat')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.hat.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.hat.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.hat.itemImage} style={styles.gearSlotImage} category="hat" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('hat')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>🎩</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          HAT {outfitGeneration.gearSlots.hat.itemImage && `(${getItemsByCategory('hat').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.hat }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.hat).start();
+            openSlotSelection('hat');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.hat.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.hat.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.hat.itemImage} style={styles.gearSlotImage} category="hat" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('hat')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                HAT
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/hat.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.hat.itemImage && styles.gearSlotLabelFilled]}>
+                HAT
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
-      <TouchableOpacity
-        onPress={() => openSlotSelection('accessories')}
-        style={[styles.gearSlot, outfitGeneration.gearSlots.accessories.itemImage && styles.gearSlotFilled]}
-      >
-        {outfitGeneration.gearSlots.accessories.itemImage ? (
-          <>
-            <SafeImage uri={outfitGeneration.gearSlots.accessories.itemImage} style={styles.gearSlotImage} category="accessories" placeholder="item" />
-            <TouchableOpacity
-              onPress={() => clearGearSlot('accessories')}
-              style={styles.clearSlotButton}
-            >
-              <Text style={styles.clearSlotText}>✕</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.gearSlotIcon}>💍</Text>
-        )}
-        <Text style={styles.gearSlotLabel}>
-          ACCESSORIES {outfitGeneration.gearSlots.accessories.itemImage && `(${getItemsByCategory('accessories').length})`}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: gearSlotBounces.accessories }] }}>
+        <TouchableOpacity
+          onPress={() => {
+            createBounceAnimation(gearSlotBounces.accessories).start();
+            openSlotSelection('accessories');
+          }}
+          style={[styles.gearSlot, outfitGeneration.gearSlots.accessories.itemImage && styles.gearSlotFilled]}
+        >
+          {outfitGeneration.gearSlots.accessories.itemImage ? (
+            <>
+              <View style={styles.gearSlotImageContainer}>
+                <SafeImage uri={outfitGeneration.gearSlots.accessories.itemImage} style={styles.gearSlotImage} category="accessories" placeholder="item" />
+                <TouchableOpacity
+                  onPress={() => clearGearSlot('accessories')}
+                  style={styles.clearSlotButton}
+                >
+                  <Text style={styles.clearSlotText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.gearSlotLabel, styles.gearSlotLabelFilled]}>
+                ACCESSORIES
+              </Text>
+            </>
+          ) : (
+            <>
+              <Image 
+                source={require('../assets/accessories.png')} 
+                style={styles.gearSlotIcon} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.gearSlotLabel, outfitGeneration.gearSlots.accessories.itemImage && styles.gearSlotLabelFilled]}>
+                ACCESSORIES
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   </View>
 
   {/* REMOVED: Legacy Smart Outfit Suggestions Button - now using unified AIOutfitAssistant */}
 
   {/* Generate Outfit Button */}
-  <View style={{ marginTop: 10, alignItems: 'center' }}>
-    <TouchableOpacity
-      onPress={handleGenerateOutfit}
-      disabled={outfitGeneration.generatingOutfit || getEquippedItems().length < 1}
-      style={[
-        styles.generateOutfitButton,
-        (outfitGeneration.generatingOutfit || getEquippedItems().length < 1) && styles.generateOutfitButtonDisabled
-      ]}
-    >
-      <Text style={styles.generateOutfitButtonText}>
-        {outfitGeneration.generatingOutfit ? '🎮 Generating...' : '🎮 Generate Outfit'}
-      </Text>
-    </TouchableOpacity>
+  <View style={{ marginTop: 20, alignItems: 'center' }}>
+    <Animated.View style={{ transform: [{ scale: generateOutfitBounce }] }}>
+      <TouchableOpacity
+        onPress={() => {
+          createBounceAnimation(generateOutfitBounce).start();
+          handleGenerateOutfit();
+        }}
+        disabled={outfitGeneration.generatingOutfit || getEquippedItems().length < 1}
+        style={{
+          opacity: (outfitGeneration.generatingOutfit || getEquippedItems().length < 1) ? 0.5 : 1
+        }}
+      >
+        <Image 
+          source={getGenerateOutfitIcon()} 
+          style={styles.generateOutfitImageButton} 
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
+    </Animated.View>
     
     {getEquippedItems().length > 0 && (
       <Text style={styles.equippedCount}>
@@ -2697,22 +2846,28 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   </View>
 
   {/* Clear All Button */}
-  <View style={{ marginTop: 15, alignItems: 'center' }}>
-    <TouchableOpacity
-      onPress={() => {
-        outfitGeneration.setGearSlots({
-          top: { itemId: null, itemImage: null, itemTitle: null },
-          bottom: { itemId: null, itemImage: null, itemTitle: null },
-          shoes: { itemId: null, itemImage: null, itemTitle: null },
-          jacket: { itemId: null, itemImage: null, itemTitle: null },
-          hat: { itemId: null, itemImage: null, itemTitle: null },
-          accessories: { itemId: null, itemImage: null, itemTitle: null },
-        });
-      }}
-      style={styles.clearAllButton}
-    >
-      <Text style={styles.clearAllButtonText}>🗑️ Clear All Slots</Text>
-    </TouchableOpacity>
+  <View style={{ marginTop: 16, alignItems: 'center' }}>
+    <Animated.View style={{ transform: [{ scale: clearAllBounce }] }}>
+      <TouchableOpacity
+        onPress={() => {
+          createBounceAnimation(clearAllBounce).start();
+          outfitGeneration.setGearSlots({
+            top: { itemId: null, itemImage: null, itemTitle: null },
+            bottom: { itemId: null, itemImage: null, itemTitle: null },
+            shoes: { itemId: null, itemImage: null, itemTitle: null },
+            jacket: { itemId: null, itemImage: null, itemTitle: null },
+            hat: { itemId: null, itemImage: null, itemTitle: null },
+            accessories: { itemId: null, itemImage: null, itemTitle: null },
+          });
+        }}
+      >
+        <Image 
+          source={getClearAllSlotsIcon()} 
+          style={styles.clearAllImageButton} 
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
+    </Animated.View>
   </View>
 </View>
 )}
