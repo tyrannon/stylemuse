@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WardrobeUploadScreen from './screens/WardrobeUploadScreen';
 import { OnboardingNavigator } from './components/onboarding/OnboardingNavigator';
@@ -15,6 +15,7 @@ export default function App() {
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
 
   const checkOnboardingStatus = async () => {
     try {

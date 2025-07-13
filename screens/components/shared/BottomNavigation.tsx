@@ -1,7 +1,16 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView, Image, Easing } from 'react-native';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../contexts/ThemeContext';
+
+// Preload dock icons to prevent sequential loading
+const preloadIcons = () => {
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/builder.png')).uri);
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/wardrobe.png')).uri);
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/outfits.png')).uri);
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/profile.png')).uri);
+};
 
 interface BottomNavigationProps {
   // Page states
@@ -60,6 +69,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   const { theme } = useTheme();
   const styles = createStyles(theme);
   
+  // Preload icons on component mount
+  useEffect(() => {
+    preloadIcons();
+  }, []);
+  
   const bounceButton = (animatedValue: Animated.Value) => {
     Animated.sequence([
       Animated.timing(animatedValue, {
@@ -79,7 +93,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   return (
-    <View style={styles.bottomNavigation}>
+    <BlurView intensity={80} tint={theme.mode === 'dark' ? 'dark' : 'light'} style={styles.bottomNavigation}>
       {/* Outfit Builder Toggle Button */}
       <Animated.View style={{
         transform: [{
@@ -101,16 +115,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         >
           <Image 
             source={require('../../../assets/builder.png')}
-            style={[
-              styles.bottomNavIcon,
-              { 
-                width: 40,
-                height: 40,
-                resizeMode: 'contain',
-                opacity: showOutfitBuilder ? 1.0 : 0.6
-              }
-            ]} 
+style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
           />
+          {showOutfitBuilder && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
 
@@ -135,16 +142,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         >
           <Image 
             source={require('../../../assets/wardrobe.png')}
-            style={[
-              styles.bottomNavIcon,
-              { 
-                width: 40,
-                height: 40,
-                resizeMode: 'contain',
-                opacity: showWardrobe ? 1.0 : 0.6
-              }
-            ]} 
+style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
           />
+          {showWardrobe && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
 
@@ -183,16 +183,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         >
           <Image 
             source={require('../../../assets/outfits.png')}
-            style={[
-              styles.bottomNavIcon,
-              { 
-                width: 40,
-                height: 40,
-                resizeMode: 'contain',
-                opacity: showOutfitsPage ? 1.0 : 0.6
-              }
-            ]} 
+            style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
           />
+          {showOutfitsPage && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
 
@@ -218,19 +211,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         >
           <Image 
             source={require('../../../assets/profile.png')}
-            style={[
-              styles.bottomNavIcon,
-              { 
-                width: 40,
-                height: 40,
-                resizeMode: 'contain',
-                opacity: showProfilePage ? 1.0 : 0.6
-              }
-            ]} 
+style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
           />
+          {showProfilePage && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
-    </View>
+    </BlurView>
   );
 };
 
@@ -239,23 +225,32 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: theme.colors.card,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    ...theme.shadows.medium,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderTopWidth: 0.5,
+    borderTopColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+    ...theme.shadows.large,
   },
   bottomNavButton: {
     flexDirection: 'column',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     backgroundColor: 'transparent',
   },
   bottomNavIcon: {
-    marginBottom: 0,
+    width: 55,
+    height: 55,
+    resizeMode: 'contain',
+    marginBottom: 4,
+  },
+  activeIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+    marginTop: 2,
   },
   bottomNavLabel: {
     fontSize: 10,

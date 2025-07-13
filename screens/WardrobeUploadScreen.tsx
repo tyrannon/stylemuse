@@ -48,6 +48,8 @@ import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
 import { DataMigrationService, MigrationSummary } from '../services/DataMigrationService';
 import { createStyles } from './styles/WardrobeUploadScreen.styles';
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
 
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
@@ -65,6 +67,34 @@ const WardrobeUploadScreen = () => {
   
   // Ref for AIOutfitAssistant to trigger modal
   const aiOutfitAssistantRef = useRef<AIOutfitAssistantRef>(null);
+  
+  // Preload speed dial images on mount for instant rendering
+  useEffect(() => {
+    const preloadSpeedDialImages = async () => {
+      const speedDialImages = [
+        require('../assets/surprise.png'),
+        require('../assets/casual.png'),
+        require('../assets/business.png'),
+        require('../assets/sporty.png'),
+        require('../assets/datenight.png'),
+        require('../assets/weekend.png'),
+        require('../assets/party.png'),
+        require('../assets/ai.png'),
+      ];
+      
+      try {
+        const promises = speedDialImages.map(source => 
+          Image.prefetch(Image.resolveAssetSource(source).uri)
+        );
+        await Promise.all(promises);
+        logger.info(LogCategories.PERFORMANCE, 'Speed dial images preloaded in WardrobeUploadScreen');
+      } catch (error) {
+        logger.warn(LogCategories.PERFORMANCE, 'Failed to preload some speed dial images', error);
+      }
+    };
+    
+    preloadSpeedDialImages();
+  }, []); // Only run once on mount
   
   // Extract data and functions from hooks
   const {
@@ -300,6 +330,7 @@ const WardrobeUploadScreen = () => {
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
   const [cameraMode, setCameraMode] = useState<'single' | 'multi'>('single');
   
+  
   // Header loading animation
   const [headerSpinValue] = useState(new Animated.Value(0));
   
@@ -319,6 +350,7 @@ const WardrobeUploadScreen = () => {
       headerSpinValue.setValue(0);
     }
   }, [unifiedLoading.isLoading, headerSpinValue]);
+
 
   // Check for migration needs on app startup
   useEffect(() => {
@@ -2511,8 +2543,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
 {/* Outfit Builder - Always Show */}
-{showOutfitBuilder && (
-    <View style={{ marginTop: 20, position: 'relative' }}>
+<View style={{ 
+  marginTop: 20, 
+  position: 'relative',
+  display: showOutfitBuilder ? 'flex' : 'none' 
+}}>
   <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center', color: theme.colors.text }}>
     🎮 Outfit Builder
   </Text>
@@ -2870,12 +2905,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     </Animated.View>
   </View>
 </View>
-)}
 
 {/* Loved Outfits Section - Moved to dedicated Outfits page */}
 
 {/* Wardrobe Section */}
-{showWardrobe && (
+<View style={{ display: showWardrobe ? 'flex' : 'none' }}>
   <WardrobePage
     savedItems={savedItems}
     showSortFilterModal={modalState.showSortFilterModal}
@@ -2901,7 +2935,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     // Bulk operations
     deleteBulkWardrobeItems={deleteBulkWardrobeItems}
   />
-)}
+</View>
 
 {/* Item Detail View */}
 {showingItemDetail && detailViewItem && (
@@ -2963,7 +2997,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 )}
 
 {/* Profile Page */}
-{showProfilePage && (
+<View style={{ display: showProfilePage ? 'flex' : 'none' }}>
   <ProfilePage
     profileImage={profileImage}
     styleDNA={styleDNA}
@@ -2978,11 +3012,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     triggerHaptic={triggerHaptic}
     onRefreshData={handleDataRefresh}
   />
-)}
+</View>
 
 
 {/* Outfits Page */}
-{showOutfitsPage && (
+<View style={{ display: showOutfitsPage ? 'flex' : 'none' }}>
   <OutfitsPage
     lovedOutfits={lovedOutfits}
     getSortedOutfits={getSortedOutfits}
@@ -2997,7 +3031,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     savedItems={savedItems}
     categorizeItem={categorizeItem}
   />
-)}
+</View>
 
 {/* Add Item Page */}
 {showAddItemPage && (

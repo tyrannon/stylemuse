@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { RandomOutfitOptions } from '../utils/RandomOutfitGenerator';
 import { StyleCompatibility } from '../utils/StyleCompatibility';
+import SpeedDialIcon from './SpeedDialIcon';
 
 interface RandomOutfitButtonsProps {
   onGenerate: (options?: RandomOutfitOptions) => void;
@@ -87,7 +88,7 @@ const STYLE_BUTTONS: StyleButtonData[] = [
   }
 ];
 
-export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
+export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = React.memo(({
   onGenerate,
   onAIGenerate,
   isGenerating,
@@ -98,6 +99,14 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
   const [rotateAnimations] = useState(() => 
     STYLE_BUTTONS.map(() => new Animated.Value(0))
   );
+  
+  // Log mount/unmount for performance debugging
+  useEffect(() => {
+    console.log('[PERFORMANCE] RandomOutfitButtons mounted');
+    return () => {
+      console.log('[PERFORMANCE] RandomOutfitButtons unmounted');
+    };
+  }, []);
 
   const handleStylePress = (buttonData: StyleButtonData, index: number) => {
     if (disabled || isGenerating) return;
@@ -160,10 +169,11 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
               <Animated.View
                 style={[{ transform: [{ rotate: rotateInterpolate }] }]}
               >
-                <Image
+                <SpeedDialIcon
                   source={buttonData.icon}
+                  fallbackEmoji={buttonData.emoji}
+                  size={50}
                   style={styles.iconOnlyImage}
-                  resizeMode="contain"
                 />
               </Animated.View>
               
@@ -184,7 +194,17 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = ({
       )}
     </View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if these props actually change
+  return (
+    prevProps.isGenerating === nextProps.isGenerating &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.onGenerate === nextProps.onGenerate &&
+    prevProps.onAIGenerate === nextProps.onAIGenerate &&
+    prevProps.style === nextProps.style
+  );
+});
 
 const styles = StyleSheet.create({
   container: {

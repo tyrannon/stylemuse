@@ -17,6 +17,7 @@
     "@react-navigation/stack": "^7.4.2",
     "dotenv": "^16.5.0",
     "expo": "53.0.18",
+    "expo-blur": "~14.1.5",
     "expo-camera": "~16.1.10",
     "expo-document-picker": "~13.1.6",
     "expo-file-system": "~18.1.10",
