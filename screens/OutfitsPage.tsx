@@ -214,18 +214,6 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
         >
           <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>📊 Analytics</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab('calendar')}
-          style={[styles.tabButton, activeTab === 'calendar' && styles.activeTab]}
-        >
-          <Text style={[styles.tabText, activeTab === 'calendar' && styles.activeTabText]}>📅 Calendar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab('settings')}
-          style={[styles.tabButton, activeTab === 'settings' && styles.activeTab]}
-        >
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>⚙️ Settings</Text>
-        </TouchableOpacity>
       </View>
       
       <View style={{ marginTop: 20 }}>

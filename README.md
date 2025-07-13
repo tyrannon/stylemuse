@@ -474,7 +474,6 @@ Set these in the Expo dashboard with "Plain text" visibility:
 - [ ] **Cloud Storage Integration** - Sync wardrobe across devices with user accounts
 - [ ] **Enhanced Analytics** - Trend analysis and seasonal insights
 - [ ] **Smart Notifications** - Laundry reminders and outfit suggestions
-- [ ] **Outfit Planning** - Calendar integration for occasion-based outfits
 - [ ] **Style Trends Integration** - Real-time fashion trend analysis
 
 ### 🔮 **Future Vision**
