@@ -44,7 +44,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   const unifiedLoading = useUnifiedLoading();
   const styles = createStyles(theme);
   
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [activeTab, setActiveTab] = useState<'outfits' | 'analytics'>('outfits');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [markAsWornModalVisible, setMarkAsWornModalVisible] = useState(false);
   const [selectedOutfitForWearing, setSelectedOutfitForWearing] = useState<string | null>(null);
@@ -150,7 +150,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
             Let AI help you create your first amazing outfit!
           </Text>
           <AIOutfitAssistant
-            context="outfits"
+            context="standalone"
             size="large"
             sharedLoading={unifiedLoading} // Pass the shared loading instance
             onOutfitGenerated={(outfit) => {
@@ -171,21 +171,22 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   const smartSuggestions = getSmartOutfitSuggestions(10);
   const outfitStats = getOutfitWearStats();
 
-  if (showAnalytics) {
+  // Handle different tab views
+  if (activeTab === 'analytics') {
     return (
       <View style={{ flex: 1 }}>
         <View style={styles.tabHeader}>
           <TouchableOpacity
-            onPress={() => setShowAnalytics(false)}
-            style={[styles.tabButton, !showAnalytics && styles.activeTab]}
+            onPress={() => setActiveTab('outfits')}
+            style={[styles.tabButton, activeTab === 'outfits' && styles.activeTab]}
           >
-            <Text style={[styles.tabText, !showAnalytics && styles.activeTabText]}>👗 Outfits</Text>
+            <Text style={[styles.tabText, activeTab === 'outfits' && styles.activeTabText]}>👗 Outfits</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setShowAnalytics(true)}
-            style={[styles.tabButton, showAnalytics && styles.activeTab]}
+            onPress={() => setActiveTab('analytics')}
+            style={[styles.tabButton, activeTab === 'analytics' && styles.activeTab]}
           >
-            <Text style={[styles.tabText, showAnalytics && styles.activeTabText]}>📊 Analytics</Text>
+            <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>📊 Analytics</Text>
           </TouchableOpacity>
         </View>
         
@@ -197,20 +198,33 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
     );
   }
 
+
   return (
     <ScrollView style={{ flex: 1 }}>
       <View style={styles.tabHeader}>
         <TouchableOpacity
-          onPress={() => setShowAnalytics(false)}
-          style={[styles.tabButton, !showAnalytics && styles.activeTab]}
+          onPress={() => setActiveTab('outfits')}
+          style={[styles.tabButton, activeTab === 'outfits' && styles.activeTab]}
         >
-          <Text style={[styles.tabText, !showAnalytics && styles.activeTabText]}>👗 Outfits</Text>
+          <Text style={[styles.tabText, activeTab === 'outfits' && styles.activeTabText]}>👗 Outfits</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => setShowAnalytics(true)}
-          style={[styles.tabButton, showAnalytics && styles.activeTab]}
+          onPress={() => setActiveTab('analytics')}
+          style={[styles.tabButton, activeTab === 'analytics' && styles.activeTab]}
         >
-          <Text style={[styles.tabText, showAnalytics && styles.activeTabText]}>📊 Analytics</Text>
+          <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>📊 Analytics</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('calendar')}
+          style={[styles.tabButton, activeTab === 'calendar' && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, activeTab === 'calendar' && styles.activeTabText]}>📅 Calendar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('settings')}
+          style={[styles.tabButton, activeTab === 'settings' && styles.activeTab]}
+        >
+          <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>⚙️ Settings</Text>
         </TouchableOpacity>
       </View>
       

@@ -20,7 +20,8 @@
         "NSCameraUsageDescription": "StyleMuse needs camera access to take photos of your clothing items for AI analysis",
         "NSPhotoLibraryUsageDescription": "StyleMuse needs photo library access to select clothing images for your virtual wardrobe",
         "NSLocationWhenInUseUsageDescription": "StyleMuse uses your location to provide weather-based outfit recommendations"
-      }
+      },
+      "scheme": "com.tyrannon.stylemuseapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,7 +37,22 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ],
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "com.tyrannon.stylemuseapp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

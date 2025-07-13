@@ -25,6 +25,8 @@ export interface ModalState {
   setSlotSelectionModalVisible: (visible: boolean) => void;
   selectedSlot: string | null;
   setSelectedSlot: (slot: string | null) => void;
+  slotSortOrder: 'asc' | 'desc';
+  setSlotSortOrder: (order: 'asc' | 'desc') => void;
   
   // Camera and photo editing
   showCamera: boolean;
@@ -56,6 +58,7 @@ export const useModalState = (): ModalState => {
   // Slot selection modal
   const [slotSelectionModalVisible, setSlotSelectionModalVisible] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [slotSortOrder, setSlotSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first
   
   // Camera and photo editing
   const [showCamera, setShowCamera] = useState(false);
@@ -89,6 +92,8 @@ export const useModalState = (): ModalState => {
     setSlotSelectionModalVisible,
     selectedSlot,
     setSelectedSlot,
+    slotSortOrder,
+    setSlotSortOrder,
     
     // Camera and photo editing
     showCamera,

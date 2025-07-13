@@ -339,6 +339,15 @@ export const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 10,
     maxHeight: '80%',
   },
+  slotSelectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 15,
+  },
+  slotSelectionTitleContainer: {
+    flex: 1,
+  },
   slotSelectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -348,7 +357,20 @@ export const createStyles = (theme: any) => StyleSheet.create({
   slotSelectionSubtitle: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-    marginBottom: 15,
+  },
+  slotSortButton: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  slotSortButtonText: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   slotSelectionScroll: {
     maxHeight: '70%',

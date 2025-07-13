@@ -220,6 +220,47 @@ npm run build     # Production build
 npm run dev       # Development server
 ```
 
+## Debug System Quick Reference
+
+### Basic Usage
+```typescript
+import { logger } from '../utils/DebugLogger';
+import { LogCategories } from '../constants/LogCategories';
+
+// Basic logging
+logger.info(LogCategories.USER_ACTION, 'Button clicked', { buttonId: 'generate-outfit' });
+
+// Error logging
+logger.error(LogCategories.API_CALLS, 'Request failed', error, { endpoint: '/api/outfit' });
+
+// Performance tracking
+const endTracking = logger.startPerformanceTracking('operation-name');
+await doOperation();
+endTracking(); // Automatically logs duration
+```
+
+### Log Levels
+| Level | When to Use | Example |
+|-------|-------------|---------|
+| `VERBOSE` | Detailed debugging | Variable values, loop iterations |
+| `DEBUG` | Development debugging | Function entry/exit, state changes |
+| `INFO` | Important events | User actions, successful operations |
+| `WARN` | Recoverable issues | Deprecation warnings, fallbacks |
+| `ERROR` | Failures | Exceptions, API errors |
+| `FATAL` | Critical failures | App crashes, unrecoverable errors |
+
+### Log Categories
+- `USER_ACTION` - User interactions (button clicks, navigation)
+- `API_CALLS` - External API requests and responses
+- `AI_ANALYSIS` - AI/ML processing and results
+- `STORAGE` - Data persistence operations
+- `CACHE` - Caching operations
+- `NETWORK` - Network connectivity and requests
+- `PERFORMANCE` - Performance metrics and timing
+- `SECURITY` - Security-related events
+- `UI_RENDERING` - UI updates and rendering
+- `NAVIGATION` - Screen navigation and routing
+
 ### Live Log Monitoring
 ```bash
 # Watch all logs with colors
@@ -681,8 +722,84 @@ npx expo start
 5. **Error Detection**: Quickly spot and address issues
 6. **Claude Code Integration**: Cleaner context for AI assistance
 
-## Recent Updates
+## Calendar Integration - REMOVED ❌
 
+**Status**: Feature removed due to complexity and performance issues.
+
+### Problems Encountered:
+1. **Over-engineered architecture** - 7+ services with complex caching layers
+2. **Multiple filtering conflicts** - Date filtering in 4+ different places causing data loss
+3. **Performance issues** - 8000+ historical events causing UI lag and memory problems
+4. **Complex data pipeline** - Too many transformation steps between iCal → Cache → UI
+5. **Timezone complexity** - UTC vs local time causing event filtering issues
+6. **Storage limitations** - AsyncStorage not suitable for large event datasets
+
+### Lessons Learned:
+- **Start simple** - Calendar integration should begin with basic event display, not enterprise-level caching
+- **Database approach needed** - For this scale of data, SQLite or similar would be better than AsyncStorage
+- **Incremental filtering** - Should filter at data source, not in multiple UI layers  
+- **Performance first** - 8000+ events breaks mobile UI - need pagination/virtualization
+- **Scope control** - Feature scope expanded beyond original simple calendar view
+
+### Future Recommendations (if reimplemented):
+1. **Use SQLite** with indexed queries for event storage
+2. **Server-side filtering** before mobile app receives data
+3. **Start with Google Calendar API** instead of universal iCal parsing
+4. **Implement pagination/virtualization** for large event lists
+5. **Proper date range selection** before fetching data
+6. **Limit historical data** to recent months only
+7. **Simple UI first** - basic list view before complex filtering
+
+### Architecture That Should Have Been Used:
+```typescript
+// Simple approach that would have worked:
+const CalendarView = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  const fetchEvents = async () => {
+    // Fetch ONLY next 30 days of events
+    // No complex caching, just simple state
+    // Basic SQLite storage if needed
+  };
+  
+  return <FlatList data={events} />; // Virtualized list
+};
+```
+
+## Recent Updates & Current Status
+
+- ❌ **REMOVED Calendar Integration Feature** (2025-07-13)
+  - Feature became over-engineered with 7+ services and complex caching
+  - Performance issues with 8000+ events causing UI lag
+  - Multiple conflicting date filters causing data loss
+  - Will consider simpler SQLite-based approach in future
+- ✅ **Consolidated Documentation** (2025-07-13)
+  - Moved all scattered .md files into CLAUDE.md
+  - Cleaned up redundant documentation files
+  - Centralized developer instructions
+
+## Current Priority Tasks
+
+### High Priority
+- [ ] Test the unified loading system with outfit generation
+  - Focus on the "Complete Outfit" button in ItemDetailView
+  - Verify shared loading instance is working correctly
+  - Check that header spinner appears during AI generation
+
+### Medium Priority
+- [ ] Review and test the fast random outfit generation system
+  - Test all 7 emoji style buttons (🎲 👕 💼 🏃‍♀️ 💃 🏠 🎉)
+  - Verify <100ms generation time
+  - Check animations and haptic feedback
+- [ ] Check dark mode consistency across all screens
+  - Verify no hardcoded colors remain
+  - Test theme switching from Profile page
+
+### Low Priority
+- [ ] Verify onboarding flow for new users
+- [ ] Review log monitoring system
+- [ ] Profile and optimize any slow operations
 - ✅ **Implemented Fast Random Outfit Generation System**
   - 7 emoji style buttons with unique colors and animations
   - <100ms generation time with 100% success rate

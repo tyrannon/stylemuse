@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView, Image, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -60,26 +60,19 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   const { theme } = useTheme();
   const styles = createStyles(theme);
   
-  const shakeButton = (animatedValue: Animated.Value) => {
+  const bounceButton = (animatedValue: Animated.Value) => {
     Animated.sequence([
       Animated.timing(animatedValue, {
-        toValue: 10,
-        duration: 50,
+        toValue: -15,
+        duration: 150,
         useNativeDriver: true,
+        // Ease out for upward motion
+        easing: Easing.out(Easing.quad),
       }),
-      Animated.timing(animatedValue, {
-        toValue: -10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animatedValue, {
-        toValue: 10,
-        duration: 50,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animatedValue, {
+      Animated.spring(animatedValue, {
         toValue: 0,
-        duration: 50,
+        friction: 4,
+        tension: 40,
         useNativeDriver: true,
       }),
     ]).start();
@@ -90,13 +83,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       {/* Outfit Builder Toggle Button */}
       <Animated.View style={{
         transform: [{
-          translateX: builderShakeValue
+          translateY: builderShakeValue
         }]
       }}>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            shakeButton(builderShakeValue);
+            bounceButton(builderShakeValue);
             if (!showOutfitBuilder) {
               navigateToBuilder();
             } else if (showOutfitBuilder) {
@@ -106,25 +99,31 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, { color: showOutfitBuilder ? theme.colors.primary : theme.colors.textSecondary }]}>
-            🎮
-          </Text>
-          <Text style={[styles.bottomNavLabel, { color: showOutfitBuilder ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitBuilder ? 'bold' : '500' }]}>
-            Builder
-          </Text>
+          <Image 
+            source={require('../../../assets/builder.png')}
+            style={[
+              styles.bottomNavIcon,
+              { 
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+                opacity: showOutfitBuilder ? 1.0 : 0.6
+              }
+            ]} 
+          />
         </TouchableOpacity>
       </Animated.View>
 
       {/* Wardrobe Toggle Button */}
       <Animated.View style={{
         transform: [{
-          translateX: wardrobeShakeValue
+          translateY: wardrobeShakeValue
         }]
       }}>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            shakeButton(wardrobeShakeValue);
+            bounceButton(wardrobeShakeValue);
             if (!showWardrobe) {
               navigateToWardrobe();
             } else if (showWardrobe && !showingItemDetail) {
@@ -134,12 +133,18 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, { color: showWardrobe ? theme.colors.primary : theme.colors.textSecondary }]}>
-            👔
-          </Text>
-          <Text style={[styles.bottomNavLabel, { color: showWardrobe ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showWardrobe ? 'bold' : '500' }]}>
-            Wardrobe
-          </Text>
+          <Image 
+            source={require('../../../assets/wardrobe.png')}
+            style={[
+              styles.bottomNavIcon,
+              { 
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+                opacity: showWardrobe ? 1.0 : 0.6
+              }
+            ]} 
+          />
         </TouchableOpacity>
       </Animated.View>
 
@@ -157,13 +162,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       {/* Outfits Page Button */}
       <Animated.View style={{
         transform: [{
-          translateX: outfitsShakeValue
+          translateY: outfitsShakeValue
         }]
       }}>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            shakeButton(outfitsShakeValue);
+            bounceButton(outfitsShakeValue);
             // If outfit detail is open, just go back to outfits
             if (showingOutfitDetail) {
               goBackToOutfits();
@@ -176,12 +181,18 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary }]}>
-            👗
-          </Text>
-          <Text style={[styles.bottomNavLabel, { color: showOutfitsPage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showOutfitsPage ? 'bold' : '500' }]}>
-            Outfits
-          </Text>
+          <Image 
+            source={require('../../../assets/outfits.png')}
+            style={[
+              styles.bottomNavIcon,
+              { 
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+                opacity: showOutfitsPage ? 1.0 : 0.6
+              }
+            ]} 
+          />
         </TouchableOpacity>
       </Animated.View>
 
@@ -189,13 +200,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       {/* Style DNA Profile Button */}
       <Animated.View style={{
         transform: [{
-          translateX: profileShakeValue
+          translateY: profileShakeValue
         }]
       }}>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            shakeButton(profileShakeValue);
+            bounceButton(profileShakeValue);
             if (!showProfilePage) {
               navigateToProfile();
             } else if (showProfilePage) {
@@ -205,12 +216,18 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           }}
           style={styles.bottomNavButton}
         >
-          <Text style={[styles.bottomNavIcon, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary }]}>
-            🧬
-          </Text>
-          <Text style={[styles.bottomNavLabel, { color: showProfilePage ? theme.colors.primary : theme.colors.textSecondary, fontWeight: showProfilePage ? 'bold' : '500' }]}>
-            Profile
-          </Text>
+          <Image 
+            source={require('../../../assets/profile.png')}
+            style={[
+              styles.bottomNavIcon,
+              { 
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+                opacity: showProfilePage ? 1.0 : 0.6
+              }
+            ]} 
+          />
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -222,8 +239,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     backgroundColor: theme.colors.card,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
@@ -232,18 +249,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   bottomNavButton: {
     flexDirection: 'column',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: 'transparent',
   },
   bottomNavIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-    color: theme.colors.textSecondary,
-  },
-  bottomNavIconActive: {
-    color: theme.colors.primary,
+    marginBottom: 0,
   },
   bottomNavLabel: {
     fontSize: 10,
@@ -255,16 +267,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontWeight: 'bold',
   },
   centerAddButton: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     backgroundColor: theme.colors.primary,
-    borderRadius: 28,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     ...theme.shadows.large,
   },
   centerAddButtonIcon: {
-    fontSize: 32,
+    fontSize: 36,
     color: 'white',
     fontWeight: '300',
     marginHorizontal: 4,

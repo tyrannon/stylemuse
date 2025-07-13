@@ -1240,11 +1240,30 @@ const WardrobeUploadScreen = () => {
   // AVAILABLE_CATEGORIES is now provided by useWardrobeData hook
 
   // Function to get items filtered by category
-  const getItemsByCategory = (category: string) => {
-    return savedItems.filter(item => {
+  const getItemsByCategory = (category: string, sortOrder?: 'asc' | 'desc') => {
+    const filteredItems = savedItems.filter(item => {
       const itemCategory = categorizeItem(item);
       return itemCategory === category;
     });
+    
+    // Apply sorting if sortOrder is provided
+    if (sortOrder) {
+      // Since items don't have timestamps, we'll use the array index
+      // Items added later are at the end of the array
+      const itemsWithIndex = filteredItems.map((item, index) => ({ item, originalIndex: savedItems.indexOf(item) }));
+      
+      itemsWithIndex.sort((a, b) => {
+        if (sortOrder === 'desc') {
+          return b.originalIndex - a.originalIndex; // Newest first (higher index = newer)
+        } else {
+          return a.originalIndex - b.originalIndex; // Oldest first (lower index = older)
+        }
+      });
+      
+      return itemsWithIndex.map(({ item }) => item);
+    }
+    
+    return filteredItems;
   };
 
   // updateItemCategory function is now provided by useWardrobeData hook
@@ -1845,17 +1864,29 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
           style={styles.modalOverlay}
         >
           <Pressable style={styles.slotSelectionModalContent}>
-            <Text style={styles.slotSelectionTitle}>
-              Select {modalState.selectedSlot?.toUpperCase()} Item
-            </Text>
-            <Text style={styles.slotSelectionSubtitle}>
-              Showing {getItemsByCategory(modalState.selectedSlot || '').length} {modalState.selectedSlot} items
-            </Text>
+            <View style={styles.slotSelectionHeader}>
+              <View style={styles.slotSelectionTitleContainer}>
+                <Text style={styles.slotSelectionTitle}>
+                  Select {modalState.selectedSlot?.toUpperCase()} Item
+                </Text>
+                <Text style={styles.slotSelectionSubtitle}>
+                  Showing {getItemsByCategory(modalState.selectedSlot || '', modalState.slotSortOrder).length} {modalState.selectedSlot} items
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => modalState.setSlotSortOrder(modalState.slotSortOrder === 'asc' ? 'desc' : 'asc')}
+                style={styles.slotSortButton}
+              >
+                <Text style={styles.slotSortButtonText}>
+                  {modalState.slotSortOrder === 'desc' ? '↓ Newest' : '↑ Oldest'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             
             <ScrollView style={styles.slotSelectionScroll}>
-              {getItemsByCategory(modalState.selectedSlot || '').map((item, index) => (
+              {getItemsByCategory(modalState.selectedSlot || '', modalState.slotSortOrder).map((item, index) => (
                 <TouchableOpacity
-                  key={index}
+                  key={`${item.image}-${index}`}
                   onPress={() => assignItemToSlot(modalState.selectedSlot!, item)}
                   style={styles.slotSelectionItem}
                 >
@@ -1898,7 +1929,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
                 </TouchableOpacity>
               ))}
               
-              {getItemsByCategory(modalState.selectedSlot || '').length === 0 && (
+              {getItemsByCategory(modalState.selectedSlot || '', modalState.slotSortOrder).length === 0 && (
                 <View style={styles.noItemsContainer}>
                   <Text style={styles.noItemsText}>
                     No {modalState.selectedSlot} items found
@@ -2435,7 +2466,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 {/* Outfit Builder - Always Show */}
 {showOutfitBuilder && (
     <View style={{ marginTop: 20, position: 'relative' }}>
-  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center', color: theme.colors.text }}>
     🎮 Outfit Builder
   </Text>
   
@@ -2808,6 +2839,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     markOutfitAsWorn={markOutfitAsWorn}
     navigateToBuilder={navigateToBuilder}
     deleteBulkOutfits={deleteBulkOutfits}
+    savedItems={savedItems}
+    categorizeItem={categorizeItem}
   />
 )}
 
