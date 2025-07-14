@@ -22,7 +22,7 @@ interface WardrobePageProps {
   getCategoryDisplayName: (category: string) => string;
   getLaundryStatusDisplayName: (status: string) => string;
   getSortDisplayName: (sortType: string) => string;
-  openWardrobeItemView: (item: WardrobeItem) => void;
+  openWardrobeItemView: (item: WardrobeItem, index?: number) => void;
   categorizeItem: (item: WardrobeItem) => string;
   generateOutfitSuggestions: (item: WardrobeItem) => void;
   // Laundry analytics
@@ -329,13 +329,20 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                 ]}
                 activeOpacity={0.7}
               >
-                <SafeImage
-                  uri={item.image}
-                  style={styles.wardrobeInventoryItemImage}
-                  resizeMode="cover"
-                  placeholder="item"
-                  category={categorizeItem(item)}
-                />
+                <View>
+                  <SafeImage
+                    uri={item.image}
+                    style={styles.wardrobeInventoryItemImage}
+                    resizeMode="cover"
+                    placeholder="item"
+                    category={categorizeItem(item)}
+                  />
+                  
+                  {/* New item indicator - red dot for items not yet viewed */}
+                  {item.isNew && (
+                    <View style={styles.newItemDot} />
+                  )}
+                </View>
                 
                 <View style={styles.wardrobeInventoryItemInfo}>
                   <Text 
@@ -759,5 +766,16 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   activeTabText: {
     color: 'white',
+  },
+  // Red dot indicator for new wardrobe items that haven't been viewed
+  newItemDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.error || '#FF3B30',
+    zIndex: 1,
   },
 });

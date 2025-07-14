@@ -634,6 +634,124 @@ private static isCategory(item: WardrobeItem, category: string): boolean {
 - **Type Safety**: Full TypeScript coverage
 - **Error Recovery**: Logs errors but continues functioning
 
+## Outfit Viewing & Unviewed Tracking System
+
+### Overview
+StyleMuse tracks which generated outfits have been viewed by users, displaying red dot indicators on unviewed outfits and maintaining an unviewed count badge on the Outfits tab.
+
+### Key Features
+
+#### 1. Individual Outfit Tracking
+- Each outfit has a `viewed?: boolean` property (default: `false`)
+- Red dot indicator (10x10px) appears in top-right corner of unviewed outfit thumbnails
+- Dot uses theme error color (`theme.colors.error`)
+- Automatically disappears when outfit is opened in detail view
+
+#### 2. Unviewed Count Management
+- `unviewedOutfitsCount` state tracks total unviewed outfits
+- Displayed as badge on Outfits tab in bottom navigation
+- Increments when new outfits are generated
+- Decrements when individual outfits are viewed
+- Resets to 0 when navigating to Outfits page via bottom nav
+
+#### 3. Mark All as Seen Button
+- **Purpose**: Quickly mark all unviewed outfits as viewed with one tap
+- **Location**: Header of Outfits page, next to multi-select button
+- **Visibility**: Only appears when there are unviewed outfits
+- **Behavior**: 
+  - Marks all outfits with `viewed: false` as `viewed: true`
+  - Resets `unviewedOutfitsCount` to 0
+  - Shows success alert with count of marked outfits
+  - Button disappears after marking all as seen
+- **Styling**: Uses existing `actionButton` styles for consistency
+
+### Implementation Details
+
+#### State Flow
+1. New outfits created with `viewed: false`
+2. Opening outfit detail calls `markOutfitAsViewed()`
+3. Updates outfit state and persists to AsyncStorage
+4. Decrements `unviewedOutfitsCount`
+5. "Mark All as Seen" bulk updates all unviewed outfits
+
+#### Key Functions
+- `markOutfitAsViewed(outfitId)` - Marks single outfit as viewed
+- `markAllOutfitsAsViewed()` - Marks all unviewed outfits as viewed
+- `openOutfitDetailViewWithTracking()` - Wrapper that tracks viewing
+
+#### Persistence
+- Viewed state saved to AsyncStorage with outfit data
+- Survives app restarts and maintains accurate tracking
+
+## Wardrobe Item New/Viewed Tracking System
+
+### Overview
+StyleMuse tracks newly added wardrobe items with visual indicators and count badges, similar to the outfit viewing system. This helps users quickly identify which items they've recently added to their digital wardrobe.
+
+### Key Features
+
+#### 1. Individual Item Tracking
+- Each wardrobe item has an `isNew?: boolean` property (default: `true` when added)
+- Red dot indicator (10x10px) appears in top-right corner of new item thumbnails
+- Dot uses theme error color (`theme.colors.error`)
+- Works for both photo items and text-only items
+- Automatically disappears when item is opened in detail view
+
+#### 2. New Item Count Management  
+- `newWardrobeItemCount` state tracks total new wardrobe items
+- Displayed as badge on Wardrobe tab in bottom navigation
+- Calculated from `savedItems.filter(item => item.isNew).length`
+- Updates automatically via useEffect when savedItems changes
+- Badge shows count (up to 99, then "99+")
+
+#### 3. Item Addition Entry Points
+All methods of adding items properly set `isNew: true`:
+- **Camera (Single Item)**: Via `handleAutoDescribeAndSave()`
+- **Camera (Multi-Item)**: Via `saveBulkWardrobeItems()` 
+- **Text Entry**: Via `handleSaveTextItem()`
+- **Gallery Upload**: Uses same paths as camera
+
+### Implementation Details
+
+#### State Flow
+1. New items created with `isNew: true` 
+2. Opening item detail calls `openWardrobeItemViewWithTracking()`
+3. Finds actual index in savedItems (handles filtered/sorted views)
+4. Calls `markWardrobeItemAsViewed()` to set `isNew: false`
+5. Updates state and persists to AsyncStorage
+6. Count automatically updates via useEffect
+
+#### Key Functions
+- `markWardrobeItemAsViewed(itemIndex)` - Marks single item as viewed
+- `openWardrobeItemViewWithTracking()` - Wrapper that finds index and tracks viewing
+- `useEffect` in WardrobeUploadScreen - Calculates new item count
+
+#### Visual Components
+- **WardrobePage**: Displays red dots on new items (both photo and text cards)
+- **TextItemCard**: Includes red dot support with absolute positioning
+- **BottomNavigation**: Shows badge with count on wardrobe icon
+
+#### Known Limitations
+- **No "Mark All as Seen" button yet** - Unlike outfits, wardrobe page doesn't have bulk marking
+- **No loading animation on bulk upload** - Items are saved successfully but without visual feedback
+
+### Technical Notes
+
+#### Index Handling
+The wardrobe viewing system handles the complexity of filtered/sorted views:
+```typescript
+// WardrobePage shows filtered items, so index !== actual savedItems index
+getSortedAndFilteredItems().map((item, index) => ...)
+
+// openWardrobeItemViewWithTracking finds the real index:
+const actualIndex = savedItems.findIndex(savedItem => savedItem.image === item.image);
+```
+
+#### Persistence  
+- `isNew` state saved to AsyncStorage with item data
+- Survives app restarts and maintains accurate tracking
+- Compatible with existing wardrobe data structure
+
 ## Live Log Monitoring System
 
 ### Overview
@@ -1054,3 +1172,50 @@ This optimization pattern should be applied to any screen with:
 - ✅ **Resolved loading state isolation between hook instances**
 - ✅ **Complete theme system hardcoded color cleanup (100+ colors converted)**
 - ✅ **All major components now fully theme-compliant**
+- ✅ **Outfit Viewing & Unviewed Tracking System** (2025-07-14)
+  - Added red dot indicators on unviewed outfit thumbnails
+  - Implemented individual outfit viewed state tracking
+  - Created "Mark All as Seen" button for bulk marking
+  - Integrated with existing unviewedOutfitsCount system
+  - Full AsyncStorage persistence for viewed states
+
+## Future Enhancement Ideas
+
+### Outfit Viewing System Polish
+1. **Animation Enhancements**
+   - Fade-out animation for red dots when marked as viewed
+   - Smooth transition when "Mark All as Seen" is pressed
+   - Badge count animation on bottom navigation
+
+2. **UX Improvements**
+   - Optional confirmation modal before marking all as seen
+   - Long-press to mark individual outfit as viewed without opening
+   - Swipe gesture to mark multiple outfits as viewed
+   - Undo functionality after marking all as seen
+
+3. **Accessibility**
+   - Add accessibility labels for screen readers ("Unviewed outfit", "Mark all outfits as seen")
+   - VoiceOver announcements when marking outfits as viewed
+   - High contrast mode support for red dots
+
+4. **Advanced Features**
+   - Filter to show only unviewed outfits
+   - Sort options prioritizing unviewed outfits
+   - Analytics tracking for viewing patterns
+   - Auto-mark as viewed after X seconds of viewing
+   - Different indicators for "new" vs "updated" outfits
+
+5. **Visual Enhancements**
+   - Pulsing animation for new outfit indicators
+   - Different indicator styles (dot, badge, glow effect)
+   - Customizable indicator colors in settings
+   - "New" text badge alternative to red dot
+
+### Wardrobe Item Viewing System Enhancements
+1. **Mark All as Seen Button**
+   - Add bulk marking functionality to wardrobe page header
+   - Similar implementation to outfit page's "Mark All as Seen"
+   - Shows count of new items before marking
+   - Success alert with number of items marked
+   - Resets newWardrobeItemCount to 0
+   - Only visible when there are new items

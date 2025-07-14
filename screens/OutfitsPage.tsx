@@ -20,6 +20,7 @@ interface OutfitsPageProps {
   toggleOutfitLove: (outfitId: string) => void;
   downloadImage: (imageUri: string) => void;
   markOutfitAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
+  markAllOutfitsAsViewed?: () => Promise<number>;
   navigateToBuilder: () => void;
   // Bulk operations
   deleteBulkOutfits?: (outfitIds: string[]) => Promise<void>;
@@ -35,6 +36,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   toggleOutfitLove,
   downloadImage,
   markOutfitAsWorn,
+  markAllOutfitsAsViewed,
   navigateToBuilder,
   // Bulk operations
   deleteBulkOutfits,
@@ -52,6 +54,9 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   // Multi-select state
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedOutfits, setSelectedOutfits] = useState<LovedOutfit[]>([]);
+  
+  // Check if there are any unviewed outfits
+  const hasUnviewedOutfits = lovedOutfits.some(outfit => !outfit.viewed);
   
   // Handle multi-select functions
   const toggleMultiSelectMode = () => {
@@ -134,6 +139,25 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
       ]
     );
   };
+
+  const handleMarkAllAsSeen = async () => {
+    if (!markAllOutfitsAsViewed) return;
+    
+    try {
+      const markedCount = await markAllOutfitsAsViewed();
+      if (markedCount > 0) {
+        Alert.alert(
+          'Success! ✅',
+          `Marked ${markedCount} outfit${markedCount > 1 ? 's' : ''} as seen.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error marking all as seen:', error);
+      Alert.alert('Error', 'Failed to mark outfits as seen. Please try again.');
+    }
+  };
+
   if (lovedOutfits.length === 0) {
     return (
       <View style={{ marginTop: 20 }}>
@@ -222,14 +246,27 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
             👗 Generated Outfits ({lovedOutfits.length})
           </Text>
           
-          <TouchableOpacity
-            onPress={toggleMultiSelectMode}
-            style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton]}
-          >
-            <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
-              {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {hasUnviewedOutfits && markAllOutfitsAsViewed && (
+              <TouchableOpacity
+                onPress={handleMarkAllAsSeen}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionButtonText}>
+                  👁️ Mark All Seen
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+              onPress={toggleMultiSelectMode}
+              style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton]}
+            >
+              <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
+                {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Multi-select actions */}
@@ -318,6 +355,11 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   >
                     <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⬇️</Text>
                   </TouchableOpacity>
+
+                  {/* Unviewed indicator */}
+                  {!outfit.viewed && (
+                    <View style={styles.unviewedDot} />
+                  )}
 
                   {/* Outfit image */}
                   <SafeImage
@@ -409,6 +451,11 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                 >
                   <Text style={styles.downloadOutfitButtonText}>⬇️</Text>
                 </TouchableOpacity>
+
+                {/* Unviewed indicator */}
+                {!outfit.viewed && (
+                  <View style={styles.unviewedDot} />
+                )}
 
                 {/* Outfit image */}
                 <SafeImage
@@ -779,5 +826,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  unviewedDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.error || '#FF3B30',
+    zIndex: 1,
   },
 });

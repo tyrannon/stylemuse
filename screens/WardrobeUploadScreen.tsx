@@ -113,6 +113,9 @@ const WardrobeUploadScreen = () => {
     updateItemCategory,
     saveFieldUpdate,
     toggleOutfitLove,
+    markOutfitAsViewed,
+    markAllOutfitsAsViewed,
+    markWardrobeItemAsViewed,
     markOutfitAsWorn,
     getSmartOutfitSuggestions,
     getOutfitWearStats,
@@ -197,6 +200,63 @@ const WardrobeUploadScreen = () => {
   const [showMigrationModal, setShowMigrationModal] = useState(false);
   const [migrationChecked, setMigrationChecked] = useState(false);
   const migrationService = DataMigrationService.getInstance();
+
+  // Wrapper for openOutfitDetailView that marks outfit as viewed
+  // This function handles the viewing tracking when user opens an outfit detail
+  const openOutfitDetailViewWithTracking = useCallback(async (outfit: any) => {
+    // Mark outfit as viewed if it hasn't been viewed yet
+    if (outfit && outfit.id && !outfit.viewed) {
+      const wasMarked = await markOutfitAsViewed(outfit.id);
+      if (wasMarked) {
+        // Decrement unviewed count to update badge
+        setUnviewedOutfitsCount(prev => Math.max(0, prev - 1));
+      }
+    }
+    // Open the detail view
+    openOutfitDetailView(outfit);
+  }, [markOutfitAsViewed, openOutfitDetailView]);
+
+  // Wrapper for markAllOutfitsAsViewed that resets unviewed count
+  // This handles the bulk marking functionality for "Mark All as Seen" button
+  const markAllOutfitsAsViewedWithTracking = useCallback(async () => {
+    const markedCount = await markAllOutfitsAsViewed();
+    if (markedCount > 0) {
+      // Reset unviewed count to 0 to clear badge
+      setUnviewedOutfitsCount(0);
+    }
+    return markedCount;
+  }, [markAllOutfitsAsViewed]);
+
+  // Wrapper for openWardrobeItemView that marks item as viewed
+  // This function handles wardrobe item viewing tracking and index resolution
+  const openWardrobeItemViewWithTracking = useCallback(async (item: any, index?: number) => {
+    console.log('[DEBUG] openWardrobeItemViewWithTracking called:', {
+      item: { title: item?.title, isNew: item?.isNew },
+      index
+    });
+    
+    // Find the actual index in savedItems if not provided
+    // This is needed because WardrobePage uses filtered/sorted items
+    let actualIndex = index;
+    if (typeof actualIndex !== 'number') {
+      actualIndex = savedItems.findIndex(savedItem => savedItem.image === item.image);
+    }
+    
+    console.log('[DEBUG] Actual index found:', actualIndex);
+    
+    // Mark item as viewed if it's new
+    if (item && item.isNew && actualIndex >= 0) {
+      console.log('[DEBUG] Marking item as viewed...');
+      const wasMarked = await markWardrobeItemAsViewed(actualIndex);
+      console.log('[DEBUG] Item marked as viewed:', wasMarked);
+      if (wasMarked) {
+        // No need to manually update count as useEffect will handle it
+        // The useEffect watching savedItems will automatically recalculate newWardrobeItemCount
+      }
+    }
+    // Open the detail view
+    openWardrobeItemView(item);
+  }, [markWardrobeItemAsViewed, openWardrobeItemView, savedItems]);
 
   // Custom navigate to builder with scroll
   const navigateToBuilderWithScroll = useCallback(() => {
@@ -325,6 +385,30 @@ const WardrobeUploadScreen = () => {
   }));
   const [generateOutfitBounce] = useState(new Animated.Value(1));
   const [clearAllBounce] = useState(new Animated.Value(1));
+  
+  // Unviewed outfits tracking - tracks count of outfits not yet opened by user
+  const [unviewedOutfitsCount, setUnviewedOutfitsCount] = useState(0);
+  
+  // New wardrobe items tracking - tracks count of items not yet viewed in detail
+  const [newWardrobeItemCount, setNewWardrobeItemCount] = useState(0);
+  
+  // Calculate new wardrobe item count when savedItems changes
+  // This effect automatically updates the badge count on the wardrobe tab
+  useEffect(() => {
+    const newCount = savedItems.filter(item => item.isNew).length;
+    console.log('[DEBUG] Calculating new wardrobe items:', {
+      totalItems: savedItems.length,
+      newItems: savedItems.filter(item => item.isNew),
+      newCount
+    });
+    setNewWardrobeItemCount(newCount);
+  }, [savedItems]);
+  
+  // Wrap navigateToOutfits to reset unviewed count
+  const navigateToOutfitsWithReset = useCallback(() => {
+    setUnviewedOutfitsCount(0);
+    navigateToOutfits();
+  }, [navigateToOutfits]);
   
   // Multi-item detection state
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
@@ -661,19 +745,22 @@ const WardrobeUploadScreen = () => {
 
       // Save to wardrobe
       setSavedItems(prev => {
-        const newItems = [
-          ...prev,
-          {
-            image: imageUri,
-            title: itemTitle,
-            description: itemDescription,
-            tags: itemTags,
-            color: itemColor,
-            material: itemMaterial,
-            style: itemStyle,
-            fit: itemFit,
-          },
-        ];
+        const newItem = {
+          image: imageUri,
+          title: itemTitle,
+          description: itemDescription,
+          tags: itemTags,
+          color: itemColor,
+          material: itemMaterial,
+          style: itemStyle,
+          fit: itemFit,
+          isNew: true, // Mark as new item
+        };
+        console.log('[DEBUG] handleAutoDescribeAndSave - Adding new item:', {
+          title: newItem.title,
+          isNew: newItem.isNew
+        });
+        const newItems = [...prev, newItem];
         // Save to storage
         saveWardrobeItems(newItems);
         return newItems;
@@ -690,6 +777,7 @@ const WardrobeUploadScreen = () => {
           material: itemMaterial,
           style: itemStyle,
           fit: itemFit,
+          isNew: true,
         };
         const category = categorizeItem(newItem);
         alert(`Item analyzed and saved to wardrobe! 📁 Categorized as: ${category.toUpperCase()}`);
@@ -737,6 +825,7 @@ const WardrobeUploadScreen = () => {
         style: item.style || '',
         fit: item.fit || '',
         category: item.category || '',
+        isNew: true, // Mark as new item
         laundryStatus: item.laundryStatus || 'clean',
       };
 
@@ -1053,6 +1142,7 @@ const WardrobeUploadScreen = () => {
             gender: selectedGender || null,
             createdAt: new Date(),
             isLoved: false, // Don't automatically love generated outfits
+            viewed: false, // New outfit hasn't been viewed yet
             // Wear tracking fields
             wearHistory: [],
             timesWorn: 0,
@@ -1065,6 +1155,9 @@ const WardrobeUploadScreen = () => {
             saveLovedOutfits(newOutfits);
             return newOutfits;
           });
+          
+          // Increment unviewed outfits count
+          setUnviewedOutfitsCount(prev => prev + 1);
           
           const message = styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸";
           alert(message + "\n\n✨ Outfit automatically saved to your Loved collection!");
@@ -1405,10 +1498,12 @@ const WardrobeUploadScreen = () => {
       gender: selectedGender || null,
       createdAt: new Date(),
       isLoved: false, // Don't automatically love when saving
+      viewed: false, // New outfit hasn't been viewed yet
       // Wear tracking fields
       wearHistory: [],
       timesWorn: 0,
       suggestedForReWear: false,
+      hasBeenViewed: false, // Legacy field - keeping for backward compatibility
     };
     
     setLovedOutfits(prev => {
@@ -1417,6 +1512,10 @@ const WardrobeUploadScreen = () => {
       saveLovedOutfits(newOutfits);
       return newOutfits;
     });
+    
+    // Increment unviewed outfits count
+    setUnviewedOutfitsCount(prev => prev + 1);
+    
     alert("Outfit saved to your collection! 👗");
   };
 
@@ -2922,7 +3021,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getCategoryDisplayName={getCategoryDisplayName}
     getLaundryStatusDisplayName={getLaundryStatusDisplayName}
     getSortDisplayName={getSortDisplayName}
-    openWardrobeItemView={openWardrobeItemView}
+    openWardrobeItemView={openWardrobeItemViewWithTracking}
     categorizeItem={categorizeItem}
     generateOutfitSuggestions={generateOutfitSuggestions}
     showLaundryAnalytics={modalState.showLaundryAnalytics}
@@ -3022,10 +3121,11 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     getSortedOutfits={getSortedOutfits}
     getSmartOutfitSuggestions={getSmartOutfitSuggestions}
     getOutfitWearStats={getOutfitWearStats}
-    openOutfitDetailView={openOutfitDetailView}
+    openOutfitDetailView={openOutfitDetailViewWithTracking}
     toggleOutfitLove={toggleOutfitLove}
     downloadImage={downloadImage}
     markOutfitAsWorn={markOutfitAsWorn}
+    markAllOutfitsAsViewed={markAllOutfitsAsViewedWithTracking}
     navigateToBuilder={navigateToBuilder}
     deleteBulkOutfits={deleteBulkOutfits}
     savedItems={savedItems}
@@ -3058,7 +3158,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         showingOutfitDetail={showingOutfitDetail}
         navigateToBuilder={navigateToBuilder}
         navigateToWardrobe={navigateToWardrobe}
-        navigateToOutfits={navigateToOutfits}
+        navigateToOutfits={navigateToOutfitsWithReset}
         navigateToProfile={navigateToProfile}
         goBackToOutfits={goBackToOutfits}
         pickMultipleImages={pickMultipleImages}
@@ -3070,6 +3170,8 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         wardrobeShakeValue={wardrobeShakeValue}
         outfitsShakeValue={outfitsShakeValue}
         profileShakeValue={profileShakeValue}
+        unviewedOutfitsCount={unviewedOutfitsCount}
+        newWardrobeItemCount={newWardrobeItemCount}
       />
       {/* End of Profile Page */}
 

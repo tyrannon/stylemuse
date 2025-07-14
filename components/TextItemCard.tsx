@@ -78,6 +78,11 @@ export const TextItemCard: React.FC<TextItemCardProps> = ({
         <View style={styles.textOnlyIndicator}>
           <Text style={styles.textOnlyIndicatorText}>📝</Text>
         </View>
+        
+        {/* New item indicator - red dot for text items not yet viewed */}
+        {item.isNew && (
+          <View style={styles.newItemDot} />
+        )}
       </View>
 
       {/* Info area - similar to regular wardrobe items */}
@@ -228,5 +233,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 10,
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
+  },
+  // Red dot indicator for new text items that haven't been viewed
+  newItemDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.error || '#FF3B30',
+    zIndex: 1,
   },
 });

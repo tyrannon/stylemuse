@@ -10,6 +10,8 @@ const preloadIcons = () => {
   Image.prefetch(Image.resolveAssetSource(require('../../../assets/wardrobe.png')).uri);
   Image.prefetch(Image.resolveAssetSource(require('../../../assets/outfits.png')).uri);
   Image.prefetch(Image.resolveAssetSource(require('../../../assets/profile.png')).uri);
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/AddToWardrobePlusBlue.png')).uri);
+  Image.prefetch(Image.resolveAssetSource(require('../../../assets/AddToWardrobePlusPink.png')).uri);
 };
 
 interface BottomNavigationProps {
@@ -42,6 +44,12 @@ interface BottomNavigationProps {
   wardrobeShakeValue: Animated.Value;
   outfitsShakeValue: Animated.Value;
   profileShakeValue: Animated.Value;
+  
+  // Unviewed outfits count - shows badge on Outfits tab
+  unviewedOutfitsCount?: number;
+  
+  // New wardrobe items count - shows badge on Wardrobe tab
+  newWardrobeItemCount?: number;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -65,9 +73,21 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   wardrobeShakeValue,
   outfitsShakeValue,
   profileShakeValue,
+  unviewedOutfitsCount = 0,
+  newWardrobeItemCount = 0,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  
+  // Determine which + icon to use based on theme
+  const getAddIcon = () => {
+    // Use pink icon for cyber and kawaii themes
+    if (theme.name === 'cyber' || theme.name === 'kawaii') {
+      return require('../../../assets/AddToWardrobePlusPink.png');
+    }
+    // Use blue icon for all other themes (light, dark, etc.)
+    return require('../../../assets/AddToWardrobePlusBlue.png');
+  };
   
   // Preload icons on component mount
   useEffect(() => {
@@ -140,10 +160,20 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
           }}
           style={styles.bottomNavButton}
         >
-          <Image 
-            source={require('../../../assets/wardrobe.png')}
-style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
-          />
+          <View>
+            <Image 
+              source={require('../../../assets/wardrobe.png')}
+              style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
+            />
+            {/* Badge showing count of new wardrobe items */}
+            {newWardrobeItemCount > 0 && (
+              <View style={styles.unviewedOutfitsBadge}>
+                <Text style={styles.unviewedOutfitsText}>
+                  {newWardrobeItemCount > 99 ? '99+' : newWardrobeItemCount}
+                </Text>
+              </View>
+            )}
+          </View>
           {showWardrobe && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
@@ -156,7 +186,10 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
         }}
         style={styles.centerAddButton}
       >
-        <Text style={styles.centerAddButtonIcon}>+</Text>
+        <Image 
+          source={getAddIcon()}
+          style={styles.centerAddIcon}
+        />
       </TouchableOpacity>
 
       {/* Outfits Page Button */}
@@ -181,10 +214,20 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
           }}
           style={styles.bottomNavButton}
         >
-          <Image 
-            source={require('../../../assets/outfits.png')}
-            style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
-          />
+          <View>
+            <Image 
+              source={require('../../../assets/outfits.png')}
+              style={[styles.bottomNavIcon, { opacity: 1.0 }]} 
+            />
+            {/* Badge showing count of unviewed outfits */}
+            {unviewedOutfitsCount > 0 && (
+              <View style={styles.unviewedOutfitsBadge}>
+                <Text style={styles.unviewedOutfitsText}>
+                  {unviewedOutfitsCount > 99 ? '99+' : unviewedOutfitsCount}
+                </Text>
+              </View>
+            )}
+          </View>
           {showOutfitsPage && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
       </Animated.View>
@@ -262,18 +305,33 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontWeight: 'bold',
   },
   centerAddButton: {
-    width: 64,
-    height: 64,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    ...theme.shadows.large,
+    padding: 8,
   },
-  centerAddButtonIcon: {
-    fontSize: 36,
+  centerAddIcon: {
+    width: 64,
+    height: 64,
+    resizeMode: 'contain',
+  },
+  unviewedOutfitsBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.background,
+  },
+  unviewedOutfitsText: {
     color: 'white',
-    fontWeight: '300',
-    marginHorizontal: 4,
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Animated }
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
-import { RandomOutfitButton } from '../components/RandomOutfitButton';
+import { RandomOutfitButtons } from '../components/RandomOutfitButton';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useRandomOutfit } from '../hooks/useRandomOutfit';
 import { useTheme } from '../contexts/ThemeContext';
@@ -115,12 +115,10 @@ export const BuilderPage: React.FC<BuilderPageProps> = ({
             </Text>
             
             <View style={styles.randomOutfitButtonContainer}>
-              <RandomOutfitButton
+              <RandomOutfitButtons
                 onGenerate={handleRandomOutfit}
                 isGenerating={randomOutfit.isGenerating}
                 disabled={savedItems.length < 3}
-                size="large"
-                variant="primary"
               />
             </View>
 

@@ -172,12 +172,12 @@ export const RandomOutfitButtons: React.FC<RandomOutfitButtonsProps> = React.mem
                 <SpeedDialIcon
                   source={buttonData.icon}
                   fallbackEmoji={buttonData.emoji}
-                  size={50}
+                  size={65}
                   style={styles.iconOnlyImage}
                 />
               </Animated.View>
               
-              <Text style={styles.iconOnlyLabel}>
+              <Text style={[styles.iconOnlyLabel, { color: theme.colors.text }]}>
                 {buttonData.name}
               </Text>
             </TouchableOpacity>
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
-    maxWidth: 350,
+    gap: 16,
+    maxWidth: 380,
   },
   styleButton: {
     width: 75,
@@ -249,18 +249,17 @@ const styles = StyleSheet.create({
   iconOnlyButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 8,
+    margin: 10,
   },
   iconOnlyImage: {
-    width: 50,
-    height: 50,
-    marginBottom: 6,
+    width: 65,
+    height: 65,
+    marginBottom: 8,
   },
   iconOnlyLabel: {
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-    color: '#333333',
   },
   styleName: {
     fontSize: 10,

@@ -41,6 +41,7 @@ export interface WardrobeItem {
   style?: string;
   fit?: string;
   category?: string;
+  isNew?: boolean; // Track if item has been viewed - used for red dot indicators
   // Laundry tracking fields
   laundryStatus?: LaundryStatus;
   laundryHistory?: LaundryRecord[];
@@ -66,12 +67,15 @@ export interface LovedOutfit {
   gender: string | null;
   createdAt: Date;
   isLoved?: boolean;
+  viewed?: boolean; // Track if user has opened this outfit - used for red dot indicators
   // New wear tracking fields
   wearHistory: WearRecord[];
   lastWorn?: Date;
   timesWorn: number;
   suggestedForReWear?: boolean;
   nextSuggestedDate?: Date;
+  // Viewing tracking
+  hasBeenViewed?: boolean;
 }
 
 // Smart Suggestions Types
@@ -342,6 +346,80 @@ export const useWardrobeData = () => {
       console.error('Error toggling outfit love:', error);
     }
   }, [lovedOutfits]);
+
+  // Function to mark outfit as viewed
+  const markOutfitAsViewed = useCallback(async (outfitId: string) => {
+    try {
+      const outfit = lovedOutfits.find(o => o.id === outfitId);
+      if (!outfit || outfit.viewed) {
+        return false; // Already viewed or not found
+      }
+      
+      const updatedOutfits = lovedOutfits.map(outfit => 
+        outfit.id === outfitId 
+          ? { ...outfit, viewed: true }
+          : outfit
+      );
+      
+      setLovedOutfits(updatedOutfits);
+      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      
+      return true; // Return true if outfit was marked as viewed
+    } catch (error) {
+      console.error('Error marking outfit as viewed:', error);
+      return false;
+    }
+  }, [lovedOutfits]);
+
+  // Function to mark all outfits as viewed
+  const markAllOutfitsAsViewed = useCallback(async () => {
+    try {
+      // Count how many outfits are unviewed
+      const unviewedCount = lovedOutfits.filter(outfit => !outfit.viewed).length;
+      
+      if (unviewedCount === 0) {
+        return 0; // No outfits to mark as viewed
+      }
+      
+      // Mark all outfits as viewed
+      const updatedOutfits = lovedOutfits.map(outfit => ({
+        ...outfit,
+        viewed: true
+      }));
+      
+      setLovedOutfits(updatedOutfits);
+      await AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(updatedOutfits));
+      
+      return unviewedCount; // Return number of outfits marked as viewed
+    } catch (error) {
+      console.error('Error marking all outfits as viewed:', error);
+      return 0;
+    }
+  }, [lovedOutfits]);
+
+  // Function to mark wardrobe item as viewed
+  const markWardrobeItemAsViewed = useCallback(async (itemIndex: number) => {
+    try {
+      const item = savedItems[itemIndex];
+      if (!item || !item.isNew) {
+        return false; // Already viewed or not found
+      }
+      
+      const updatedItems = savedItems.map((item, index) => 
+        index === itemIndex 
+          ? { ...item, isNew: false }
+          : item
+      );
+      
+      setSavedItems(updatedItems);
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      return true; // Return true if item was marked as viewed
+    } catch (error) {
+      console.error('Error marking wardrobe item as viewed:', error);
+      return false;
+    }
+  }, [savedItems]);
 
   // Function to get unique categories from wardrobe
   const getUniqueCategories = useCallback(() => {
@@ -1120,6 +1198,7 @@ export const useWardrobeData = () => {
         material: 'auto-detected',
         style: item.itemType,
         fit: 'auto-detected',
+        isNew: true, // Mark as new item
         category: categorizeItem({ 
           image: item.croppedUri,
           title: item.description, // Use description as title for better categorization
@@ -1140,6 +1219,10 @@ export const useWardrobeData = () => {
 
       // Add all new items to the wardrobe
       const updatedItems = [...savedItems, ...newWardrobeItems];
+      console.log('[DEBUG] saveBulkWardrobeItems - New items with isNew:', newWardrobeItems.map(item => ({
+        title: item.title,
+        isNew: item.isNew
+      })));
       setSavedItems(updatedItems);
       
       // Save to storage
@@ -1193,6 +1276,9 @@ export const useWardrobeData = () => {
     updateItemCategory,
     saveFieldUpdate,
     toggleOutfitLove,
+    markOutfitAsViewed,
+    markAllOutfitsAsViewed,
+    markWardrobeItemAsViewed,
     getUniqueCategories,
     getItemsByCategory,
     checkWardrobeLimit,
