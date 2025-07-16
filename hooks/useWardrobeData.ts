@@ -421,6 +421,32 @@ export const useWardrobeData = () => {
     }
   }, [savedItems]);
 
+  // Function to mark all wardrobe items as viewed
+  const markAllWardrobeItemsAsViewed = useCallback(async () => {
+    try {
+      // Count how many items will be marked as viewed
+      const newItemsCount = savedItems.filter(item => item.isNew).length;
+      
+      if (newItemsCount === 0) {
+        return 0; // No new items to mark
+      }
+      
+      // Mark all items as viewed
+      const updatedItems = savedItems.map(item => ({
+        ...item,
+        isNew: false
+      }));
+      
+      setSavedItems(updatedItems);
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+      
+      return newItemsCount; // Return count of items marked
+    } catch (error) {
+      console.error('Error marking all wardrobe items as viewed:', error);
+      return 0;
+    }
+  }, [savedItems]);
+
   // Function to get unique categories from wardrobe
   const getUniqueCategories = useCallback(() => {
     const categories = savedItems.map(item => categorizeItem(item));
@@ -1279,6 +1305,7 @@ export const useWardrobeData = () => {
     markOutfitAsViewed,
     markAllOutfitsAsViewed,
     markWardrobeItemAsViewed,
+    markAllWardrobeItemsAsViewed,
     getUniqueCategories,
     getItemsByCategory,
     checkWardrobeLimit,

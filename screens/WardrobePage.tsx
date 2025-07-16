@@ -35,6 +35,9 @@ interface WardrobePageProps {
   onNavigateToBuilder?: () => void;
   // Bulk operations
   deleteBulkWardrobeItems?: (items: WardrobeItem[]) => Promise<void>;
+  // New items tracking
+  newWardrobeItemCount?: number;
+  markAllWardrobeItemsAsViewed?: () => Promise<number>;
 }
 
 // Helper function to get laundry status display info
@@ -56,7 +59,6 @@ const getLaundryStatusDisplay = (status: LaundryStatus | undefined) => {
       return { emoji: '✨', text: 'Clean', color: '#4CAF50' };
   }
 };
-
 
 export const WardrobePage: React.FC<WardrobePageProps> = ({
   savedItems,
@@ -82,6 +84,9 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   onNavigateToBuilder,
   // Bulk operations
   deleteBulkWardrobeItems,
+  // New items tracking
+  newWardrobeItemCount,
+  markAllWardrobeItemsAsViewed,
 }) => {
   const { theme } = useTheme();
   const unifiedLoading = useUnifiedLoading();
@@ -90,6 +95,26 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
   // Multi-select state
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<WardrobeItem[]>([]);
+  
+  // Handle marking all items as seen
+  const handleMarkAllAsSeen = async () => {
+    if (!markAllWardrobeItemsAsViewed) return;
+    
+    try {
+      const markedCount = await markAllWardrobeItemsAsViewed();
+      if (markedCount > 0) {
+        Alert.alert(
+          'Success',
+          `Marked ${markedCount} item${markedCount > 1 ? 's' : ''} as seen.`,
+          [{ text: 'OK' }]
+        );
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Error marking all items as seen:', error);
+      Alert.alert('Error', 'Failed to mark items as seen. Please try again.');
+    }
+  };
   
   // Handle multi-select functions
   const toggleMultiSelectMode = () => {
@@ -231,31 +256,44 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         </TouchableOpacity>
       </View>
 
-
       <View style={{ marginTop: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
-          👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
-        </Text>
-        
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
+            👔 Wardrobe Inventory ({getSortedAndFilteredItems().length} of {savedItems.length} items)
+          </Text>
+          
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              onPress={toggleMultiSelectMode}
+              style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton, { marginRight: 8 }]}
+            >
+              <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
+                {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => setShowSortFilterModal(true)}
+              style={styles.sortFilterButton}
+            >
+              <Text style={styles.sortFilterButtonText}>🔍 Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      
+      {/* Mark All as Seen button - only show when there are new items */}
+      {newWardrobeItemCount && newWardrobeItemCount > 0 && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
           <TouchableOpacity
-            onPress={toggleMultiSelectMode}
-            style={[styles.actionButton, isMultiSelectMode && styles.activeActionButton]}
+            onPress={handleMarkAllAsSeen}
+            style={[styles.actionButton, { width: '100%' }]}
           >
-            <Text style={[styles.actionButtonText, isMultiSelectMode && styles.activeActionButtonText]}>
-              {isMultiSelectMode ? '✅ Multi' : '☑️ Select'}
+            <Text style={[styles.actionButtonText, { textAlign: 'center' }]}>
+              👁️ Mark All as Seen ({newWardrobeItemCount} new item{newWardrobeItemCount > 1 ? 's' : ''})
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => setShowSortFilterModal(true)}
-            style={styles.sortFilterButton}
-          >
-            <Text style={styles.sortFilterButtonText}>🔍 Filter</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      )}
       
       {/* Multi-select actions */}
       {isMultiSelectMode && (
@@ -310,7 +348,6 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
         <View style={styles.wardrobeInventoryGrid}>
           {getSortedAndFilteredItems().map((item, index) => (
             item.image === 'text-only' ? (
-              // Text item - render as card in grid
               <TextItemCard
                 key={`text-${index}`}
                 item={item}
@@ -319,7 +356,6 @@ export const WardrobePage: React.FC<WardrobePageProps> = ({
                 laundryStatus={getLaundryStatusDisplay(item.laundryStatus)}
               />
             ) : (
-              // Photo item - render as regular grid item
               <TouchableOpacity
                 key={`photo-${index}`}
                 onPress={() => isMultiSelectMode ? toggleItemSelection(item) : openWardrobeItemView(item)}
@@ -680,7 +716,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   bulkActionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    gap: 8,
   },
   bulkActionButton: {
     backgroundColor: theme.colors.primary,
@@ -689,6 +724,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 8,
     flex: 1,
     alignItems: 'center',
+    marginHorizontal: 4,
   },
   bulkActionButtonText: {
     color: 'white',

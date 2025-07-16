@@ -116,6 +116,7 @@ const WardrobeUploadScreen = () => {
     markOutfitAsViewed,
     markAllOutfitsAsViewed,
     markWardrobeItemAsViewed,
+    markAllWardrobeItemsAsViewed,
     markOutfitAsWorn,
     getSmartOutfitSuggestions,
     getOutfitWearStats,
@@ -3005,8 +3006,6 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   </View>
 </View>
 
-{/* Loved Outfits Section - Moved to dedicated Outfits page */}
-
 {/* Wardrobe Section */}
 <View style={{ display: showWardrobe ? 'flex' : 'none' }}>
   <WardrobePage
@@ -3033,6 +3032,9 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onNavigateToBuilder={navigateToBuilder}
     // Bulk operations
     deleteBulkWardrobeItems={deleteBulkWardrobeItems}
+    // New items tracking
+    newWardrobeItemCount={newWardrobeItemCount}
+    markAllWardrobeItemsAsViewed={markAllWardrobeItemsAsViewed}
   />
 </View>
 
