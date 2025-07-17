@@ -198,6 +198,74 @@ When adding new UI elements:
 - 🌈 User-customizable accent colors
 - 📱 Per-component theme overrides
 
+## Intelligent Prompt Truncation System
+
+### Overview
+StyleMuse implements an intelligent prompt truncation system to ensure all AI prompts stay within API character limits while preserving meaning and context. This prevents API errors and maintains prompt quality even with extensive user data.
+
+### PromptTruncator Utility (`/utils/PromptTruncator.ts`)
+
+#### Key Features
+- **Smart Truncation**: Cuts at sentence/word boundaries, not mid-word
+- **Priority Preservation**: Maintains critical sections using markers like `[IMPORTANT]`
+- **Multiple Strategies**: Character-based and token-based truncation
+- **Configurable Limits**: Pre-defined limits for different use cases
+- **Custom Ellipsis**: Adds contextual truncation indicators
+
+#### Usage
+```typescript
+import { PromptTruncator, PROMPT_LIMITS } from './utils/PromptTruncator';
+
+// Simple truncation
+const truncated = truncatePrompt(prompt, 'OUTFIT_GENERATION');
+
+// Advanced with priorities
+const truncated = PromptTruncator.truncate(prompt, PROMPT_LIMITS.DALLE_IMAGE, {
+  preserveSentences: true,
+  priorityMarkers: ['IMPORTANT', 'CRITICAL'],
+  customEllipsis: '\n\n[Details truncated...]'
+});
+```
+
+#### Prompt Limits
+| Use Case | Character Limit | Purpose |
+|----------|----------------|---------|
+| `OUTFIT_GENERATION` | 3000 | OpenAI outfit generation |
+| `IMAGE_ANALYSIS` | 2000 | Clothing item analysis |
+| `STYLE_DESCRIPTION` | 1500 | Style descriptions |
+| `QUICK_SUGGESTION` | 500 | Quick suggestions |
+| `DALLE_IMAGE` | 3900 | DALL-E image generation (4k limit) |
+
+#### Implementation Status
+✅ **Integrated in all AI functions:**
+- `describeClothingItem()` - Clothing analysis
+- `detectMultipleClothingItems()` - Multi-item detection
+- `generateIntelligentOutfitSelection()` - Outfit generation
+- `generatePersonalizedOutfitImage()` - DALL-E personalized images
+- `generateOutfitImage()` - DALL-E outfit images
+- `generateClothingItemImage()` - DALL-E item images
+- `generateSmartOutfitSuggestions()` - Smart suggestions
+
+### Current Limitations
+- **Plain Truncation**: Uses string cutting, not AI summarization
+- **Context Loss**: Very long prompts may lose some context at the end
+- **No Dynamic Adjustment**: Fixed limits regardless of content importance
+
+### Future Enhancements
+1. **AI-Powered Summarization**: Use GPT to intelligently summarize long sections
+2. **Dynamic Priority Detection**: Automatically identify important sections
+3. **Chunked Processing**: Split long prompts into multiple API calls
+4. **Context Caching**: Store truncated context for follow-up requests
+5. **User Preference Learning**: Adapt truncation based on user patterns
+
+### Debugging
+When truncation occurs, the system logs:
+```
+📏 DALL-E prompt truncated from 4303 to 3900 characters
+```
+
+This helps identify when and how much content is being truncated.
+
 ## Commands for Development
 
 ### Running Tests
@@ -731,8 +799,20 @@ All methods of adding items properly set `isNew: true`:
 - **TextItemCard**: Includes red dot support with absolute positioning
 - **BottomNavigation**: Shows badge with count on wardrobe icon
 
+#### 4. Mark All as Seen Button
+- **Purpose**: Quickly mark all new wardrobe items as viewed with one tap
+- **Location**: Header of Wardrobe page, above the multi-select button
+- **Visibility**: Only appears when there are new wardrobe items (`newWardrobeItemCount > 0`)
+- **Behavior**: 
+  - Marks all items with `isNew: true` as `isNew: false`
+  - Resets `newWardrobeItemCount` to 0
+  - Shows success alert with count of marked items
+  - Haptic feedback on success
+  - Button disappears after marking all as seen
+- **Styling**: Uses existing `actionButton` styles with full width
+- **Error Handling**: Shows error alert if marking fails
+
 #### Known Limitations
-- **No "Mark All as Seen" button yet** - Unlike outfits, wardrobe page doesn't have bulk marking
 - **No loading animation on bulk upload** - Items are saved successfully but without visual feedback
 
 ### Technical Notes
@@ -1112,7 +1192,18 @@ This optimization pattern should be applied to any screen with:
 ## Current Priority Tasks
 
 ### Completed Tasks
-- ✅ **Add "Mark All as Seen" button for wardrobe items** - Implemented and working correctly
+- ✅ **Add "Mark All as Seen" button for wardrobe items** - Fully implemented (2025-07-17)
+  - Function in `useWardrobeData.ts` hook
+  - UI button in `WardrobePage.tsx` header
+  - Success alerts with haptic feedback
+  - AsyncStorage persistence
+  - Follows same pattern as outfit viewing system
+- ✅ **Intelligent Prompt Truncation System** - Implemented (2025-07-17)
+  - Created `PromptTruncator` utility with smart boundary detection
+  - Integrated into all OpenAI and DALL-E API calls
+  - Prevents 4000+ character errors with graceful truncation
+  - Preserves priority content with marker system
+  - Added comprehensive test suite and examples
 - ✅ **SVG Icon Conversion Project** - Removed from priority (performance is excellent with current PNG implementation)
 - ✅ **Unified loading system testing** - Verified working correctly with shared loading instances
 - ✅ **Fast random outfit generation testing** - All 7 style buttons working with <100ms generation
@@ -1213,10 +1304,16 @@ This optimization pattern should be applied to any screen with:
    - "New" text badge alternative to red dot
 
 ### Wardrobe Item Viewing System Enhancements
-1. **Mark All as Seen Button**
-   - Add bulk marking functionality to wardrobe page header
-   - Similar implementation to outfit page's "Mark All as Seen"
-   - Shows count of new items before marking
-   - Success alert with number of items marked
-   - Resets newWardrobeItemCount to 0
-   - Only visible when there are new items
+1. **~~Mark All as Seen Button~~** ✅ COMPLETED (2025-07-17)
+   - Bulk marking functionality fully implemented
+   - Button appears in wardrobe page header when new items exist
+   - Shows count of new items in button text
+   - Success alert with haptic feedback
+   - Properly integrated with state management
+   
+2. **Future Enhancements**
+   - Loading animation during bulk upload process
+   - Swipe gestures for marking individual items
+   - Undo functionality after bulk marking
+   - Filter to show only new items
+   - Different indicators for different item states

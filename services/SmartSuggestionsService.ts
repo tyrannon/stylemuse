@@ -1,5 +1,6 @@
 import { WardrobeItem } from '../hooks/useWardrobeData';
 import Constants from 'expo-constants';
+import { PromptTruncator, PROMPT_LIMITS } from '../utils/PromptTruncator';
 
 const OPENAI_API_KEY = Constants.expoConfig?.extra?.openAIApiKey;
 
@@ -177,6 +178,13 @@ Return ONLY raw JSON in this exact format:
 
 Focus on building a smart, versatile wardrobe that maximizes outfit combinations!`;
 
+  // Truncate the prompt to ensure it fits within limits
+  const truncatedPrompt = PromptTruncator.truncate(prompt, PROMPT_LIMITS.OUTFIT_GENERATION, {
+    preserveSentences: true,
+    priorityMarkers: ['IMPORTANT', 'FORMAT'],
+    customEllipsis: '\n\n[... wardrobe details truncated for length ...]'
+  });
+
   const payload = {
     model: "gpt-4o",
     messages: [
@@ -186,7 +194,7 @@ Focus on building a smart, versatile wardrobe that maximizes outfit combinations
       },
       {
         role: "user",
-        content: prompt
+        content: truncatedPrompt
       }
     ],
     max_tokens: 4000, // Increased for complete outfit suggestions

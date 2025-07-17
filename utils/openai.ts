@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { logger } from './DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
+import { PromptTruncator, PROMPT_LIMITS } from './PromptTruncator';
 
 const OPENAI_API_KEY = Constants.expoConfig?.extra?.openAIApiKey;
 
@@ -90,13 +91,19 @@ EXAMPLES OF REQUIRED PRECISION:
 CRITICAL: Be so precise that two people analyzing the same item would get nearly identical results. This level of accuracy is essential for the wardrobe app to function properly.
 `;
 
+  // Truncate prompt to ensure it fits within limits while preserving key instructions
+  const truncatedPrompt = PromptTruncator.truncate(prompt, PROMPT_LIMITS.IMAGE_ANALYSIS, {
+    preserveSentences: true,
+    priorityMarkers: ['CRITICAL']
+  });
+
   const payload = {
     model: "gpt-4o",
     messages: [
       {
         role: "user",
         content: [
-          { type: "text", text: prompt },
+          { type: "text", text: truncatedPrompt },
           {
             type: "image_url",
             image_url: {
@@ -382,9 +389,15 @@ Requirements:
 Style: Contemporary fashion photography, similar to high-end clothing catalogs
 `;
 
+  // Truncate prompt for DALL-E's 4000 character limit
+  const truncatedPrompt = PromptTruncator.truncate(outfitPrompt, PROMPT_LIMITS.DALLE_IMAGE, {
+    preserveSentences: true,
+    addEllipsis: true
+  });
+
   const payload = {
     model: "dall-e-3",
-    prompt: outfitPrompt,
+    prompt: truncatedPrompt,
     n: 1,
     size: "1024x1024",
     quality: "standard",
@@ -648,9 +661,21 @@ PHOTOGRAPHY REQUIREMENTS:
 Style: High-end fashion photography showcasing perfect outfit coordination for this specific person.
 `;
 
+  // CRITICAL: Truncate prompt to stay under DALL-E's 4000 character limit
+  const truncatedPrompt = PromptTruncator.truncate(personalizedPrompt, PROMPT_LIMITS.DALLE_IMAGE, {
+    preserveSentences: true,
+    priorityMarkers: ['IMPORTANT', 'PHOTOGRAPHY REQUIREMENTS'],
+    customEllipsis: '\n\n[Details truncated for length]'
+  });
+
+  // Log truncation info for debugging
+  if (personalizedPrompt.length > 3900) {
+    console.log(`📏 DALL-E prompt truncated from ${personalizedPrompt.length} to ${truncatedPrompt.length} characters`);
+  }
+
   const payload = {
     model: "dall-e-3",
-    prompt: personalizedPrompt,
+    prompt: truncatedPrompt,
     n: 1,
     size: "1024x1024",
     quality: "standard",
@@ -785,9 +810,15 @@ Photography requirements:
 
 Style: Professional e-commerce product photography, clean, commercial, high-quality.`;
 
+  // Truncate prompt for DALL-E's limit
+  const truncatedPrompt = PromptTruncator.truncate(itemPrompt, PROMPT_LIMITS.DALLE_IMAGE, {
+    preserveSentences: true,
+    addEllipsis: true
+  });
+
   const payload = {
     model: "dall-e-3",
-    prompt: itemPrompt,
+    prompt: truncatedPrompt,
     n: 1,
     size: "1024x1024",
     quality: "standard",
@@ -1282,6 +1313,12 @@ If NO clothing items found or image quality is poor, return:
   "individualShoesDetected": 0
 }`;
 
+  // Truncate prompt for multi-item detection
+  const truncatedPrompt = PromptTruncator.truncate(prompt, PROMPT_LIMITS.IMAGE_ANALYSIS, {
+    preserveSentences: true,
+    priorityMarkers: ['IMPORTANT', 'CRITICAL', 'FORMAT']
+  });
+
   const payload = {
     model: "gpt-4o",
     messages: [
@@ -1292,7 +1329,7 @@ If NO clothing items found or image quality is poor, return:
       {
         role: "user",
         content: [
-          { type: "text", text: prompt },
+          { type: "text", text: truncatedPrompt },
           {
             type: "image_url",
             image_url: {
@@ -1523,6 +1560,14 @@ Return ONLY raw JSON in this exact format:
   "completionStatus": "complete/needs-items/enhanced-with-suggestions"
 }`;
 
+  // Truncate outfit generation prompt to fit within limits
+  const truncatedPrompt = PromptTruncator.truncate(prompt, PROMPT_LIMITS.OUTFIT_GENERATION, {
+    preserveSentences: true,
+    priorityMarkers: ['CRITICAL', 'IMPORTANT', 'FORMAT'],
+    // Prioritize keeping the wardrobe items section if it exists
+    customEllipsis: '\n\n[... wardrobe items truncated for length ...]'
+  });
+
   const payload = {
     model: "gpt-4o",
     messages: [
@@ -1532,7 +1577,7 @@ Return ONLY raw JSON in this exact format:
       },
       {
         role: "user",
-        content: prompt
+        content: truncatedPrompt
       }
     ],
     max_tokens: 1000,
