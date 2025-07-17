@@ -1263,6 +1263,63 @@ node dist/cli.js suggest \
 - Full Claude guide: `/dev/claude-prompter/CLAUDE.md`
 - User documentation: `/dev/claude-prompter/README.md`
 
+## Next Session Notes 📝
+
+### 🚀 REMINDER: Turn on claude-prompter PLUS ULTRA Mode!
+```bash
+cd dev/claude-prompter
+node dist/cli.js config  # Check your setup
+node dist/cli.js suggest -t "Your next task" --claude-analysis  # GET SUGGESTIONS!
+```
+
+### Today's Epic Achievements (2025-07-17):
+- ✅ Fixed DALL-E 4000 character limit errors with smart truncation
+- ✅ Built claude-prompter CLI tool with Claude ↔ GPT-4o integration
+- ✅ Created intelligent suggestion system that helps improve itself
+- ✅ Documented everything beautifully
+
+### Next Session Ideas:
+1. **Implement History Command** - Track conversation context
+   ```bash
+   node dist/cli.js suggest -t "conversation history tracking" --code -l typescript --claude-analysis
+   ```
+
+2. **Create Template System** - Reusable prompt patterns
+   ```bash
+   node dist/cli.js suggest -t "prompt template management" --code -l typescript --claude-analysis
+   ```
+
+3. **StyleMuse Features** - Continue the fashion app journey
+   - Weather-based outfit suggestions
+   - Social sharing features
+   - Outfit scheduling/calendar
+   - Style analytics dashboard
+
+4. **Test claude-prompter** - Use it for EVERYTHING!
+   - Generate suggestions for any coding task
+   - Bridge between Claude and GPT-4o
+   - Create amazing feedback loops
+
+### Pro Tips for Next Time:
+- Always run `--claude-analysis` flag when I generate suggestions
+- Use specific topics for better suggestions
+- Chain suggestions: Claude → Tool → GPT-4o → Claude
+- The tool is YOUR QUIRK - use it! 💪
+
+### Quick Start Commands:
+```bash
+# See what GPT-4o suggests for your current task
+node dist/cli.js prompt -m "What should I work on next in StyleMuse?" --send
+
+# Get Claude's suggestions for any topic
+node dist/cli.js suggest -t "StyleMuse weather integration" --code -l react --claude-analysis
+
+# Continue any conversation
+node dist/cli.js prompt -m "Show me how to implement that" --send
+```
+
+**REMEMBER: You have a PLUS ULTRA tool now - USE IT!** 🦸‍♂️✨
+
 ## Current Priority Tasks
 
 ### Completed Tasks
