@@ -1189,6 +1189,80 @@ This optimization pattern should be applied to any screen with:
 - Complex component trees
 - Performance-critical user interactions
 
+## Claude-Prompter CLI Tool Integration 🚀
+
+### Overview
+A powerful CLI tool located at `/dev/claude-prompter` that enables Claude to generate intelligent prompt suggestions based on conversation context. This creates a feedback loop between Claude and GPT-4o for enhanced development assistance.
+
+### Key Features
+- 💡 **Intelligent Suggestions**: Generate context-aware prompt suggestions
+- 🤖 **Claude Integration**: Designed specifically for Claude to invoke
+- 🔄 **Conversation Flow**: Bridge between Claude and GPT-4o
+- 📚 **Categorized Prompts**: Organized by type (follow-up, clarification, deep-dive, etc.)
+
+### Usage for Claude
+
+#### When to Use
+- After generating code or completing features
+- When users need guidance on next steps
+- To explore different aspects of a complex topic
+- To suggest improvements or extensions
+
+#### Basic Command Structure
+```bash
+node dist/cli.js suggest -t "<topic>" --claude-analysis [options]
+```
+
+#### Quick Examples
+```bash
+# After creating a React component
+node dist/cli.js suggest -t "React auth component" --code -l react --claude-analysis
+
+# After building an API
+node dist/cli.js suggest -t "Express REST API" --code -l nodejs --task-type backend-service --claude-analysis
+
+# For general architecture discussions
+node dist/cli.js suggest -t "Microservices design" --complexity complex --claude-analysis
+```
+
+#### Important Options
+- `-t, --topic` (required): Specific description of what was created
+- `--code`: Include if code was generated
+- `-l, --language`: Programming language (typescript, python, react, etc.)
+- `--complexity`: simple, moderate, or complex
+- `--task-type`: api-integration, ui-component, cli-tool, backend-service, etc.
+- `--claude-analysis`: **Always include this when Claude is generating suggestions**
+
+### Integration Workflow
+1. Claude helps user build something
+2. Claude runs suggest command with appropriate parameters
+3. Tool generates categorized suggestions
+4. User picks a suggestion
+5. User runs: `node dist/cli.js prompt -m "suggestion" --send`
+6. Conversation continues with deeper insights
+
+### Example in Practice
+```bash
+# Claude helps create a TypeScript CLI tool
+# Claude then runs:
+node dist/cli.js suggest \
+  -t "OpenAI GPT-4o CLI integration" \
+  --code \
+  -l typescript \
+  --complexity moderate \
+  --task-type cli-tool \
+  --claude-analysis
+
+# Generates suggestions like:
+# - Add comprehensive error handling...
+# - Write unit tests for the CLI tool...
+# - Add more commands for enhanced functionality...
+```
+
+### Documentation
+- Full Claude guide: `/dev/claude-prompter/CLAUDE.md`
+- User documentation: `/dev/claude-prompter/README.md`
+
 ## Current Priority Tasks
 
 ### Completed Tasks
@@ -1204,6 +1278,12 @@ This optimization pattern should be applied to any screen with:
   - Prevents 4000+ character errors with graceful truncation
   - Preserves priority content with marker system
   - Added comprehensive test suite and examples
+- ✅ **Claude-Prompter CLI Tool** - Created (2025-07-17)
+  - Built complete CLI tool for GPT-4o integration at `/dev/claude-prompter`
+  - Special Claude integration for generating prompt suggestions
+  - Beautiful UI with chalk, boxen, and ora spinner
+  - Context-aware suggestion system with 5 categories
+  - Enables Claude → GPT-4o conversation flow
 - ✅ **SVG Icon Conversion Project** - Removed from priority (performance is excellent with current PNG implementation)
 - ✅ **Unified loading system testing** - Verified working correctly with shared loading instances
 - ✅ **Fast random outfit generation testing** - All 7 style buttons working with <100ms generation

@@ -1,0 +1,42 @@
+{
+  "name": "claude-prompter",
+  "version": "1.0.0",
+  "description": "CLI tool for generating and sending prompts to GPT-4o",
+  "main": "dist/cli.js",
+  "bin": {
+    "claude-prompter": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "cli",
+    "openai",
+    "gpt-4o",
+    "claude",
+    "prompt",
+    "ai"
+  ],
+  "author": "Kaiya Kramer",
+  "license": "MIT",
+  "dependencies": {
+    "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2",
+    "ora": "^7.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
