@@ -16,6 +16,8 @@ import {
 import { createSessionCommand } from './commands/session';
 import { createTemplateCommand } from './commands/template';
 import { createHistoryCommand } from './commands/history';
+import { createBatchCommand } from './commands/batch';
+import { createUsageCommand } from './commands/usage';
 import { SessionManager } from './data/SessionManager';
 import { TemplateManager } from './data/TemplateManager';
 import { CommunicationBridge } from './data/CommunicationBridge';
@@ -84,7 +86,11 @@ async function handlePrompt(options: any) {
       }).start();
       
       try {
-        const response = await callOpenAI(prompt, options.system || 'You are Claude, a helpful AI assistant.');
+        const response = await callOpenAI(
+          prompt, 
+          options.system || 'You are Claude, a helpful AI assistant.',
+          { command: 'prompt' }
+        );
         spinner.succeed(chalk.green('Response received!'));
         
         // Display the response
@@ -184,6 +190,8 @@ program
 program.addCommand(createSessionCommand());
 program.addCommand(createTemplateCommand());
 program.addCommand(createHistoryCommand());
+program.addCommand(createBatchCommand());
+program.addCommand(createUsageCommand());
 
 program
   .command('chat')

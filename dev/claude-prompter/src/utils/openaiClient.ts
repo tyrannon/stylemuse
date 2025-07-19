@@ -1,9 +1,15 @@
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import { Readable } from 'stream';
+import { TokenCounter } from './tokenCounter';
+import { DatabaseManager } from '../data/DatabaseManager';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize token counter and database manager
+const tokenCounter = new TokenCounter();
+const dbManager = new DatabaseManager();
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -41,11 +47,13 @@ export class OpenAIError extends Error {
  * Call OpenAI's GPT-4o model with a prompt
  * @param prompt The user prompt to send
  * @param systemPrompt Optional system prompt for context
+ * @param options Additional options like command name for tracking
  * @returns The assistant's response text
  */
 export async function callOpenAI(
   prompt: string,
-  systemPrompt: string = 'You are a helpful assistant.'
+  systemPrompt: string = 'You are a helpful assistant.',
+  options: { command?: string; batchId?: string; sessionId?: string } = {}
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   
@@ -57,6 +65,10 @@ export async function callOpenAI(
     { role: 'system', content: systemPrompt },
     { role: 'user', content: prompt }
   ];
+
+  // Count input tokens
+  const inputTokens = tokenCounter.countChatTokens(messages);
+  const startTime = Date.now();
 
   const payload = {
     model: 'gpt-4o',
@@ -83,6 +95,19 @@ export async function callOpenAI(
       } catch {
         parsedError = errorData;
       }
+      
+      // Record failed usage
+      await dbManager.recordUsage({
+        command: options.command || 'prompt',
+        inputTokens,
+        outputTokens: 0,
+        success: false,
+        errorMessage: `${response.status}: ${response.statusText}`,
+        durationMs: Date.now() - startTime,
+        batchId: options.batchId,
+        sessionId: options.sessionId
+      });
+      
       throw new OpenAIError(response.status, response.statusText, parsedError);
     }
 
@@ -95,11 +120,51 @@ export async function callOpenAI(
       throw new Error('No response content received from OpenAI');
     }
 
+    // Count output tokens and record usage
+    const outputTokens = tokenCounter.count(assistantMessage);
+    const actualTokens = data.usage || { 
+      prompt_tokens: inputTokens, 
+      completion_tokens: outputTokens,
+      total_tokens: inputTokens + outputTokens
+    };
+    
+    await dbManager.recordUsage({
+      command: options.command || 'prompt',
+      inputTokens: actualTokens.prompt_tokens,
+      outputTokens: actualTokens.completion_tokens,
+      success: true,
+      durationMs: Date.now() - startTime,
+      batchId: options.batchId,
+      sessionId: options.sessionId,
+      metadata: {
+        model: data.model,
+        finishReason: data.choices[0]?.finish_reason
+      }
+    });
+
+    // Log token usage summary
+    console.log(`\n💰 ${tokenCounter.getSummary(actualTokens.prompt_tokens, actualTokens.completion_tokens)}`);
+
     return assistantMessage.trim();
   } catch (error) {
     if (error instanceof OpenAIError) {
       throw error;
     }
+    
+    // Record error if not already recorded
+    if (!(error instanceof Error && error.message?.includes('OpenAI API Error'))) {
+      await dbManager.recordUsage({
+        command: options.command || 'prompt',
+        inputTokens,
+        outputTokens: 0,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        durationMs: Date.now() - startTime,
+        batchId: options.batchId,
+        sessionId: options.sessionId
+      });
+    }
+    
     throw new Error(`Failed to call OpenAI API: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

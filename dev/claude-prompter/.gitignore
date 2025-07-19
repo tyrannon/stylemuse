@@ -33,4 +33,4 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
-.cache/
+.cache/usage-report-*.json
