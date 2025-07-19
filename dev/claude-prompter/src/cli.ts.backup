@@ -13,27 +13,11 @@ import {
   formatSuggestionsForCLI,
   ConversationContext 
 } from './utils/promptSuggestions';
-import { createSessionCommand } from './commands/session';
-import { createTemplateCommand } from './commands/template';
-import { createHistoryCommand } from './commands/history';
-import { SessionManager } from './data/SessionManager';
-import { TemplateManager } from './data/TemplateManager';
-import { CommunicationBridge } from './data/CommunicationBridge';
 
 // Load environment variables
 dotenv.config();
 
 const program = new Command();
-const sessionManager = new SessionManager();
-const templateManager = new TemplateManager();
-const bridge = new CommunicationBridge(sessionManager, templateManager);
-
-// Global option for session usage
-program
-  .name('claude-prompter')
-  .description('CLI tool for enhanced AI prompt management and communication')
-  .version('2.0.0')
-  .option('--use-session <id>', 'Use a specific session for context');
 
 // Format response in a nice box
 function formatResponse(response: string, title: string = 'Response'): string {
@@ -63,15 +47,6 @@ function formatError(error: string): string {
 // Generate or send prompt
 async function handlePrompt(options: any) {
   try {
-    // Check for session usage
-    let currentSession = null;
-    if (program.opts().useSession) {
-      currentSession = await sessionManager.loadSession(program.opts().useSession);
-      if (currentSession) {
-        await bridge.initializeSession(program.opts().useSession);
-      }
-    }
-    
     // Generate the prompt based on user input
     const prompt = await generateClaudePrompt(options);
     
@@ -180,11 +155,6 @@ program
     }
   });
 
-// Add new commands
-program.addCommand(createSessionCommand());
-program.addCommand(createTemplateCommand());
-program.addCommand(createHistoryCommand());
-
 program
   .command('chat')
   .description('Start an interactive chat session with GPT-4o')
@@ -203,12 +173,7 @@ program
     console.log(boxen(
       `API Key Status: ${hasApiKey ? chalk.green('✓ Found') : chalk.red('✗ Missing')}\n` +
       `Model: ${chalk.cyan('gpt-4o')}\n` +
-      `Endpoint: ${chalk.gray('https://api.openai.com/v1/chat/completions')}\n\n` +
-      chalk.bold('Features:\n') +
-      `  Sessions: ${chalk.green('✓ Enabled')}\n` +
-      `  Templates: ${chalk.green('✓ Enabled')}\n` +
-      `  History: ${chalk.green('✓ Enabled')}\n` +
-      `  Learning: ${chalk.green('✓ Enabled')}`,
+      `Endpoint: ${chalk.gray('https://api.openai.com/v1/chat/completions')}`,
       {
         title: '⚙️  Configuration',
         titleAlignment: 'center',
