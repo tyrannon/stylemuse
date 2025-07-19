@@ -61,7 +61,12 @@ export class DataResetService {
     'suggestions',
     'recommendations',
     'searchHistory',
-    'recentlyViewed'
+    'recentlyViewed',
+    
+    // Missing keys found during analysis
+    'backup_index',
+    'last_auto_backup',
+    'forceAppRestart'
   ];
 
   static async getStorageInfo(): Promise<{ totalKeys: number; totalSizeMB: number; keys: string[] }> {

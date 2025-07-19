@@ -28,6 +28,19 @@ export const StyleQuizScreen: React.FC<StyleQuizScreenProps> = ({ navigation, ro
   const { theme } = useTheme();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  
+  // Debug logging
+  useEffect(() => {
+    logger.info(LogCategories.NAVIGATION, 'StyleQuizScreen mounted', {
+      hasNavigation: !!navigation,
+      hasRoute: !!route,
+      routeParams: route?.params
+    });
+    
+    return () => {
+      logger.info(LogCategories.NAVIGATION, 'StyleQuizScreen unmounted');
+    };
+  }, []);
   const slideAnim = new Animated.Value(0);
   const fadeAnim = new Animated.Value(1);
 
