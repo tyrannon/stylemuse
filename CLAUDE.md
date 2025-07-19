@@ -1454,3 +1454,111 @@ node dist/cli.js prompt -m "Show me how to implement that" --send
    - Undo functionality after bulk marking
    - Filter to show only new items
    - Different indicators for different item states
+
+## iOS-Style Settings Redesign (2025-07-19)
+
+### Overview
+Complete redesign of the settings page following iOS design patterns for improved UX and scalability.
+
+### Design Principles
+- **Grouped Sections**: Settings organized into logical categories
+- **Chevron Navigation**: Right-facing chevrons indicate navigable items
+- **Consistent Hierarchy**: Clear parent-child relationships
+- **Search Capability**: Quick access to specific settings
+- **Native Feel**: Matches iOS Settings app patterns
+
+### Settings Categories
+
+#### 1. Appearance
+- **Dark Mode**: Toggle between light/dark/auto modes
+- **Color Scheme**: Select theme (Default/Tokyo)
+- **Display Options**: Font size, animations, etc.
+
+#### 2. Privacy & Security  
+- **Privacy Choices**: Granular data collection controls
+- **Data Usage**: Analytics and telemetry settings
+- **Security**: Biometric authentication options
+
+#### 3. Account & Subscription
+- **Profile**: Edit name, email, avatar
+- **Subscription**: View/manage subscription tier
+- **Trial Status**: See remaining trial days
+- **Payment Methods**: Manage payment options
+
+#### 4. Data Management
+- **Storage & Backup**: Backup settings and storage info
+- **Start Fresh**: Reset app data with confirmation
+- **Export Data**: Download user data
+- **Import Data**: Restore from backup
+
+#### 5. About & Support
+- **About StyleMuse**: Version, credits
+- **Help Center**: FAQs and guides  
+- **Contact Support**: Email/chat options
+- **Rate App**: App Store rating
+
+### Implementation Pattern
+```typescript
+// iOS-style settings row component
+const SettingsRow = ({ icon, title, value, hasChevron, onPress }) => (
+  <TouchableOpacity style={styles.row} onPress={onPress}>
+    <View style={styles.leftContent}>
+      <Text style={styles.icon}>{icon}</Text>
+      <Text style={styles.title}>{title}</Text>
+    </View>
+    <View style={styles.rightContent}>
+      {value && <Text style={styles.value}>{value}</Text>}
+      {hasChevron && <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />}
+    </View>
+  </TouchableOpacity>
+);
+```
+
+## Payment Gateway & Trial System (2025-07-19)
+
+### Test Payment Implementation
+- **Provider**: Stripe (React Native SDK)
+- **Test Mode**: Sandbox environment with test cards
+- **Test Cards**: 
+  - Success: 4242 4242 4242 4242
+  - Decline: 4000 0000 0000 0002
+  - Auth Required: 4000 0025 0000 3155
+
+### Subscription Tiers
+1. **Free Tier**: Basic features, 20 items limit
+2. **StyleMuse Plus** ($4.99/mo): Unlimited items, AI features
+3. **StyleMuse Pro** ($9.99/mo): Everything + advanced analytics
+
+### Trial System
+- **Duration**: 7 days free trial for Plus/Pro
+- **Activation**: Automatic on first premium feature use
+- **Tracking**: AsyncStorage with server validation
+- **Expiry Handling**: Graceful downgrade to free tier
+
+## Start Fresh Feature Fixes (2025-07-19)
+
+### Missing AsyncStorage Keys
+Added to DataResetService:
+- `backup_index` - Backup file indexing
+- `last_auto_backup` - Auto-backup timestamp
+- `forceAppRestart` - App restart flag
+
+### Enhanced Reset Process
+1. Show progress indicator during reset
+2. Verify all keys cleared with `getAllKeys()`
+3. Option to selectively reset categories
+4. Automatic app restart after reset
+
+## Onboarding Page 3 Debug (2025-07-19)
+
+### Added Error Handling
+- Error boundaries around StyleQuizScreen
+- Console logging for navigation events
+- Fallback UI for failed question loading
+- Performance monitoring for animations
+
+### Potential Fixes Applied
+- Simplified animations with `useNativeDriver`
+- Added null checks for route params
+- Memoized question components
+- Reduced re-renders with React.memo
