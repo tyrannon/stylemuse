@@ -1,6 +1,19 @@
 # StyleMuse Development Guide
+<!-- Last edited: 2025-07-19 by Claude Code -->
+<!-- Change: Added change tracking, created CONTEXT_GUIDE.md, optimized from 58.8k to 36.7k chars -->
 
 This document contains important information for development assistance and code maintenance.
+
+## 🧭 Quick Start
+**New to the codebase?** Start with [`CONTEXT_GUIDE.md`](CONTEXT_GUIDE.md) for a complete navigation guide and documentation loading instructions.
+
+## 📚 Documentation Index
+
+**Main Guides:**
+- [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) - Zero-flicker navigation and optimization techniques
+- [`docs/ICON_SYSTEM.md`](docs/ICON_SYSTEM.md) - Custom PNG icon system implementation  
+- [`docs/RANDOM_OUTFIT.md`](docs/RANDOM_OUTFIT.md) - Fast algorithmic outfit generation
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) - Complete development history and completed tasks
 
 ## Color Scheming System
 
@@ -607,230 +620,28 @@ StyleMuse now includes a comprehensive 6-screen onboarding flow for new users:
 
 ## Fast Algorithmic Random Outfit System
 
-### Overview
-StyleMuse features a lightning-fast random outfit generator that provides instant outfit inspiration as an alternative to the AI-powered system. Users can tap colorful emoji buttons to generate different style-specific outfits in <100ms.
+**Lightning-fast random outfit generator** that provides instant outfit inspiration as an alternative to AI. Features 7 colorful emoji style buttons (🎲 Surprise, 👕 Casual, 💼 Business, etc.) generating outfits in <100ms with 100% success rate. Uses keyword-based categorization with smart fallbacks and seamless gear slot integration.
 
-### Key Components
+**See detailed technical guide**: [`docs/RANDOM_OUTFIT.md`](docs/RANDOM_OUTFIT.md)
 
-#### 1. RandomOutfitButtons (`/components/RandomOutfitButton.tsx`)
-- **Visual Design**: 7 colorful emoji buttons in a responsive grid
-- **Style Options**: 🎲 Surprise, 👕 Casual, 💼 Business, 🏃‍♀️ Sporty, 💃 Date Night, 🏠 Weekend, 🎉 Party
-- **Animations**: Individual rotation animations on button press
-- **Color Coding**: Each style has unique branded colors
-- **Responsive**: Adapts to different screen sizes
+## Item Tracking Systems
 
-#### 2. RandomOutfitGenerator (`/utils/RandomOutfitGenerator.ts`)
-- **Algorithm**: Keyword-based item categorization with random selection
-- **Performance**: Generates outfits in <100ms with 100% success rate
-- **Fallbacks**: Smart fallback system ensures outfit generation never fails
-- **Categorization**: Simple but robust keyword matching for tops, bottoms, shoes, jackets, accessories
+### Outfit & Wardrobe Viewing Tracking
+**Unified tracking system** for both generated outfits and wardrobe items with red dot indicators and unviewed count badges.
 
-#### 3. useRandomOutfit Hook (`/hooks/useRandomOutfit.ts`)
-- **State Management**: Loading states, error handling, last generation tracking
-- **Integration**: Seamless integration with gear slots system
-- **Haptic Feedback**: Satisfying tactile response on generation
-- **Error Recovery**: Graceful handling of edge cases
+**Key Features:**
+- Individual item tracking with `viewed/isNew` boolean properties
+- Red dot indicators (10x10px) in top-right corners using `theme.colors.error`
+- Bottom navigation badges showing unviewed counts
+- "Mark All as Seen" buttons in page headers for bulk marking
+- AsyncStorage persistence survives app restarts
+- Automatic tracking when items are opened in detail view
 
-### Technical Implementation
+**Implementation:**
+- `markOutfitAsViewed(outfitId)` / `markWardrobeItemAsViewed(itemIndex)`
+- `markAllOutfitsAsViewed()` / `markAllWardrobeItemsAsViewed()`
+- Wrapper functions with tracking: `openOutfitDetailViewWithTracking()` / `openWardrobeItemViewWithTracking()`
 
-#### Smart Categorization Algorithm
-```typescript
-private static isCategory(item: WardrobeItem, category: string): boolean {
-  const title = item.title.toLowerCase();
-  const itemCategory = item.category?.toLowerCase() || '';
-  
-  switch (category) {
-    case 'tops':
-      return itemCategory.includes('top') || 
-             title.includes('shirt') || title.includes('blouse') || 
-             title.includes('sweater') || title.includes('hoodie');
-    // ... more categories
-  }
-}
-```
-
-#### Outfit Generation Flow
-1. **Style Selection**: User taps emoji button (e.g., 💼 Business)
-2. **Item Filtering**: Filter wardrobe by category using keywords
-3. **Random Selection**: Pick random items from each category
-4. **Fallback Logic**: Ensure at least one core piece (top or bottom)
-5. **Gear Slot Conversion**: Convert to app's gear slot format
-6. **UI Update**: Instantly populate outfit builder
-
-### User Experience Features
-
-#### Emoji Style Buttons
-- **🎲 Surprise**: Random style with rainbow gradient
-- **👕 Casual**: Blue gradient for everyday wear
-- **💼 Business**: Dark gray for professional looks
-- **🏃‍♀️ Sporty**: Green for athletic activities
-- **💃 Date Night**: Pink/red for romantic occasions
-- **🏠 Weekend**: Orange/yellow for relaxed comfort
-- **🎉 Party**: Purple for celebration outfits
-
-#### Visual Feedback
-- **Button Animation**: 360° rotation on press
-- **Loading Indicator**: "✨ Creating your outfit..." when generating
-- **Instant Results**: Outfit appears immediately in builder
-- **Completeness Score**: Shows outfit completion percentage
-
-### Integration Points
-
-#### WardrobeUploadScreen Integration
-```typescript
-<RandomOutfitButtons
-  onGenerate={handleRandomOutfit}
-  isGenerating={randomOutfit.isGenerating}
-  disabled={savedItems.length < 3}
-/>
-```
-
-#### Gear Slots Compatibility
-- Seamlessly integrates with existing outfit builder
-- Uses same gear slot format as AI-generated outfits
-- Compatible with outfit saving and sharing features
-
-### Performance Characteristics
-- **Generation Time**: <100ms average
-- **Success Rate**: 100% (never fails to generate something)
-- **Memory Usage**: Minimal overhead
-- **Battery Impact**: Negligible power consumption
-
-### Error Handling & Robustness
-- **Defensive Programming**: Null checks throughout
-- **Graceful Fallbacks**: Always generates something useful
-- **Type Safety**: Full TypeScript coverage
-- **Error Recovery**: Logs errors but continues functioning
-
-## Outfit Viewing & Unviewed Tracking System
-
-### Overview
-StyleMuse tracks which generated outfits have been viewed by users, displaying red dot indicators on unviewed outfits and maintaining an unviewed count badge on the Outfits tab.
-
-### Key Features
-
-#### 1. Individual Outfit Tracking
-- Each outfit has a `viewed?: boolean` property (default: `false`)
-- Red dot indicator (10x10px) appears in top-right corner of unviewed outfit thumbnails
-- Dot uses theme error color (`theme.colors.error`)
-- Automatically disappears when outfit is opened in detail view
-
-#### 2. Unviewed Count Management
-- `unviewedOutfitsCount` state tracks total unviewed outfits
-- Displayed as badge on Outfits tab in bottom navigation
-- Increments when new outfits are generated
-- Decrements when individual outfits are viewed
-- Resets to 0 when navigating to Outfits page via bottom nav
-
-#### 3. Mark All as Seen Button
-- **Purpose**: Quickly mark all unviewed outfits as viewed with one tap
-- **Location**: Header of Outfits page, next to multi-select button
-- **Visibility**: Only appears when there are unviewed outfits
-- **Behavior**: 
-  - Marks all outfits with `viewed: false` as `viewed: true`
-  - Resets `unviewedOutfitsCount` to 0
-  - Shows success alert with count of marked outfits
-  - Button disappears after marking all as seen
-- **Styling**: Uses existing `actionButton` styles for consistency
-
-### Implementation Details
-
-#### State Flow
-1. New outfits created with `viewed: false`
-2. Opening outfit detail calls `markOutfitAsViewed()`
-3. Updates outfit state and persists to AsyncStorage
-4. Decrements `unviewedOutfitsCount`
-5. "Mark All as Seen" bulk updates all unviewed outfits
-
-#### Key Functions
-- `markOutfitAsViewed(outfitId)` - Marks single outfit as viewed
-- `markAllOutfitsAsViewed()` - Marks all unviewed outfits as viewed
-- `openOutfitDetailViewWithTracking()` - Wrapper that tracks viewing
-
-#### Persistence
-- Viewed state saved to AsyncStorage with outfit data
-- Survives app restarts and maintains accurate tracking
-
-## Wardrobe Item New/Viewed Tracking System
-
-### Overview
-StyleMuse tracks newly added wardrobe items with visual indicators and count badges, similar to the outfit viewing system. This helps users quickly identify which items they've recently added to their digital wardrobe.
-
-### Key Features
-
-#### 1. Individual Item Tracking
-- Each wardrobe item has an `isNew?: boolean` property (default: `true` when added)
-- Red dot indicator (10x10px) appears in top-right corner of new item thumbnails
-- Dot uses theme error color (`theme.colors.error`)
-- Works for both photo items and text-only items
-- Automatically disappears when item is opened in detail view
-
-#### 2. New Item Count Management  
-- `newWardrobeItemCount` state tracks total new wardrobe items
-- Displayed as badge on Wardrobe tab in bottom navigation
-- Calculated from `savedItems.filter(item => item.isNew).length`
-- Updates automatically via useEffect when savedItems changes
-- Badge shows count (up to 99, then "99+")
-
-#### 3. Item Addition Entry Points
-All methods of adding items properly set `isNew: true`:
-- **Camera (Single Item)**: Via `handleAutoDescribeAndSave()`
-- **Camera (Multi-Item)**: Via `saveBulkWardrobeItems()` 
-- **Text Entry**: Via `handleSaveTextItem()`
-- **Gallery Upload**: Uses same paths as camera
-
-### Implementation Details
-
-#### State Flow
-1. New items created with `isNew: true` 
-2. Opening item detail calls `openWardrobeItemViewWithTracking()`
-3. Finds actual index in savedItems (handles filtered/sorted views)
-4. Calls `markWardrobeItemAsViewed()` to set `isNew: false`
-5. Updates state and persists to AsyncStorage
-6. Count automatically updates via useEffect
-
-#### Key Functions
-- `markWardrobeItemAsViewed(itemIndex)` - Marks single item as viewed
-- `openWardrobeItemViewWithTracking()` - Wrapper that finds index and tracks viewing
-- `useEffect` in WardrobeUploadScreen - Calculates new item count
-
-#### Visual Components
-- **WardrobePage**: Displays red dots on new items (both photo and text cards)
-- **TextItemCard**: Includes red dot support with absolute positioning
-- **BottomNavigation**: Shows badge with count on wardrobe icon
-
-#### 4. Mark All as Seen Button
-- **Purpose**: Quickly mark all new wardrobe items as viewed with one tap
-- **Location**: Header of Wardrobe page, above the multi-select button
-- **Visibility**: Only appears when there are new wardrobe items (`newWardrobeItemCount > 0`)
-- **Behavior**: 
-  - Marks all items with `isNew: true` as `isNew: false`
-  - Resets `newWardrobeItemCount` to 0
-  - Shows success alert with count of marked items
-  - Haptic feedback on success
-  - Button disappears after marking all as seen
-- **Styling**: Uses existing `actionButton` styles with full width
-- **Error Handling**: Shows error alert if marking fails
-
-#### Known Limitations
-- **No loading animation on bulk upload** - Items are saved successfully but without visual feedback
-
-### Technical Notes
-
-#### Index Handling
-The wardrobe viewing system handles the complexity of filtered/sorted views:
-```typescript
-// WardrobePage shows filtered items, so index !== actual savedItems index
-getSortedAndFilteredItems().map((item, index) => ...)
-
-// openWardrobeItemViewWithTracking finds the real index:
-const actualIndex = savedItems.findIndex(savedItem => savedItem.image === item.image);
-```
-
-#### Persistence  
-- `isNew` state saved to AsyncStorage with item data
-- Survives app restarts and maintains accurate tracking
-- Compatible with existing wardrobe data structure
 
 ## Live Log Monitoring System
 
@@ -922,272 +733,28 @@ npx expo start
 
 ## Calendar Integration - REMOVED ❌
 
-**Status**: Feature removed due to complexity and performance issues.
-
-### Problems Encountered:
-1. **Over-engineered architecture** - 7+ services with complex caching layers
-2. **Multiple filtering conflicts** - Date filtering in 4+ different places causing data loss
-3. **Performance issues** - 8000+ historical events causing UI lag and memory problems
-4. **Complex data pipeline** - Too many transformation steps between iCal → Cache → UI
-5. **Timezone complexity** - UTC vs local time causing event filtering issues
-6. **Storage limitations** - AsyncStorage not suitable for large event datasets
-
-### Lessons Learned:
-- **Start simple** - Calendar integration should begin with basic event display, not enterprise-level caching
-- **Database approach needed** - For this scale of data, SQLite or similar would be better than AsyncStorage
-- **Incremental filtering** - Should filter at data source, not in multiple UI layers  
-- **Performance first** - 8000+ events breaks mobile UI - need pagination/virtualization
-- **Scope control** - Feature scope expanded beyond original simple calendar view
-
-### Future Recommendations (if reimplemented):
-1. **Use SQLite** with indexed queries for event storage
-2. **Server-side filtering** before mobile app receives data
-3. **Start with Google Calendar API** instead of universal iCal parsing
-4. **Implement pagination/virtualization** for large event lists
-5. **Proper date range selection** before fetching data
-6. **Limit historical data** to recent months only
-7. **Simple UI first** - basic list view before complex filtering
-
-### Architecture That Should Have Been Used:
-```typescript
-// Simple approach that would have worked:
-const CalendarView = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  const fetchEvents = async () => {
-    // Fetch ONLY next 30 days of events
-    // No complex caching, just simple state
-    // Basic SQLite storage if needed
-  };
-  
-  return <FlatList data={events} />; // Virtualized list
-};
-```
+**Status**: Feature removed due to complexity and performance issues. The calendar integration became over-engineered with 7+ services, complex caching, and performance issues with 8000+ events causing UI lag. Future implementations should use SQLite with simpler architecture.
 
 ## Outfit Builder Icon System & UI Polish
 
-### Complete PNG Icon Integration (2025-07-13)
-StyleMuse now features a fully custom icon system replacing all emoji-based interfaces throughout the outfit builder with professional PNG assets.
+**Complete PNG Icon Integration (2025-07-13)**: StyleMuse features a fully custom icon system with professional PNG assets, theme-based selection (default/kawaii/cyber), standardized 110x110px gear slots, and 360° rotation animations. Achieved professional appearance with larger touch targets and clearer visual hierarchy.
 
-#### Theme-Based Icon Selection Architecture
-```typescript
-const getGenerateOutfitIcon = () => {
-  if (theme.colorScheme === 'tokyo') {
-    return theme.mode === 'dark' 
-      ? require('../assets/GenerateOutfitCyber.png')
-      : require('../assets/GenerateOutfitBrown.png');
-  }
-  return require('../assets/generateoutfit.png');
-};
-```
-
-#### Icon Categories & Implementation
-
-**Random Outfit Style Icons** (`RandomOutfitButton.tsx`)
-- 8 custom PNG icons: Surprise, Casual, Business, Sporty, Date Night, Weekend, Party, AI
-- Icon-only layout with labels (no background buttons)
-- 360° rotation animations on press using `Animated.Value`
-- Theme-aware color coding with 50x50px standardized sizing
-
-**Gear Slot Icons** (`WardrobeUploadScreen.tsx`)
-- 6 standardized gear slots: TOP, BOTTOM, SHOES, JACKET, HAT, ACCESSORIES
-- Perfect 110x110px dimensions for consistency
-- Theme-based icon variants (default, kawaii, cyber)
-- 16px border radius with proper shadow hierarchy
-
-**Action Button Icons**
-- Generate Outfit: Full-width (350x80px) with theme variants
-- Clear All Slots: Prominent (200x80px) matching button size
-- Bounce animations using `useNativeDriver` for performance
-
-#### UI Polish Standards Applied
-- **Standardized Dimensions**: All gear slots exactly 110x110px
-- **Consistent Spacing**: 16px gaps and padding throughout
-- **Border Radius**: 16px radius for modern appearance
-- **Shadow Hierarchy**: Small/medium/large shadows from theme system
-- **Theme Integration**: Full light/dark/tokyo mode compatibility
-
-#### Implementation Patterns
-```typescript
-interface StyleButtonData {
-  style: string | undefined;
-  emoji: string;
-  name: string;
-  colors: string[];
-  icon: any; // PNG image require
-}
-
-// Icon-only button styling
-iconOnlyButton: {
-  alignItems: 'center',
-  justifyContent: 'center',
-  margin: 8,
-},
-iconOnlyImage: {
-  width: 50,
-  height: 50,
-  marginBottom: 6,
-},
-```
-
-#### Animation System
-- **Button Press**: 360° rotation using `Animated.timing`
-- **Easing**: `Easing.out(Easing.cubic)` for smooth feel
-- **Performance**: `useNativeDriver: true` for 60fps animations
-- **State Reset**: Automatic animation value reset on completion
-
-#### Benefits Achieved
-- **Professional Appearance**: Custom PNG assets vs. emoji inconsistency
-- **Theme Consistency**: Icons adapt to light/dark/tokyo modes automatically
-- **Performance**: Optimized animations with native driver
-- **Maintainability**: Centralized icon selection logic
-- **User Experience**: Larger touch targets and clearer visual hierarchy
+**See detailed implementation guide**: [`docs/ICON_SYSTEM.md`](docs/ICON_SYSTEM.md)
 
 ## Recent Updates & Current Status
 
-- ✅ **Fixed Speed Dial Icon Flickering & Performance** (2025-07-13)
-  - Eliminated "trickling" effect when navigating to Outfit Builder
-  - Implemented display-based navigation to keep components in memory
-  - Added React.memo() optimization and image preloading
-  - Achieved instant, zero-flicker rendering for all speed dial buttons
-  - See "Performance Optimization" section below for technical details
-- ✅ **Complete Outfit Builder Icon System & UI Polish** (2025-07-13)
-  - Replaced all emoji-based icons with custom PNG assets
-  - Implemented theme-based icon selection (default, kawaii, cyber variants)
-  - Standardized gear slot dimensions to 110x110px for perfect consistency
-  - Added 360° bounce animations to all interactive elements
-  - Applied modern UI standards with 16px border radius and shadow hierarchy
-  - Achieved professional appearance with larger touch targets
-- ❌ **REMOVED Calendar Integration Feature** (2025-07-13)
-  - Feature became over-engineered with 7+ services and complex caching
-  - Performance issues with 8000+ events causing UI lag
-  - Multiple conflicting date filters causing data loss
-  - Will consider simpler SQLite-based approach in future
-- ✅ **Consolidated Documentation** (2025-07-13)
-  - Moved all scattered .md files into CLAUDE.md
-  - Cleaned up redundant documentation files
-  - Centralized developer instructions
+- ✅ **Fixed Speed Dial Icon Flickering & Performance** (2025-07-13) - See [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)
+- ✅ **Complete Outfit Builder Icon System & UI Polish** (2025-07-13) - See [`docs/ICON_SYSTEM.md`](docs/ICON_SYSTEM.md)
+- ❌ **REMOVED Calendar Integration Feature** (2025-07-13) - Over-engineered with performance issues
+- ✅ **Consolidated Documentation** (2025-07-13) - Moved to external docs for better organization
 
-## ~~Critical Issue: Icon Trickling Problem~~ ✅ RESOLVED (2025-07-13)
+**See full changelog**: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
-### Problem Was Fixed
-The icon trickling issue has been completely resolved using display-based navigation and performance optimizations. See the "Performance Optimization: Zero-Flicker Navigation" section above for the solution details.
+## Performance Optimization
 
-### Future Enhancement: SVG Conversion (Optional)
+**Zero-Flicker Navigation (2025-07-13)**: Fixed speed dial icon "trickling" effect using display-based navigation, React.memo() optimization, and image preloading. Achieved instant rendering with zero delay and buttery smooth tab switching.
 
-While the performance issue is now fixed, converting to SVG icons would provide additional benefits:
-
-**Why SVGs Would Be Better:**
-- **Inline Rendering**: SVGs render as part of React tree (no async loading)
-- **Theme Integration**: Easy color changes for light/dark/tokyo modes
-- **Scalability**: Perfect quality at any resolution
-- **Smaller Bundle**: Vector graphics reduce app size
-
-**Icons for Potential SVG Conversion:**
-- **Gear Slots** (6): top, bottom, shoes, jacket, hat, accessories
-- **Dock Icons** (4): builder, wardrobe, outfits, profile  
-- **Random Outfit** (8): surprise, casual, business, sporty, datenight, weekend, party, ai
-- **Action Buttons** (6): generateoutfit variants, clear slots variants
-
-**Current Status:**
-- PNG icons now render instantly with zero flicker
-- Performance is excellent with current implementation
-- SVG conversion is no longer critical but would be a nice enhancement
-
-## Performance Optimization: Zero-Flicker Navigation (2025-07-13)
-
-### Problem Solved
-Speed dial icons in the Outfit Builder were "trickling in" and flickering each time users navigated back to the page, creating a poor user experience with visible loading delays.
-
-### Root Causes Identified
-1. **Component Unmounting**: Navigation used conditional rendering (`{showOutfitBuilder && <Component />}`) which completely unmounted components when navigating away
-2. **Lack of Memoization**: `RandomOutfitButtons` component was recreating on every parent render
-3. **No Asset Preloading**: PNG images weren't explicitly preloaded, causing React Native to load them asynchronously on each mount
-
-### Solution Implemented
-
-#### 1. Display-Based Navigation
-Changed from unmounting components to hiding them with CSS:
-```typescript
-// Before: Components unmount when navigating away
-{showOutfitBuilder && (
-  <View style={{ marginTop: 20 }}>
-    {/* Outfit Builder content */}
-  </View>
-)}
-
-// After: Components stay mounted, just hidden
-<View style={{ 
-  marginTop: 20, 
-  display: showOutfitBuilder ? 'flex' : 'none' 
-}}>
-  {/* Outfit Builder content */}
-</View>
-```
-
-#### 2. Component Memoization
-Wrapped `RandomOutfitButtons` in `React.memo()` with custom comparison:
-```typescript
-export const RandomOutfitButtons = React.memo(({ ... }) => {
-  // Component implementation
-}, (prevProps, nextProps) => {
-  // Only re-render if these props actually change
-  return (
-    prevProps.isGenerating === nextProps.isGenerating &&
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.onGenerate === nextProps.onGenerate &&
-    prevProps.onAIGenerate === nextProps.onAIGenerate
-  );
-});
-```
-
-#### 3. Image Preloading
-Added explicit preloading of speed dial icons on screen mount:
-```typescript
-useEffect(() => {
-  const speedDialImages = [
-    require('../assets/surprise.png'),
-    require('../assets/casual.png'),
-    // ... all 8 speed dial icons
-  ];
-  
-  const promises = speedDialImages.map(source => 
-    Image.prefetch(Image.resolveAssetSource(source).uri)
-  );
-  Promise.all(promises);
-}, []); // Only run once on mount
-```
-
-#### 4. Performance Monitoring
-Added console logging to verify mount/unmount behavior:
-```typescript
-useEffect(() => {
-  console.log('[PERFORMANCE] RandomOutfitButtons mounted');
-  return () => {
-    console.log('[PERFORMANCE] RandomOutfitButtons unmounted');
-  };
-}, []);
-```
-
-### Outcome
-- **Instant Rendering**: Speed dial icons now appear immediately with zero delay
-- **Persistent Memory**: Components remain in memory, preventing reload cycles
-- **Smooth Navigation**: Tab switching is now buttery smooth with no visual artifacts
-- **Improved UX**: Users experience a professional, native-like interface
-
-### Key Takeaways for Developers
-1. **Prefer CSS hiding over unmounting** for frequently accessed screens
-2. **Use React.memo() strategically** for components with expensive renders
-3. **Preload critical assets** that users will definitely see
-4. **Monitor performance** with console logs during development
-5. **Match patterns from working screens** (Outfits/Wardrobe pages already used this approach)
-
-This optimization pattern should be applied to any screen with:
-- Heavy image content
-- Frequent navigation patterns
-- Complex component trees
-- Performance-critical user interactions
+**See detailed performance guide**: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)
 
 ## Claude-Prompter CLI Tool Integration 🚀
 
@@ -1322,138 +889,30 @@ node dist/cli.js prompt -m "Show me how to implement that" --send
 
 ## Current Priority Tasks
 
-### Completed Tasks
-- ✅ **Add "Mark All as Seen" button for wardrobe items** - Fully implemented (2025-07-17)
-  - Function in `useWardrobeData.ts` hook
-  - UI button in `WardrobePage.tsx` header
-  - Success alerts with haptic feedback
-  - AsyncStorage persistence
-  - Follows same pattern as outfit viewing system
-- ✅ **Intelligent Prompt Truncation System** - Implemented (2025-07-17)
-  - Created `PromptTruncator` utility with smart boundary detection
-  - Integrated into all OpenAI and DALL-E API calls
-  - Prevents 4000+ character errors with graceful truncation
-  - Preserves priority content with marker system
-  - Added comprehensive test suite and examples
-- ✅ **Claude-Prompter CLI Tool** - Created (2025-07-17)
-  - Built complete CLI tool for GPT-4o integration at `/dev/claude-prompter`
-  - Special Claude integration for generating prompt suggestions
-  - Beautiful UI with chalk, boxen, and ora spinner
-  - Context-aware suggestion system with 5 categories
-  - Enables Claude → GPT-4o conversation flow
-- ✅ **SVG Icon Conversion Project** - Removed from priority (performance is excellent with current PNG implementation)
-- ✅ **Unified loading system testing** - Verified working correctly with shared loading instances
-- ✅ **Fast random outfit generation testing** - All 7 style buttons working with <100ms generation
-- ✅ **Dark mode consistency check** - All hardcoded colors converted to theme system
+### Active Development
+- [ ] Verify onboarding flow for new users
+- [ ] Review log monitoring system  
+- [ ] Profile and optimize any slow operations
+
+### Recent Completions (2025-07-17)
+- ✅ **Intelligent Prompt Truncation System** - Prevents API 4000+ character errors
+- ✅ **Claude-Prompter CLI Tool** - GPT-4o integration at `/dev/claude-prompter`
+- ✅ **Mark All as Seen for wardrobe items** - Bulk marking functionality
 
 ### Known Issues
-- **"Text strings must be rendered within a <Text> component" warning** - **Expo Go only** - Non-critical warning that only appears in Expo Go, not in production builds. The app functions normally despite this warning.
-  
-  **Root Cause**: Expo Go's overly sensitive error detection. This warning does not appear in:
-  - Production builds (TestFlight/App Store)
-  - Development builds
-  - EAS builds
-  
-  **Attempted fixes for documentation:**
-  - Removed comments inside JSX ternary operators
-  - Fixed indentation issues
-  - Removed `gap` CSS property (not fully supported in some RN versions)
-  - Added missing imports
-  
-  **Resolution**: No action needed - this is an Expo Go false positive that doesn't affect real users.
+- **"Text strings must be rendered within a <Text> component" warning** - Expo Go only, non-critical
 
-### Low Priority
-- [ ] Verify onboarding flow for new users
-- [ ] Review log monitoring system
-- [ ] Profile and optimize any slow operations
-- ✅ **Implemented Fast Random Outfit Generation System**
-  - 7 emoji style buttons with unique colors and animations
-  - <100ms generation time with 100% success rate
-  - Smart fallback system for robust outfit creation
-  - Seamless integration with existing gear slots
-- ✅ **Created Live Log Monitoring System**
-  - Smart filtering by severity, category, and search terms
-  - Colorized terminal output for quick visual scanning
-  - Multiple predefined filters for common debugging scenarios
-  - Runtime filter updates and preset configurations
-- ✅ **Enhanced Development Workflow**
-  - Documented all systems in CLAUDE.md
-  - Added executable scripts for log monitoring
-  - Integrated with existing debugging infrastructure
-- ✅ **Complete onboarding system with 6 screens**
-- ✅ **App.js integration with first launch detection**
-- ✅ **Start Fresh feature with comprehensive data reset**
-- ✅ **Industry-standard onboarding patterns**
-- ✅ **Implemented comprehensive debug logging system**
-- ✅ **Added privacy-first data sanitization**
-- ✅ **Integrated logging across all major features**
-- ✅ Expanded dark mode app-wide (BuilderPage, WardrobePage, ProfilePage)
-- ✅ Implemented unified loading animations across key operations
-- ✅ **Fixed shared loading instance architecture for complete outfit feature**
-- ✅ **Implemented non-blocking header loading system**
-- ✅ Fixed AI outfit assistant button colors for dark mode
-- ✅ Removed fresh outfit ideas section from wardrobe
-- ✅ Updated loading screens to use unified loading overlay
-- ✅ Fixed profile page cards brightness in dark mode
-- ✅ Implemented Tokyo color scheme with neon aesthetics
-- ✅ Enhanced multi-item detection for better shoe detection
-- ✅ Created comprehensive color scheming documentation
-- ✅ **Resolved loading state isolation between hook instances**
-- ✅ **Complete theme system hardcoded color cleanup (100+ colors converted)**
-- ✅ **All major components now fully theme-compliant**
-- ✅ **Outfit Viewing & Unviewed Tracking System** (2025-07-14)
-  - Added red dot indicators on unviewed outfit thumbnails
-  - Implemented individual outfit viewed state tracking
-  - Created "Mark All as Seen" button for bulk marking
-  - Integrated with existing unviewedOutfitsCount system
-  - Full AsyncStorage persistence for viewed states
+**See complete task history**: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
 ## Future Enhancement Ideas
 
-### Outfit Viewing System Polish
-1. **Animation Enhancements**
-   - Fade-out animation for red dots when marked as viewed
-   - Smooth transition when "Mark All as Seen" is pressed
-   - Badge count animation on bottom navigation
+### Potential Features
+- **Outfit Viewing Polish**: Animation enhancements, UX improvements, accessibility features
+- **Wardrobe Enhancements**: Swipe gestures, undo functionality, filter improvements  
+- **Style Features**: Weather-based suggestions, social sharing, outfit scheduling
+- **Analytics**: Style analytics dashboard, viewing pattern tracking
 
-2. **UX Improvements**
-   - Optional confirmation modal before marking all as seen
-   - Long-press to mark individual outfit as viewed without opening
-   - Swipe gesture to mark multiple outfits as viewed
-   - Undo functionality after marking all as seen
-
-3. **Accessibility**
-   - Add accessibility labels for screen readers ("Unviewed outfit", "Mark all outfits as seen")
-   - VoiceOver announcements when marking outfits as viewed
-   - High contrast mode support for red dots
-
-4. **Advanced Features**
-   - Filter to show only unviewed outfits
-   - Sort options prioritizing unviewed outfits
-   - Analytics tracking for viewing patterns
-   - Auto-mark as viewed after X seconds of viewing
-   - Different indicators for "new" vs "updated" outfits
-
-5. **Visual Enhancements**
-   - Pulsing animation for new outfit indicators
-   - Different indicator styles (dot, badge, glow effect)
-   - Customizable indicator colors in settings
-   - "New" text badge alternative to red dot
-
-### Wardrobe Item Viewing System Enhancements
-1. **~~Mark All as Seen Button~~** ✅ COMPLETED (2025-07-17)
-   - Bulk marking functionality fully implemented
-   - Button appears in wardrobe page header when new items exist
-   - Shows count of new items in button text
-   - Success alert with haptic feedback
-   - Properly integrated with state management
-   
-2. **Future Enhancements**
-   - Loading animation during bulk upload process
-   - Swipe gestures for marking individual items
-   - Undo functionality after bulk marking
-   - Filter to show only new items
-   - Different indicators for different item states
+*See detailed enhancement ideas in [`docs/CHANGELOG.md`](docs/CHANGELOG.md)*
 
 ## iOS-Style Settings Redesign (2025-07-19)
 

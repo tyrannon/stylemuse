@@ -1,0 +1,61 @@
+{
+  "project": "StyleMuse",
+  "version": "2.0",
+  "lastUpdated": "2025-07-19",
+  "author": "Kaiya",
+  "description": "AI-powered fashion wardrobe and outfit generation app",
+  
+  "context": {
+    "autoLoad": [
+      "CLAUDE.md",
+      "CONTEXT_GUIDE.md"
+    ],
+    "conditionalLoad": {
+      "performance": ["docs/PERFORMANCE.md"],
+      "icons": ["docs/ICON_SYSTEM.md"],
+      "outfits": ["docs/RANDOM_OUTFIT.md"],
+      "history": ["docs/CHANGELOG.md"]
+    },
+    "maxSize": 100000,
+    "compression": true,
+    "changeTracking": true
+  },
+  
+  "shortcuts": {
+    "load-all": "Load all StyleMuse documentation",
+    "load-outfit": "Load outfit generation documentation",
+    "load-theme": "Load theme system documentation",
+    "load-debug": "Load debug system documentation",
+    "load-performance": "Load performance optimization guide"
+  },
+  
+  "filePatterns": {
+    "documentation": [
+      "*.md",
+      "docs/*.md"
+    ],
+    "mainCode": [
+      "screens/WardrobeUploadScreen.tsx",
+      "utils/openAIService.ts",
+      "contexts/ThemeContext.tsx"
+    ],
+    "hooks": [
+      "hooks/*.ts"
+    ],
+    "components": [
+      "components/*.tsx"
+    ]
+  },
+  
+  "templates": {
+    "changeComment": "<!-- Last edited: {{date}} by {{author}} -->",
+    "sectionComment": "<!-- Change: {{description}} -->"
+  },
+  
+  "aliases": {
+    "builder": "screens/WardrobeUploadScreen.tsx#L2740",
+    "ai-outfit": "utils/openAIService.ts#generateIntelligentOutfitSelection",
+    "theme": "contexts/ThemeContext.tsx",
+    "tracking": "hooks/useWardrobeData.ts"
+  }
+}
