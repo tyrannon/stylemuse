@@ -412,6 +412,7 @@ export const useOutfitGeneration = (
     gearSlots,
     setGearSlots,
     lastGeneratedMetadata,
+    setLastGeneratedMetadata,
     
     // Functions
     generateOutfitSuggestions,

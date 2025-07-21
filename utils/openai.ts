@@ -1634,6 +1634,14 @@ Return ONLY raw JSON in this exact format:
 
       const outfitSelection = JSON.parse(cleanResult);
       console.log("✅ Intelligent outfit selection:", outfitSelection);
+      
+      // Debug: Check if metadata is present
+      if (outfitSelection.metadata) {
+        console.log("📊 AI returned metadata:", outfitSelection.metadata);
+      } else {
+        console.warn("⚠️ AI did not return metadata in response");
+      }
+      
       return outfitSelection;
     } catch (parseError) {
       console.error("❌ Failed to parse outfit selection JSON:", parseError);

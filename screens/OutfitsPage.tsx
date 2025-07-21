@@ -412,6 +412,19 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                     <Text style={styles.outfitItemsText}>
                       {outfit.selectedItems.length} items used
                     </Text>
+                    
+                    {/* Metadata badges for loved outfits */}
+                    {outfit.metadata && (
+                      <View style={styles.metadataBadges}>
+                        {outfit.metadata.occasion && (
+                          <View style={[styles.metadataBadge, { backgroundColor: theme.colors.primary }]}>
+                            <Text style={styles.metadataBadgeText}>
+                              {outfit.metadata.occasion}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                   
                   {/* Selection overlay for multi-select mode */}
@@ -509,6 +522,26 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   <Text style={styles.outfitItemsText}>
                     {outfit.selectedItems.length} items
                   </Text>
+                  
+                  {/* Metadata badges */}
+                  {outfit.metadata && (
+                    <View style={styles.metadataBadges}>
+                      {outfit.metadata.occasion && (
+                        <View style={[styles.metadataBadge, { backgroundColor: theme.colors.primary }]}>
+                          <Text style={styles.metadataBadgeText}>
+                            {outfit.metadata.occasion}
+                          </Text>
+                        </View>
+                      )}
+                      {outfit.metadata.season && outfit.metadata.season[0] && (
+                        <View style={[styles.metadataBadge, { backgroundColor: theme.colors.secondary }]}>
+                          <Text style={styles.metadataBadgeText}>
+                            {outfit.metadata.season[0]}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
                 
                 {/* Selection overlay for multi-select mode */}
@@ -741,6 +774,26 @@ const createStyles = (theme: any) => StyleSheet.create({
   outfitItemsText: {
     fontSize: 10,
     color: theme.colors.textSecondary,
+  },
+  
+  // Metadata badges
+  metadataBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  metadataBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  metadataBadgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   
   // Multi-select styles

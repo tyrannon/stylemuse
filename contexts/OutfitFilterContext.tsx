@@ -290,6 +290,19 @@ export const matchesFilters = (outfit: any, filters: FilterState): boolean => {
 
   // Get metadata from outfit (handle both old and new formats)
   const metadata = outfit.metadata || {};
+  
+  // Debug: Log outfit metadata
+  console.log("🔍 Checking outfit against filters:", {
+    outfitId: outfit.id,
+    hasMetadata: !!outfit.metadata,
+    metadata: metadata,
+    activeFilters: {
+      occasion: filters.occasion,
+      style: filters.style,
+      colorPalette: filters.colorPalette,
+      season: filters.season,
+    }
+  });
 
   // Check occasion match
   if (filters.occasion.length > 0) {

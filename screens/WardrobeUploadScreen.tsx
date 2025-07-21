@@ -1098,6 +1098,87 @@ const WardrobeUploadScreen = () => {
   };
 
 
+  // Function to analyze outfit and generate metadata based on equipped items
+  const analyzeOutfitMetadata = (equippedItems: WardrobeItem[]) => {
+    // Analyze the items to determine metadata
+    const hasBusinessItems = equippedItems.some(item => 
+      item.tags?.some(tag => ['business', 'professional', 'formal', 'blazer', 'dress shirt'].includes(tag.toLowerCase())) ||
+      item.style?.toLowerCase().includes('professional') ||
+      item.style?.toLowerCase().includes('formal')
+    );
+    
+    const hasCasualItems = equippedItems.some(item =>
+      item.tags?.some(tag => ['casual', 'relaxed', 't-shirt', 'jeans', 'sneakers'].includes(tag.toLowerCase())) ||
+      item.style?.toLowerCase().includes('casual')
+    );
+    
+    const hasAthleticItems = equippedItems.some(item =>
+      item.tags?.some(tag => ['athletic', 'sports', 'gym', 'workout', 'running'].includes(tag.toLowerCase())) ||
+      item.style?.toLowerCase().includes('sporty') ||
+      item.style?.toLowerCase().includes('athletic')
+    );
+    
+    // Determine occasion
+    let occasion: 'work' | 'casual' | 'formal' | 'party' | 'athletic' | 'date' = 'casual';
+    if (hasBusinessItems && !hasCasualItems) occasion = 'work';
+    else if (hasAthleticItems) occasion = 'athletic';
+    else if (hasBusinessItems && hasCasualItems) occasion = 'casual'; // Business casual
+    
+    // Analyze styles
+    const styles: string[] = [];
+    equippedItems.forEach(item => {
+      if (item.style?.includes('classic')) styles.push('classic');
+      if (item.style?.includes('minimalist')) styles.push('minimalist');
+      if (item.style?.includes('bohemian')) styles.push('bohemian');
+      if (item.style?.includes('sporty')) styles.push('sporty');
+      if (item.style?.includes('edgy')) styles.push('edgy');
+      if (item.style?.includes('preppy')) styles.push('preppy');
+    });
+    const uniqueStyles = [...new Set(styles)].slice(0, 2); // Max 2 styles
+    
+    // Analyze colors
+    const colors = equippedItems.map(item => item.color?.toLowerCase()).filter(Boolean);
+    let colorPaletteType: 'monochrome' | 'earth' | 'pastels' | 'brights' | 'neutrals' | 'jewel' = 'neutrals';
+    
+    if (colors.some(c => c?.includes('black') || c?.includes('white') || c?.includes('gray'))) {
+      colorPaletteType = 'neutrals';
+    } else if (colors.some(c => c?.includes('brown') || c?.includes('beige') || c?.includes('tan'))) {
+      colorPaletteType = 'earth';
+    } else if (colors.some(c => c?.includes('pastel') || c?.includes('light') || c?.includes('soft'))) {
+      colorPaletteType = 'pastels';
+    }
+    
+    // Determine season based on materials and coverage
+    const materials = equippedItems.map(item => item.material?.toLowerCase()).filter(Boolean);
+    const season: string[] = [];
+    
+    if (materials.some(m => m?.includes('wool') || m?.includes('fleece') || m?.includes('cashmere'))) {
+      season.push('fall', 'winter');
+    } else if (materials.some(m => m?.includes('linen') || m?.includes('cotton') || m?.includes('lightweight'))) {
+      season.push('spring', 'summer');
+    } else {
+      season.push('spring', 'summer', 'fall'); // Versatile
+    }
+    
+    // Generate tags
+    const tags = [occasion];
+    if (hasBusinessItems) tags.push('professional');
+    if (uniqueStyles.includes('classic')) tags.push('timeless');
+    if (uniqueStyles.includes('minimalist')) tags.push('simple', 'clean');
+    
+    return {
+      occasion,
+      style: uniqueStyles.length > 0 ? uniqueStyles : ['classic'],
+      colorPaletteType,
+      season: [...new Set(season)],
+      formality: hasBusinessItems ? 'business casual' : 'casual',
+      confidence: 85, // Default confidence
+      styleScore: 80, // Default score
+      tags,
+      weatherAppropriateness: season.includes('summer') ? 'Ideal for warm weather' : 'Good for moderate temperatures'
+    };
+  };
+
   // Function to generate outfit based on selected items
   // This function will create a new outfit image using the selected items
   // It will also consider the user's style DNA if available and weather data if provided
@@ -1121,6 +1202,12 @@ const WardrobeUploadScreen = () => {
     try {
       // Set the selected items for outfit display
       outfitGeneration.setSelectedItemsForOutfit(equippedItems.map(item => item.image));
+      
+      // Generate metadata based on equipped items
+      const outfitMetadata = analyzeOutfitMetadata(equippedItems);
+      
+      // Store metadata in outfit generation state
+      outfitGeneration.setLastGeneratedMetadata(outfitMetadata);
       
       // Generate personalized outfit based on style DNA
       const generatedImageUrl = await generatePersonalizedOutfitImage(equippedItems, styleDNA, selectedGender);
@@ -1151,6 +1238,13 @@ const WardrobeUploadScreen = () => {
             timesWorn: 0,
             suggestedForReWear: false,
           };
+          
+          // Debug: Check if metadata is being saved
+          console.log("💾 Saving outfit with metadata:", {
+            outfitId: newLovedOutfit.id,
+            metadata: newLovedOutfit.metadata,
+            hasMetadata: !!newLovedOutfit.metadata
+          });
           
           setLovedOutfits(prev => {
             const newOutfits = [newLovedOutfit, ...prev];
@@ -1510,6 +1604,13 @@ const WardrobeUploadScreen = () => {
       suggestedForReWear: false,
       hasBeenViewed: false, // Legacy field - keeping for backward compatibility
     };
+    
+    // Debug: Check if metadata is being saved
+    console.log("💾 Manual save outfit with metadata:", {
+      outfitId: newLovedOutfit.id,
+      metadata: newLovedOutfit.metadata,
+      hasMetadata: !!newLovedOutfit.metadata
+    });
     
     setLovedOutfits(prev => {
       const newOutfits = [newLovedOutfit, ...prev];
