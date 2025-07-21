@@ -765,76 +765,68 @@ npx expo start
 ## Claude-Prompter CLI Tool Integration 🚀
 
 ### Overview
-A powerful CLI tool located at `/dev/claude-prompter` that enables Claude to generate intelligent prompt suggestions based on conversation context. This creates a feedback loop between Claude and GPT-4o for enhanced development assistance.
+A powerful global CLI tool that enables Claude to generate intelligent prompt suggestions and bridge conversations with GPT-4o for enhanced development assistance.
+
+### Current Setup (2025-07-21)
+- **Global Installation**: Available system-wide via `claude-prompter` command
+- **Global Wrapper**: `~/.local/bin/claude-prompter-global` works from any directory
+- **PATH Integration**: Added to both `.bashrc` and `.zshrc` for immediate access
+- **No Local Copy**: Removed embedded version, now using global v2.0.0
 
 ### Key Features
 - 💡 **Intelligent Suggestions**: Generate context-aware prompt suggestions
 - 🤖 **Claude Integration**: Designed specifically for Claude to invoke
 - 🔄 **Conversation Flow**: Bridge between Claude and GPT-4o
 - 📚 **Categorized Prompts**: Organized by type (follow-up, clarification, deep-dive, etc.)
+- 🌍 **Global Access**: Works from any project directory
 
 ### Usage for Claude
 
-#### When to Use
-- After generating code or completing features
-- When users need guidance on next steps
-- To explore different aspects of a complex topic
-- To suggest improvements or extensions
-
-#### Basic Command Structure
+#### Current Command Structure (Global)
 ```bash
-node dist/cli.js suggest -t "<topic>" --claude-analysis [options]
+# Use global wrapper from anywhere
+~/.local/bin/claude-prompter-global suggest -t "<topic>" --claude-analysis [options]
+
+# Or after sourcing shell config
+source ~/.zshrc
+claude-prompter suggest -t "<topic>" --claude-analysis [options]
 ```
 
 #### Quick Examples
 ```bash
-# After creating a React component
-node dist/cli.js suggest -t "React auth component" --code -l react --claude-analysis
+# Feature planning
+~/.local/bin/claude-prompter-global suggest -t "iOS settings redesign" --code -l react-native --claude-analysis
 
-# After building an API
-node dist/cli.js suggest -t "Express REST API" --code -l nodejs --task-type backend-service --claude-analysis
+# Get specific implementation advice
+~/.local/bin/claude-prompter-global prompt -m "How should I implement grouped settings sections in React Native?" --send
 
-# For general architecture discussions
-node dist/cli.js suggest -t "Microservices design" --complexity complex --claude-analysis
+# Architecture discussions
+~/.local/bin/claude-prompter-global suggest -t "mobile app settings architecture" --complexity moderate --claude-analysis
 ```
 
-#### Important Options
-- `-t, --topic` (required): Specific description of what was created
-- `--code`: Include if code was generated
-- `-l, --language`: Programming language (typescript, python, react, etc.)
-- `--complexity`: simple, moderate, or complex
-- `--task-type`: api-integration, ui-component, cli-tool, backend-service, etc.
-- `--claude-analysis`: **Always include this when Claude is generating suggestions**
-
-### Integration Workflow
+#### Integration Workflow
 1. Claude helps user build something
-2. Claude runs suggest command with appropriate parameters
-3. Tool generates categorized suggestions
-4. User picks a suggestion
-5. User runs: `node dist/cli.js prompt -m "suggestion" --send`
-6. Conversation continues with deeper insights
+2. Claude runs global claude-prompter command with appropriate parameters
+3. Tool generates categorized suggestions or connects to GPT-4o
+4. User gets enhanced insights and implementation guidance
+5. Conversation continues with deeper technical knowledge
 
 ### Example in Practice
 ```bash
-# Claude helps create a TypeScript CLI tool
-# Claude then runs:
-node dist/cli.js suggest \
-  -t "OpenAI GPT-4o CLI integration" \
+# Working on StyleMuse profile page redesign
+~/.local/bin/claude-prompter-global suggest \
+  -t "iOS-style settings page React Native" \
   --code \
-  -l typescript \
+  -l react-native \
   --complexity moderate \
-  --task-type cli-tool \
+  --task-type ui-component \
   --claude-analysis
 
-# Generates suggestions like:
-# - Add comprehensive error handling...
-# - Write unit tests for the CLI tool...
-# - Add more commands for enhanced functionality...
+# Get direct GPT-4o advice
+~/.local/bin/claude-prompter-global prompt \
+  -m "Best practices for grouped settings sections with chevron navigation in React Native" \
+  --send
 ```
-
-### Documentation
-- Full Claude guide: `/dev/claude-prompter/CLAUDE.md`
-- User documentation: `/dev/claude-prompter/README.md`
 
 ## Next Session Notes 📝
 

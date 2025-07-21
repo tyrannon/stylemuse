@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert, Modal } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
 import { PersistenceService } from '../services/PersistenceService';
@@ -10,6 +10,7 @@ import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { SettingsScreen } from './SettingsScreen';
 
 interface ProfilePageProps {
   profileImage: string | null;
@@ -41,12 +42,25 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onRefreshData,
 }) => {
   const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme, toggleTheme } = useTheme();
+  const [showSettings, setShowSettings] = useState(false);
   const styles = createStyles(theme);
   return (
     <View style={{ marginTop: 20 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, paddingHorizontal: 20, textAlign: 'center' }}>
-        🧬 Style DNA Profile
-      </Text>
+      {/* Header with Settings Button */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          🧬 Style DNA Profile
+        </Text>
+        <TouchableOpacity
+          style={[styles.settingsButton, { backgroundColor: theme.colors.surface }]}
+          onPress={() => {
+            triggerHaptic('light');
+            setShowSettings(true);
+          }}
+        >
+          <Text style={styles.settingsButtonIcon}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
       
       {/* Profile Photo Section */}
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
@@ -389,6 +403,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       {/* Backup & Data Management Section */}
       <BackupSection theme={theme} styles={styles} onRefreshData={onRefreshData} />
 
+      {/* Settings Modal */}
+      <Modal
+        animationType="slide"
+        presentationStyle="pageSheet"
+        visible={showSettings}
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <SettingsScreen
+          onNavigateBack={() => setShowSettings(false)}
+          triggerHaptic={triggerHaptic}
+        />
+      </Modal>
+
     </View>
   );
 };
@@ -698,6 +725,65 @@ const StartFreshSection: React.FC<StartFreshSectionProps> = ({ theme, styles }) 
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
+  // Header Styles
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    right: 20,
+  },
+  settingsButtonIcon: {
+    fontSize: 20,
+  },
+  
+  // Quick Settings Styles
+  quickSettingsSection: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  quickSettingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  quickSettingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  quickToggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  quickToggleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   genderCard: {
     flexDirection: 'row',
     alignItems: 'center',
