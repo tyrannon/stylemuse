@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Switch, Alert, ScrollView } from 'react-native';
 import { WardrobeItem, LovedOutfit } from '../hooks/useWardrobeData';
 import { SafeImage } from '../utils/SafeImage';
 import { PersistenceService } from '../services/PersistenceService';
@@ -10,7 +10,7 @@ import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { SettingsScreen } from './SettingsScreen';
+import { SettingsRow, SettingsSection, ThemeModeOption } from '../components/SettingsComponents';
 
 interface ProfilePageProps {
   profileImage: string | null;
@@ -24,7 +24,7 @@ interface ProfilePageProps {
   setShowGenderSelector: (show: boolean) => void;
   onUpdateStyleDNA: (updatedStyleDNA: any) => void;
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
-  onRefreshData?: () => void; // Add refresh callback
+  onRefreshData?: () => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -41,48 +41,152 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   triggerHaptic,
   onRefreshData,
 }) => {
-  const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme, toggleTheme } = useTheme();
-  const [showSettings, setShowSettings] = useState(false);
+  const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
   const styles = createStyles(theme);
+
   return (
-    <View style={{ marginTop: 20 }}>
-      {/* Header with Settings Button */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          🧬 Style DNA Profile
-        </Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+        Profile
+      </Text>
+
+      {/* Tab Navigation */}
+      <View style={[styles.tabContainer, { borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.settingsButton, { backgroundColor: theme.colors.surface }]}
+          style={[
+            styles.tab,
+            activeTab === 'profile' && { borderBottomColor: theme.colors.primary }
+          ]}
           onPress={() => {
             triggerHaptic('light');
-            setShowSettings(true);
+            setActiveTab('profile');
           }}
         >
-          <Text style={styles.settingsButtonIcon}>⚙️</Text>
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'profile' ? theme.colors.primary : theme.colors.textSecondary }
+          ]}>
+            🧬 Style DNA
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'settings' && { borderBottomColor: theme.colors.primary }
+          ]}
+          onPress={() => {
+            triggerHaptic('light');
+            setActiveTab('settings');
+          }}
+        >
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'settings' ? theme.colors.primary : theme.colors.textSecondary }
+          ]}>
+            ⚙️ Settings
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Tab Content */}
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        {activeTab === 'profile' ? (
+          <ProfileTabContent
+            profileImage={profileImage}
+            styleDNA={styleDNA}
+            selectedGender={selectedGender}
+            savedItems={savedItems}
+            lovedOutfits={lovedOutfits}
+            analyzingProfile={analyzingProfile}
+            pickProfileImage={pickProfileImage}
+            analyzeProfileImage={analyzeProfileImage}
+            setShowGenderSelector={setShowGenderSelector}
+            onUpdateStyleDNA={onUpdateStyleDNA}
+            triggerHaptic={triggerHaptic}
+            onRefreshData={onRefreshData}
+            theme={theme}
+            styles={styles}
+          />
+        ) : (
+          <SettingsTabContent
+            theme={theme}
+            themeMode={themeMode}
+            colorScheme={colorScheme}
+            isDark={isDark}
+            setThemeMode={setThemeMode}
+            setColorScheme={setColorScheme}
+            triggerHaptic={triggerHaptic}
+            onRefreshData={onRefreshData}
+            styles={styles}
+          />
+        )}
+      </ScrollView>
+    </View>
+  );
+};
+
+// Profile Tab Content Component
+interface ProfileTabContentProps {
+  profileImage: string | null;
+  styleDNA: any | null;
+  selectedGender: 'male' | 'female' | 'nonbinary' | null;
+  savedItems: WardrobeItem[];
+  lovedOutfits: LovedOutfit[];
+  analyzingProfile: boolean;
+  pickProfileImage: () => void;
+  analyzeProfileImage: (imageUri: string) => void;
+  setShowGenderSelector: (show: boolean) => void;
+  onUpdateStyleDNA: (updatedStyleDNA: any) => void;
+  triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
+  onRefreshData?: () => void;
+  theme: any;
+  styles: any;
+}
+
+const ProfileTabContent: React.FC<ProfileTabContentProps> = ({
+  profileImage,
+  styleDNA,
+  selectedGender,
+  savedItems,
+  lovedOutfits,
+  analyzingProfile,
+  pickProfileImage,
+  analyzeProfileImage,
+  setShowGenderSelector,
+  onUpdateStyleDNA,
+  triggerHaptic,
+  onRefreshData,
+  theme,
+  styles
+}) => {
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>🧬 Style DNA Profile</Text>
       
       {/* Profile Photo Section */}
-      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+      <View style={styles.profilePhotoSection}>
         <TouchableOpacity
           onPress={pickProfileImage}
-          style={{ position: 'relative' }}
+          style={styles.profilePhotoContainer}
         >
           {profileImage ? (
             <Image 
               source={{ uri: profileImage }} 
-              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }} 
+              style={[styles.profileImage, { borderColor: styleDNA ? '#4CAF50' : '#e0e0e0' }]} 
             />
           ) : (
-            <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#e0e0e0' }}>
-              <Text style={{ fontSize: 40 }}>🧬</Text>
+            <View style={[styles.profileImagePlaceholder, { borderColor: '#e0e0e0', backgroundColor: theme.colors.surface }]}>
+              <Text style={styles.profileImageEmoji}>🧬</Text>
             </View>
           )}
-          <View style={{ position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderRadius: 18, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18 }}>📷</Text>
+          <View style={[styles.cameraIcon, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.cameraIconText}>📷</Text>
           </View>
         </TouchableOpacity>
-        <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 10 }}>Tap to upload your photo</Text>
+        <Text style={[styles.uploadText, { color: theme.colors.textSecondary }]}>Tap to upload your photo</Text>
         
         {profileImage && (
           <TouchableOpacity
@@ -90,125 +194,42 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               triggerHaptic('medium');
               analyzeProfileImage(profileImage);
             }}
-            style={{
-              marginTop: 15,
-              paddingHorizontal: 20,
-              paddingVertical: 10,
-              borderRadius: 25,
-              backgroundColor: '#007AFF',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            disabled={analyzingProfile}
+            style={[styles.analyzeButton, { backgroundColor: theme.colors.primary }]}
           >
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: 'white' }}>
-              {analyzingProfile ? '🧬 Analyzing...' : '🧬 Analyze Style DNA'}
-            </Text>
+            {analyzingProfile ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.analyzeButtonText}>🧬 Analyze Style DNA</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Gender Selection Section */}
-      <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5, textAlign: 'center' }}>
-          Gender Identity
+      {/* Gender Selection */}
+      <TouchableOpacity 
+        style={[styles.genderCard, { borderColor: selectedGender ? theme.colors.primary : theme.colors.border }]}
+        onPress={() => {
+          triggerHaptic('light');
+          setShowGenderSelector(true);
+        }}
+      >
+        <Text style={[styles.genderText, { color: theme.colors.text }]}>
+          👤 Gender: {selectedGender ? selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1) : 'Select Gender'}
         </Text>
-        <Text style={{ fontSize: 12, color: '#666', marginBottom: 10, textAlign: 'center' }}>
-          Helps AI generate outfits that match your preferred style
-        </Text>
-        
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('light');
-            setShowGenderSelector(true);
-          }}
-          style={[
-            styles.genderCard,
-            {
-              borderColor: !selectedGender ? theme.colors.error : theme.colors.border,
-            }
-          ]}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 24, marginRight: 10 }}>
-              {selectedGender === 'male' ? '👨' : 
-               selectedGender === 'female' ? '👩' : 
-               selectedGender === 'nonbinary' ? '🌈' : '⚧️'}
-            </Text>
-            <Text style={[styles.genderText, { color: theme.colors.text }]}>
-              {selectedGender ? selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1) : 'Select Gender'}
-            </Text>
-          </View>
-          <Text style={[styles.genderArrow, { color: theme.colors.textSecondary }]}>▶️</Text>
-        </TouchableOpacity>
-      </View>
+        <Text style={[styles.genderArrow, { color: theme.colors.textSecondary }]}>›</Text>
+      </TouchableOpacity>
 
-
-      {/* Style DNA Results Section */}
+      {/* Style DNA Results */}
       {styleDNA && (
-        <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-          <Text style={[{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }, { color: theme.colors.text }]}>
-            🧬 Style DNA Analysis
-          </Text>
+        <View style={styles.styleDNASection}>
+          <Text style={[styles.sectionSubtitle, { color: theme.colors.text }]}>Your Style Analysis</Text>
           
-          {/* Appearance */}
-          {styleDNA.appearance && (
+          {/* Style Summary */}
+          {styleDNA.style_summary && (
             <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
-              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>👤 Physical Characteristics</Text>
+              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>✨ Style Summary</Text>
               <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Color:</Text> {styleDNA.appearance.hair_color || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Length:</Text> {styleDNA.appearance.hair_length || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Hair Texture:</Text> {styleDNA.appearance.hair_texture || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Build:</Text> {styleDNA.appearance.build || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Complexion:</Text> {styleDNA.appearance.complexion || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Age Range:</Text> {styleDNA.appearance.age_range || styleDNA.appearance.approximate_age_range || 'Not specified'}
-              </Text>
-            </View>
-          )}
-
-          {/* Style Preferences */}
-          {styleDNA.style_preferences && (
-            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
-              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>🎨 Style Preferences</Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Aesthetic:</Text> {styleDNA.style_preferences.aesthetic_shown || 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Recommended Styles:</Text> {Array.isArray(styleDNA.style_preferences.recommended_styles) ? styleDNA.style_preferences.recommended_styles.join(', ') : 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Color Harmony:</Text> {Array.isArray(styleDNA.style_preferences.color_harmony) ? styleDNA.style_preferences.color_harmony.join(', ') : 'Not specified'}
-              </Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
-                <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Fit Recommendations:</Text> {styleDNA.style_preferences.fit_recommendations || 'Not specified'}
-              </Text>
-              {styleDNA.style_preferences.styling_notes && (
-                <Text style={[styles.styleDNAText, { color: theme.colors.text, fontStyle: 'italic', marginTop: 5 }]}>
-                  <Text style={[styles.styleDNALabel, { color: theme.colors.primary }]}>Styling Notes:</Text> {styleDNA.style_preferences.styling_notes}
-                </Text>
-              )}
-            </View>
-          )}
-
-          {/* Outfit Coordination */}
-          {styleDNA.outfit_coordination && (
-            <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
-              <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>✨ Outfit Coordination</Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text, lineHeight: 18 }]}>
-                {styleDNA.outfit_coordination}
+                {styleDNA.style_summary}
               </Text>
             </View>
           )}
@@ -217,7 +238,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           {styleDNA.fashion_prompt && (
             <View style={[styles.styleDNACard, { backgroundColor: theme.colors.card }]}>
               <Text style={[styles.styleDNACardTitle, { color: theme.colors.text }]}>🎯 Fashion Direction</Text>
-              <Text style={[styles.styleDNAText, { color: theme.colors.text, lineHeight: 18 }]}>
+              <Text style={[styles.styleDNAText, { color: theme.colors.text }]}>
                 {styleDNA.fashion_prompt}
               </Text>
             </View>
@@ -226,203 +247,359 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       )}
 
       {/* Stats Section */}
-      <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' }}>
-          Your Stats
-        </Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{savedItems.length}</Text>
-            <Text style={styles.statLabel}>Wardrobe Items</Text>
+      <View style={styles.statsSection}>
+        <Text style={[styles.sectionSubtitle, { color: theme.colors.text }]}>Your Stats</Text>
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.statNumber, { color: theme.colors.text }]}>{savedItems.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Wardrobe Items</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{lovedOutfits.length}</Text>
-            <Text style={styles.statLabel}>Loved Outfits</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.statNumber, { color: theme.colors.text }]}>{lovedOutfits.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Loved Outfits</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {styleDNA ? '✅' : '❌'}
-            </Text>
-            <Text style={styles.statLabel}>Style DNA</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.statNumber, { color: theme.colors.text }]}>{styleDNA ? '✅' : '❌'}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Style DNA</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {selectedGender ? '✅' : '❌'}
-            </Text>
-            <Text style={styles.statLabel}>Gender Set</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.statNumber, { color: theme.colors.text }]}>{selectedGender ? '✅' : '❌'}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Gender Set</Text>
           </View>
         </View>
       </View>
 
-      {/* App Settings Section */}
-      <View style={[styles.settingsSection, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.settingsSectionTitle, { color: theme.colors.text }]}>
-          ⚙️ App Settings
-        </Text>
-        <Text style={[styles.settingsSectionSubtitle, { color: theme.colors.textSecondary }]}>
-          Customize your StyleMuse experience
-        </Text>
-
-        {/* Dark Mode Toggle */}
-        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <View style={styles.settingHeader}>
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                🌙 Dark Mode
-              </Text>
-              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                {themeMode === 'system' 
-                  ? `Auto (Currently ${isDark ? 'Dark' : 'Light'})`
-                  : themeMode === 'dark' 
-                    ? 'Always Dark' 
-                    : 'Always Light'
-                }
-              </Text>
-            </View>
-          </View>
-          
-          {/* Theme Mode Options */}
-          <View style={styles.themeOptions}>
-            {(['light', 'dark', 'system'] as const).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                style={[
-                  styles.themeOption,
-                  {
-                    backgroundColor: themeMode === mode ? theme.colors.primary : theme.colors.surface,
-                    borderColor: themeMode === mode ? theme.colors.primary : theme.colors.border,
-                  }
-                ]}
-                onPress={async () => {
-                  await triggerHaptic('light');
-                  setThemeMode(mode);
-                }}
-              >
-                <Text style={styles.themeOptionIcon}>
-                  {mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '🔄'}
-                </Text>
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    {
-                      color: themeMode === mode ? '#FFFFFF' : theme.colors.text,
-                    }
-                  ]}
-                >
-                  {mode === 'light' ? 'Light' : mode === 'dark' ? 'Dark' : 'Auto'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          
-          <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
-            💡 Auto mode follows your device's appearance settings. Perfect for sensitive eyes during late-night outfit planning!
-          </Text>
-        </View>
-
-        {/* Color Scheme Toggle */}
-        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <View style={styles.settingHeader}>
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                🎨 Color Scheme
-              </Text>
-              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                {colorScheme === 'tokyo' 
-                  ? (theme.mode === 'dark' 
-                    ? '🌃 Tokyo Cyber - Electric neon night vibes' 
-                    : '🌸 Tokyo Kawaii - Soft peachy sakura aesthetic')
-                  : '🎯 Default - Clean and classic colors'
-                }
-              </Text>
-            </View>
-          </View>
-          
-          {/* Color Scheme Options */}
-          <View style={styles.themeOptions}>
-            {(['default', 'tokyo'] as const).map((scheme) => (
-              <TouchableOpacity
-                key={scheme}
-                style={[
-                  styles.themeOption,
-                  {
-                    backgroundColor: colorScheme === scheme ? theme.colors.primary : theme.colors.surface,
-                    borderColor: colorScheme === scheme ? theme.colors.primary : theme.colors.border,
-                  }
-                ]}
-                onPress={async () => {
-                  await triggerHaptic('light');
-                  setColorScheme(scheme);
-                }}
-              >
-                <Text style={styles.themeOptionIcon}>
-                  {scheme === 'default' ? '🎯' : (theme.mode === 'dark' ? '🌃' : '🌸')}
-                </Text>
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    {
-                      color: colorScheme === scheme ? '#FFFFFF' : theme.colors.text,
-                    }
-                  ]}
-                >
-                  {scheme === 'default' ? 'Default' : (theme.mode === 'dark' ? 'Cyber' : 'Kawaii')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          
-          <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
-            {colorScheme === 'tokyo' 
-              ? (theme.mode === 'dark' 
-                ? '⚡ Cyber mode: Electric neon colors for late-night style sessions! Perfect for channeling inner Tokyo street fashion energy 💫'
-                : '🍑 Kawaii mode: Soft peachy colors inspired by sakura blossoms and mochi! Perfect for cute, dreamy outfit planning 💕')
-              : '🌟 Experience Tokyo vibes with kawaii pastels (light) or cyber neon (dark) themes!'
-            }
-          </Text>
-        </View>
-
-        {/* Start Fresh Feature */}
-        <StartFreshSection theme={theme} styles={styles} />
-
-        {/* Future Settings Placeholder */}
-        <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <View style={styles.settingHeader}>
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                🔮 More Settings Coming Soon
-              </Text>
-              <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                Notifications, export options, and more personalization features
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Backup & Data Management Section */}
+      {/* Backup Section */}
       <BackupSection theme={theme} styles={styles} onRefreshData={onRefreshData} />
-
-      {/* Settings Modal */}
-      <Modal
-        animationType="slide"
-        presentationStyle="pageSheet"
-        visible={showSettings}
-        onRequestClose={() => setShowSettings(false)}
-      >
-        <SettingsScreen
-          onNavigateBack={() => setShowSettings(false)}
-          triggerHaptic={triggerHaptic}
-        />
-      </Modal>
-
+      
+      {/* Add some bottom padding */}
+      <View style={{ height: 32 }} />
     </View>
   );
 };
 
-/**
- * 💾 BACKUP SECTION: Complete backup/restore system
- */
+// Settings Tab Content Component  
+interface SettingsTabContentProps {
+  theme: any;
+  themeMode: string;
+  colorScheme: string;
+  isDark: boolean;
+  setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
+  setColorScheme: (scheme: string) => void;
+  triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
+  onRefreshData?: () => void;
+  styles: any;
+}
+
+const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
+  theme,
+  themeMode,
+  colorScheme,
+  isDark,
+  setThemeMode,
+  setColorScheme,
+  triggerHaptic,
+  onRefreshData,
+  styles
+}) => {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
+
+  const handleStartFresh = async () => {
+    try {
+      triggerHaptic('medium');
+      
+      // Get storage info for confirmation dialog
+      const storageInfo = await DataResetService.getStorageInfo();
+      
+      Alert.alert(
+        '🔄 Start Fresh',
+        `This will completely reset StyleMuse and take you through onboarding again.\n\n` +
+        `Current data:\n` +
+        `• ${storageInfo.totalKeys} stored items\n` +
+        `• ${storageInfo.totalSizeMB.toFixed(1)} MB of data\n\n` +
+        `A backup will be created automatically before reset.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Start Fresh', style: 'destructive', onPress: () => performStartFresh(storageInfo) }
+        ]
+      );
+    } catch (error) {
+      logger.error(LogCategories.USER_ACTION, 'Failed to get storage info for Start Fresh', error);
+      Alert.alert('Error', 'Failed to get storage information. Please try again.');
+    }
+  };
+
+  const performStartFresh = async (storageInfo: any) => {
+    Alert.alert(
+      '⚠️ Final Confirmation',
+      `Are you absolutely sure? This cannot be undone.\n\n` +
+      `This will:\n` +
+      `• Delete all ${storageInfo.totalKeys} stored items\n` +
+      `• Reset all settings and preferences\n` +
+      `• Return you to the onboarding screen\n\n` +
+      `A backup will be created first for safety.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes, Start Fresh', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              triggerHaptic('heavy');
+              logger.info(LogCategories.USER_ACTION, 'User initiated Start Fresh');
+              
+              const success = await DataResetService.resetAllData();
+              
+              if (success) {
+                logger.info(LogCategories.USER_ACTION, 'Start Fresh completed successfully');
+                await AsyncStorage.setItem('forceAppRestart', 'true');
+                Alert.alert('✅ Reset Complete', 'StyleMuse has been reset successfully. The app will restart to complete the process.');
+              } else {
+                throw new Error('Reset operation failed');
+              }
+            } catch (error) {
+              logger.error(LogCategories.USER_ACTION, 'Start Fresh failed', error);
+              Alert.alert('Reset Failed', 'Failed to reset app data. Please try again or contact support if the problem persists.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <View>
+      {/* Appearance Section */}
+      <SettingsSection title="Appearance" theme={theme}>
+        {/* Dark Mode */}
+        <View style={styles.themeContainer}>
+          <SettingsRow
+            icon="🌙"
+            title="Dark Mode"
+            theme={theme}
+            hasChevron={false}
+            rightComponent={
+              <View style={styles.themeOptions}>
+                {(['light', 'dark', 'system'] as const).map((mode) => (
+                  <ThemeModeOption
+                    key={mode}
+                    mode={mode}
+                    currentMode={themeMode}
+                    onSelect={(selectedMode) => {
+                      triggerHaptic('light');
+                      setThemeMode(selectedMode);
+                    }}
+                    theme={theme}
+                  />
+                ))}
+              </View>
+            }
+          />
+        </View>
+        
+        {/* Color Scheme */}
+        <SettingsRow
+          icon="🎨"
+          title="Color Scheme"
+          value={colorScheme === 'default' ? 'Default' : 'Tokyo'}
+          onPress={() => {
+            triggerHaptic('light');
+            setColorScheme(colorScheme === 'default' ? 'tokyo' : 'default');
+          }}
+          theme={theme}
+        />
+        
+        {/* Display Options */}
+        <SettingsRow
+          icon="📱"
+          title="Display Options"
+          value="Font Size, Animations"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Display options will be available in a future update.');
+          }}
+          theme={theme}
+        />
+      </SettingsSection>
+
+      {/* Privacy & Security Section */}
+      <SettingsSection title="Privacy & Security" theme={theme}>
+        <SettingsRow
+          icon="🔒"
+          title="Privacy Choices"
+          value="Manage Data Collection"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Privacy settings will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="📊"
+          title="Analytics"
+          theme={theme}
+          hasChevron={false}
+          rightComponent={
+            <Switch
+              value={analyticsEnabled}
+              onValueChange={(value) => {
+                triggerHaptic('light');
+                setAnalyticsEnabled(value);
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={theme.colors.card}
+            />
+          }
+        />
+        
+        <SettingsRow
+          icon="🛡️"
+          title="Security"
+          value="Biometric Auth"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Security settings will be available in a future update.');
+          }}
+          theme={theme}
+        />
+      </SettingsSection>
+
+      {/* Account & Subscription Section */}
+      <SettingsSection title="Account & Subscription" theme={theme}>
+        <SettingsRow
+          icon="👤"
+          title="Profile"
+          value="Edit Name, Email"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Profile editing will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="💎"
+          title="Subscription"
+          value="StyleMuse Free"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Subscription management will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="⏰"
+          title="Trial Status"
+          value="7 days remaining"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Trial management will be available in a future update.');
+          }}
+          theme={theme}
+        />
+      </SettingsSection>
+
+      {/* Data Management Section */}
+      <SettingsSection title="Data Management" theme={theme}>
+        <SettingsRow
+          icon="💾"
+          title="Storage & Backup"
+          theme={theme}
+          hasChevron={false}
+          rightComponent={
+            <Switch
+              value={autoBackupEnabled}
+              onValueChange={(value) => {
+                triggerHaptic('light');
+                setAutoBackupEnabled(value);
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={theme.colors.card}
+            />
+          }
+        />
+        
+        <SettingsRow
+          icon="📤"
+          title="Export Data"
+          value="Download Your Data"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Data export will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="📥"
+          title="Import Data"
+          value="Restore from Backup"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Data import will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="🔄"
+          title="Start Fresh"
+          value="Reset All Data"
+          onPress={handleStartFresh}
+          theme={theme}
+        />
+      </SettingsSection>
+
+      {/* About & Support Section */}
+      <SettingsSection title="About & Support" theme={theme}>
+        <SettingsRow
+          icon="ℹ️"
+          title="About StyleMuse"
+          value="v1.0.0"
+          onPress={() => {
+            Alert.alert(
+              'About StyleMuse',
+              'StyleMuse v1.0.0\n\nYour AI-powered personal stylist and wardrobe organizer.\n\nBuilt with React Native and powered by OpenAI.',
+              [{ text: 'OK' }]
+            );
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="❓"
+          title="Help Center"
+          value="FAQs & Guides"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Help center will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="💬"
+          title="Contact Support"
+          value="Get Help"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'Support contact will be available in a future update.');
+          }}
+          theme={theme}
+        />
+        
+        <SettingsRow
+          icon="⭐"
+          title="Rate App"
+          value="App Store"
+          onPress={() => {
+            Alert.alert('Coming Soon', 'App Store rating will be available in a future update.');
+          }}
+          theme={theme}
+        />
+      </SettingsSection>
+
+      {/* Add some bottom padding */}
+      <View style={{ height: 32 }} />
+    </View>
+  );
+};
+
+// Backup Section Component (keeping the existing one)
 interface BackupSectionProps {
   theme: any;
   styles: any;
@@ -447,349 +624,199 @@ const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles, onRefreshD
 
   const loadBackupStats = async () => {
     try {
-      const { FullBackupService } = await import('../services/FullBackupService');
-      const backups = await FullBackupService.getAvailableBackups();
-      
-      const totalSize = backups.reduce((sum, backup) => sum + backup.totalSizeMB, 0);
-      const lastBackup = backups.length > 0 ? new Date(backups[0].timestamp) : null;
-      
-      setBackupStats({
-        availableBackups: backups.length,
-        lastBackupDate: lastBackup,
-        totalBackupSize: totalSize > 1 ? `${totalSize.toFixed(1)} MB` : `${Math.round(totalSize * 1024)} KB`,
-      });
+      const stats = await PersistenceService.getBackupStats();
+      setBackupStats(stats);
     } catch (error) {
-      console.error('Failed to load backup stats:', error);
+      logger.error(LogCategories.STORAGE, 'Failed to load backup stats', error);
     }
   };
 
-  const handleBackupCreated = (backupId: string) => {
-    console.log('New backup created:', backupId);
-    loadBackupStats(); // Refresh stats
-  };
-
-  const handleDataRestored = (backupId: string) => {
-    console.log('Data restored from backup:', backupId);
-    // You might want to trigger a full app refresh here
+  const triggerBackup = async () => {
+    try {
+      logger.info(LogCategories.USER_ACTION, 'User triggered manual backup');
+      
+      const success = await PersistenceService.createBackup();
+      
+      if (success) {
+        Alert.alert('✅ Backup Created', 'Your data has been backed up successfully.');
+        await loadBackupStats();
+        if (onRefreshData) {
+          onRefreshData();
+        }
+      } else {
+        Alert.alert('❌ Backup Failed', 'Failed to create backup. Please try again.');
+      }
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Manual backup failed', error);
+      Alert.alert('❌ Backup Failed', 'An error occurred during backup. Please try again.');
+    }
   };
 
   return (
     <View style={styles.backupSection}>
-      <Text style={styles.backupTitle}>💾 Complete Backup System</Text>
-      <Text style={styles.backupSubtitle}>
-        Professional-grade backup, restore, and testing capabilities
-      </Text>
-
-      {/* Enhanced Backup Status */}
-      <View style={styles.backupStatusCard}>
-        <View style={styles.backupStatusHeader}>
-          <Text style={styles.backupStatusTitle}>📊 System Status</Text>
-          <Text style={[
-            styles.backupStatusBadge, 
-            backupStats.availableBackups > 0 ? styles.backupStatusGood : styles.backupStatusBad
-          ]}>
-            {backupStats.availableBackups > 0 ? '✅ Protected' : '⚠️ No Backups'}
-          </Text>
+      <Text style={[styles.sectionSubtitle, { color: theme.colors.text }]}>💾 Backup & Data</Text>
+      
+      <View style={[styles.backupCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <View style={styles.backupHeader}>
+          <View style={styles.backupInfo}>
+            <Text style={[styles.backupTitle, { color: theme.colors.text }]}>
+              📱 Data Backup
+            </Text>
+            <Text style={[styles.backupDescription, { color: theme.colors.textSecondary }]}>
+              {backupStats.availableBackups} backups available • {backupStats.totalBackupSize}
+            </Text>
+            {backupStats.lastBackupDate && (
+              <Text style={[styles.backupLastDate, { color: theme.colors.textMuted }]}>
+                Last backup: {backupStats.lastBackupDate.toLocaleDateString()}
+              </Text>
+            )}
+          </View>
         </View>
         
-        <View style={styles.backupStatusDetails}>
-          <Text style={styles.backupStatusText}>
-            Backups: {backupStats.availableBackups} available
-          </Text>
-          <Text style={styles.backupStatusText}>
-            Total Size: {backupStats.totalBackupSize}
-          </Text>
-          <Text style={styles.backupStatusText}>
-            Last Backup: {backupStats.lastBackupDate 
-              ? backupStats.lastBackupDate.toLocaleDateString() 
-              : 'Never'}
-          </Text>
+        <View style={styles.backupButtons}>
+          <TouchableOpacity
+            style={[styles.backupButton, { backgroundColor: theme.colors.primary }]}
+            onPress={triggerBackup}
+          >
+            <Text style={styles.backupButtonText}>💾 Create Backup</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.backupButton, { backgroundColor: theme.colors.secondary }]}
+            onPress={() => setShowBackupManager(true)}
+          >
+            <Text style={styles.backupButtonText}>📋 Manage Backups</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Advanced Backup Manager Button */}
-      <TouchableOpacity
-        style={[styles.backupButton, styles.managerButton]}
-        onPress={() => setShowBackupManager(true)}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.backupButtonIcon}>🎛️</Text>
-        <Text style={styles.backupButtonText}>Advanced Backup Manager</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.backupNote}>
-        🎯 Full backup/restore system with versioning, testing, and data reset capabilities. Create snapshots, restore from any point, and test your backup integrity.
-      </Text>
-
-      {/* Backup Manager Modal */}
       <BackupManagerModal
         visible={showBackupManager}
         onClose={() => setShowBackupManager(false)}
-        onBackupCreated={handleBackupCreated}
-        onDataRestored={handleDataRestored}
         onRefreshData={onRefreshData}
       />
     </View>
   );
 };
 
-/**
- * 🔄 START FRESH SECTION: Complete data reset and onboarding restart
- */
-interface StartFreshSectionProps {
-  theme: any;
-  styles: any;
-}
-
-const StartFreshSection: React.FC<StartFreshSectionProps> = ({ theme, styles }) => {
-  const [isResetting, setIsResetting] = useState(false);
-  const [storageInfo, setStorageInfo] = useState<{
-    totalKeys: number;
-    totalSizeMB: number;
-    keys: string[];
-  }>({ totalKeys: 0, totalSizeMB: 0, keys: [] });
-
-  useEffect(() => {
-    loadStorageInfo();
-  }, []);
-
-  const loadStorageInfo = async () => {
-    try {
-      const info = await DataResetService.getStorageInfo();
-      setStorageInfo(info);
-    } catch (error) {
-      logger.error(LogCategories.STORAGE, 'Failed to load storage info', error);
-    }
-  };
-
-  const showStartFreshConfirmation = () => {
-    Alert.alert(
-      '🔄 Start Fresh',
-      `This will completely reset StyleMuse and take you through onboarding again.\n\n` +
-      `Current data:\n` +
-      `• ${storageInfo.totalKeys} stored items\n` +
-      `• ${storageInfo.totalSizeMB.toFixed(1)} MB of data\n\n` +
-      `A backup will be created automatically before reset.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            logger.info(LogCategories.USER_ACTION, 'Start fresh cancelled');
-          }
-        },
-        {
-          text: 'Start Fresh',
-          style: 'destructive',
-          onPress: showFinalConfirmation
-        }
-      ]
-    );
-  };
-
-  const showFinalConfirmation = () => {
-    Alert.alert(
-      '⚠️ Final Confirmation',
-      'Are you absolutely sure? This action cannot be undone without restoring from backup.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes, Start Fresh',
-          style: 'destructive',
-          onPress: handleStartFresh
-        }
-      ]
-    );
-  };
-
-  const handleStartFresh = async () => {
-    setIsResetting(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    try {
-      logger.info(LogCategories.USER_ACTION, 'Starting fresh - full data reset initiated');
-
-      // Create backup before reset
-      const backupId = await DataResetService.createBackupBeforeReset();
-      if (backupId) {
-        logger.info(LogCategories.STORAGE, 'Backup created before reset', { backupId });
-      }
-
-      // Reset all data
-      const resetStats = await DataResetService.resetAllData();
-      
-      logger.info(LogCategories.USER_ACTION, 'Data reset completed', {
-        clearedItems: resetStats.clearedItems,
-        totalSizeMB: resetStats.totalSizeMB,
-        errors: resetStats.errors.length
-      });
-
-      // Validate reset
-      const isValid = await DataResetService.validateReset();
-      
-      if (isValid) {
-        Alert.alert(
-          '✅ Reset Complete',
-          `Successfully reset ${resetStats.clearedItems} items (${resetStats.totalSizeMB.toFixed(1)} MB).\n\n` +
-          `${backupId ? 'Backup created: ' + String(backupId).substring(0, 8) + '...\n\n' : 'No backup created\n\n'}` +
-          `The app will restart to onboarding.`,
-          [
-            {
-              text: 'Restart Now',
-              onPress: async () => {
-                // Set a flag to force app restart
-                try {
-                  await AsyncStorage.setItem('forceAppRestart', 'true');
-                  logger.info(LogCategories.USER_ACTION, 'Restart flag set, app will restart');
-                  
-                  // For React Native, we need to restart differently
-                  if (typeof window !== 'undefined' && window.location) {
-                    window.location.reload();
-                  } else {
-                    // For mobile, show message that app needs to be restarted manually
-                    Alert.alert(
-                      '📱 Restart Required',
-                      'Please close and reopen the app to complete the reset.',
-                      [{ text: 'OK' }]
-                    );
-                  }
-                } catch (error) {
-                  logger.error(LogCategories.STORAGE, 'Failed to set restart flag', error);
-                }
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          '⚠️ Reset Incomplete',
-          `Some data may not have been cleared. Check the backup manager for details.`,
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      logger.error(LogCategories.STORAGE, 'Failed to start fresh', error);
-      Alert.alert(
-        '❌ Reset Failed',
-        `Failed to reset data: ${error.message}\n\nYour data is safe. Please try again or contact support.`,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  return (
-    <View style={[styles.settingCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      <View style={styles.settingHeader}>
-        <View style={styles.settingInfo}>
-          <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-            🔄 Start Fresh
-          </Text>
-          <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-            Reset all data and go through onboarding again
-          </Text>
-        </View>
-      </View>
-      
-      <View style={styles.startFreshInfo}>
-        <Text style={[styles.startFreshInfoText, { color: theme.colors.textSecondary }]}>
-          Current data: {storageInfo.totalKeys} items ({storageInfo.totalSizeMB.toFixed(1)} MB)
-        </Text>
-        <Text style={[styles.startFreshInfoText, { color: theme.colors.textSecondary }]}>
-          ✅ Backup created automatically
-        </Text>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.startFreshButton, { backgroundColor: theme.colors.error }]}
-        onPress={showStartFreshConfirmation}
-        disabled={isResetting}
-        activeOpacity={0.8}
-      >
-        {isResetting ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={styles.startFreshButtonText}>🔄 Start Fresh</Text>
-        )}
-      </TouchableOpacity>
-
-      <Text style={[styles.settingNote, { color: theme.colors.textMuted }]}>
-        Perfect for testing onboarding or completely starting over. Creates a backup first, so you can restore if needed.
-      </Text>
-    </View>
-  );
-};
-
 const createStyles = (theme: any) => StyleSheet.create({
-  // Header Styles
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  container: {
+    marginTop: 20,
     flex: 1,
-    textAlign: 'center',
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    right: 20,
-  },
-  settingsButtonIcon: {
-    fontSize: 20,
   },
   
-  // Quick Settings Styles
-  quickSettingsSection: {
-    marginTop: 20,
+  // Header Styles
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 20,
-    paddingHorizontal: 20,
-    borderRadius: 12,
   },
-  quickSettingCard: {
+  
+  // Tab Styles
+  tabContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    marginHorizontal: 20,
   },
-  quickSettingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+  tab: {
     flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  quickToggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  quickToggleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  tabText: {
+    fontSize: 16,
     fontWeight: '600',
   },
-
+  tabContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  
+  // Section Styles
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  
+  // Profile Photo Styles
+  profilePhotoSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profilePhotoContainer: {
+    position: 'relative',
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+  },
+  profileImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+  },
+  profileImageEmoji: {
+    fontSize: 40,
+  },
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIconText: {
+    color: 'white',
+    fontSize: 18,
+  },
+  uploadText: {
+    fontSize: 14,
+    marginTop: 10,
+  },
+  analyzeButton: {
+    marginTop: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  analyzeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
+  // Gender Card Styles
   genderCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 15,
-    marginHorizontal: 20,
+    marginBottom: 20,
     borderWidth: 2,
     borderRadius: 12,
     backgroundColor: theme.colors.card,
@@ -801,8 +828,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   genderArrow: {
     fontSize: 16,
   },
+  
+  // Style DNA Styles
+  styleDNASection: {
+    marginBottom: 20,
+  },
   styleDNACard: {
-    backgroundColor: theme.colors.card,
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
@@ -811,229 +842,88 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: theme.colors.text,
   },
   styleDNAText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginBottom: 3,
+    fontSize: 14,
+    lineHeight: 18,
   },
-  styleDNALabel: {
-    fontWeight: 'bold',
-    color: theme.colors.success,
+  
+  // Stats Styles
+  statsSection: {
+    marginBottom: 20,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
     flex: 1,
-    marginHorizontal: 5,
+    alignItems: 'center',
+    padding: 12,
+    margin: 4,
+    borderRadius: 8,
+    ...theme.shadows.small,
   },
   statNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  // App Settings Section Styles
-  settingsSection: {
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    padding: 16,
-  },
-  settingsSectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
   },
-  settingsSectionSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
+  
+  // Theme Options
+  themeContainer: {
+    paddingVertical: 8,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  
+  // Backup Section Styles
+  backupSection: {
     marginBottom: 20,
   },
-  settingCard: {
+  backupCard: {
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
     borderWidth: 1,
   },
-  settingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+  backupHeader: {
+    marginBottom: 16,
   },
-  settingInfo: {
+  backupInfo: {
     flex: 1,
   },
-  settingTitle: {
+  backupTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
-  settingDescription: {
+  backupDescription: {
     fontSize: 14,
-    lineHeight: 18,
+    marginBottom: 4,
   },
-  themeOptions: {
+  backupLastDate: {
+    fontSize: 12,
+  },
+  backupButtons: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
-  },
-  themeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    gap: 6,
-  },
-  themeOptionIcon: {
-    fontSize: 16,
-  },
-  themeOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  settingNote: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontStyle: 'italic',
-  },
-  // Backup Section Styles
-  backupSection: {
-    marginTop: 30,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  backupTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  backupSubtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  backupStatusCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  backupStatusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  backupStatusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  backupStatusBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  backupStatusGood: {
-    backgroundColor: theme.colors.success + '20',
-    color: theme.colors.success,
-  },
-  backupStatusBad: {
-    backgroundColor: theme.colors.error + '20',
-    color: theme.colors.error,
-  },
-  backupStatusDetails: {
-    flexDirection: 'column',
-    gap: 4,
-  },
-  backupStatusText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    flexWrap: 'wrap',
-  },
-  backupActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
   },
   backupButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
-    gap: 8,
-  },
-  exportButton: {
-    backgroundColor: theme.colors.primary,
-  },
-  importButton: {
-    backgroundColor: theme.colors.success,
-  },
-  managerButton: {
-    backgroundColor: theme.colors.primary,
-    marginTop: 12,
-  },
-  backupButtonIcon: {
-    fontSize: 16,
+    alignItems: 'center',
   },
   backupButtonText: {
-    color: '#ffffff',
+    color: 'white',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  backupNote: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  // Start Fresh Section Styles
-  startFreshInfo: {
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  startFreshInfoText: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  startFreshButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    minHeight: 44,
-  },
-  startFreshButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '600',
   },
 });
