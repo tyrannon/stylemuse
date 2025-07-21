@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView, Image, Easing } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView, Image, Easing, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -270,6 +270,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'android' ? 35 : 20, // Extra padding for Android navigation buttons
     borderTopWidth: 0.5,
     borderTopColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
     ...theme.shadows.large,

@@ -12,6 +12,7 @@ import { formatDate } from '../utils/dateUtils';
 import { useTheme } from '../contexts/ThemeContext';
 import { OutfitFilterBar } from '../components/OutfitFilterBar';
 import { useOutfitFilter, matchesFilters } from '../contexts/OutfitFilterContext';
+import { MetadataDisplay } from './components/MetadataDisplay';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
@@ -60,7 +61,15 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   
   // Filter outfits based on active filters
   const filteredOutfits = React.useMemo(() => {
-    return lovedOutfits.filter(outfit => matchesFilters(outfit, filters));
+    const filtered = lovedOutfits.filter(outfit => matchesFilters(outfit, filters));
+    console.log('🔍 Filtering outfits:', {
+      totalOutfits: lovedOutfits.length,
+      filteredCount: filtered.length,
+      activeFilters: filters,
+      firstOutfitMetadata: lovedOutfits[0]?.metadata,
+      sampleFilteredOutfit: filtered[0]?.metadata
+    });
+    return filtered;
   }, [lovedOutfits, filters]);
   
   const filteredSortedOutfits = React.useMemo(() => {
@@ -413,18 +422,8 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                       {outfit.selectedItems.length} items used
                     </Text>
                     
-                    {/* Metadata badges for loved outfits */}
-                    {outfit.metadata && (
-                      <View style={styles.metadataBadges}>
-                        {outfit.metadata.occasion && (
-                          <View style={[styles.metadataBadge, { backgroundColor: theme.colors.primary }]}>
-                            <Text style={styles.metadataBadgeText}>
-                              {outfit.metadata.occasion}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
+                    {/* Metadata display for loved outfits */}
+                    {outfit.metadata && <MetadataDisplay metadata={outfit.metadata} compact />}
                   </View>
                   
                   {/* Selection overlay for multi-select mode */}
@@ -523,25 +522,8 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                     {outfit.selectedItems.length} items
                   </Text>
                   
-                  {/* Metadata badges */}
-                  {outfit.metadata && (
-                    <View style={styles.metadataBadges}>
-                      {outfit.metadata.occasion && (
-                        <View style={[styles.metadataBadge, { backgroundColor: theme.colors.primary }]}>
-                          <Text style={styles.metadataBadgeText}>
-                            {outfit.metadata.occasion}
-                          </Text>
-                        </View>
-                      )}
-                      {outfit.metadata.season && outfit.metadata.season[0] && (
-                        <View style={[styles.metadataBadge, { backgroundColor: theme.colors.secondary }]}>
-                          <Text style={styles.metadataBadgeText}>
-                            {outfit.metadata.season[0]}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+                  {/* Metadata display */}
+                  {outfit.metadata && <MetadataDisplay metadata={outfit.metadata} compact />}
                 </View>
                 
                 {/* Selection overlay for multi-select mode */}

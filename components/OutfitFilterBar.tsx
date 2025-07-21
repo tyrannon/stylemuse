@@ -159,14 +159,26 @@ export const OutfitFilterBar: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Quick Filter Chips */}
-          {QUICK_FILTERS.map((quickFilter) => (
+          {/* All Occasions Chip */}
+          <FilterChip
+            key="all-occasions"
+            label="All"
+            emoji="👗"
+            isActive={filters.occasion.length === 0}
+            onPress={() => {
+              // Clear all occasion filters
+              filters.occasion.forEach(occasion => toggleFilter('occasion', occasion));
+            }}
+          />
+          
+          {/* Occasion Filter Chips */}
+          {OCCASION_OPTIONS.map((occasion) => (
             <FilterChip
-              key={quickFilter.id}
-              label={quickFilter.label}
-              emoji={quickFilter.emoji}
-              isActive={false} // You could check if quick filter matches current filters
-              onPress={() => applyQuickFilter(quickFilter)}
+              key={`occasion-${occasion.value}`}
+              label={occasion.label}
+              emoji={occasion.emoji}
+              isActive={filters.occasion.includes(occasion.value)}
+              onPress={() => toggleFilter('occasion', occasion.value)}
             />
           ))}
         </ScrollView>

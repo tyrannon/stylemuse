@@ -91,11 +91,9 @@ EXAMPLES OF REQUIRED PRECISION:
 CRITICAL: Be so precise that two people analyzing the same item would get nearly identical results. This level of accuracy is essential for the wardrobe app to function properly.
 `;
 
-  // Truncate prompt to ensure it fits within limits while preserving key instructions
-  const truncatedPrompt = PromptTruncator.truncate(prompt, PROMPT_LIMITS.IMAGE_ANALYSIS, {
-    preserveSentences: true,
-    priorityMarkers: ['CRITICAL']
-  });
+  // DISABLED: Truncation was breaking working clothing analysis
+  // Use full prompt since clothing detection was working perfectly before truncation
+  const truncatedPrompt = prompt;
 
   const payload = {
     model: "gpt-4o",

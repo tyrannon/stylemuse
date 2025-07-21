@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Image, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Image, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import { LovedOutfit, WardrobeItem } from '../../hooks/useWardrobeData';
 import { MarkAsWornModal } from './MarkAsWornModal';
 import { SafeImage } from '../../utils/SafeImage';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
+import { MetadataDisplay } from './MetadataDisplay';
+import { OCCASION_OPTIONS } from '../../contexts/OutfitFilterContext';
 
 // Helper function to safely format dates
 const formatDate = (date: any): string => {
@@ -28,6 +30,7 @@ interface OutfitDetailViewProps {
   onMarkAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
   onDelete: (outfitId: string) => Promise<void>;
   categorizeItem: (item: WardrobeItem) => string;
+  onUpdateOccasion?: (outfitId: string, occasion: string) => void;
 }
 
 export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
@@ -40,8 +43,11 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
   onMarkAsWorn,
   onDelete,
   categorizeItem,
+  onUpdateOccasion,
 }) => {
   const [showMarkAsWornModal, setShowMarkAsWornModal] = useState(false);
+  const [showOccasionDropdown, setShowOccasionDropdown] = useState(false);
+  const [selectedOccasion, setSelectedOccasion] = useState(outfit.metadata?.occasion || 'casual');
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -77,11 +83,35 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back to Outfits</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={handleDeleteOutfit} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
+      {/* Title on its own row */}
+      <View style={styles.itemDetailTitleContainer}>
         <Text style={styles.itemDetailTitle}>
           Generated Outfit
         </Text>
-        <TouchableOpacity onPress={handleDeleteOutfit} style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>🗑️</Text>
+      </View>
+
+      {/* Occasion Dropdown */}
+      <View style={styles.occasionSection}>
+        <Text style={styles.occasionLabel}>Occasion:</Text>
+        <TouchableOpacity 
+          style={styles.occasionDropdown}
+          onPress={() => setShowOccasionDropdown(true)}
+        >
+          {OCCASION_OPTIONS.find(opt => opt.value === selectedOccasion) && (
+            <>
+              <Text style={styles.occasionEmoji}>
+                {OCCASION_OPTIONS.find(opt => opt.value === selectedOccasion)?.emoji}
+              </Text>
+              <Text style={styles.occasionText}>
+                {OCCASION_OPTIONS.find(opt => opt.value === selectedOccasion)?.label}
+              </Text>
+            </>
+          )}
+          <Text style={styles.occasionArrow}>▼</Text>
         </TouchableOpacity>
       </View>
 
@@ -134,6 +164,9 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
              '👤 Unisex'}
           </Text>
         </View>
+
+        {/* Metadata Display */}
+        {outfit.metadata && <MetadataDisplay metadata={outfit.metadata} />}
 
         {/* Wear History Section */}
         {outfit.timesWorn > 0 && (
@@ -218,6 +251,57 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
           </TouchableOpacity>
         </View>
         
+        {/* Occasion Selection Modal */}
+        <Modal
+          visible={showOccasionDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowOccasionDropdown(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowOccasionDropdown(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Occasion</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowOccasionDropdown(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalContent}>
+                {OCCASION_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.occasionOption,
+                      selectedOccasion === option.value && styles.occasionOptionSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedOccasion(option.value);
+                      onUpdateOccasion?.(outfit.id, option.value);
+                      setShowOccasionDropdown(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text style={styles.occasionOptionEmoji}>{option.emoji}</Text>
+                    <Text style={[
+                      styles.occasionOptionText,
+                      selectedOccasion === option.value && styles.occasionOptionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+        
         {/* Mark as Worn Modal */}
         <MarkAsWornModal
           visible={showMarkAsWornModal}
@@ -245,6 +329,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+  },
+  itemDetailTitleContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -261,12 +349,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
   },
   itemDetailTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.text,
     textAlign: 'center',
-    flex: 1,
-    marginHorizontal: 16,
   },
   deleteButton: {
     paddingVertical: 8,
@@ -392,6 +478,111 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
     overflow: 'hidden',
+    fontWeight: '600',
+  },
+  // Occasion dropdown styles
+  occasionSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  occasionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginRight: 12,
+    minWidth: 80,
+  },
+  occasionDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    flex: 1,
+  },
+  occasionEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  occasionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  occasionArrow: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginLeft: 8,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 16,
+    margin: 20,
+    maxHeight: '70%',
+    width: '80%',
+    ...theme.shadows.large,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: theme.colors.textSecondary,
+  },
+  modalContent: {
+    maxHeight: 300,
+  },
+  occasionOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border + '50',
+  },
+  occasionOptionSelected: {
+    backgroundColor: theme.colors.primary + '10',
+  },
+  occasionOptionEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  occasionOptionText: {
+    fontSize: 16,
+    color: theme.colors.text,
+    flex: 1,
+  },
+  occasionOptionTextSelected: {
+    color: theme.colors.primary,
     fontWeight: '600',
   },
 });

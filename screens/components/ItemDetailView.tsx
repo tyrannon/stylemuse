@@ -265,12 +265,15 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back to Wardrobe</Text>
         </TouchableOpacity>
-        <Text style={styles.itemDetailTitle}>
-          {item.title || 'Clothing Item'}
-        </Text>
         <TouchableOpacity onPress={handleDeleteItem} style={styles.deleteButton}>
           <Text style={styles.deleteButtonText}>🗑️</Text>
         </TouchableOpacity>
+      </View>
+      {/* Title on its own row */}
+      <View style={styles.itemDetailTitleContainer}>
+        <Text style={styles.itemDetailTitle}>
+          {item.title || 'Clothing Item'}
+        </Text>
       </View>
 
       {/* Item Image Display */}
@@ -686,6 +689,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+  },
+  itemDetailTitleContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -702,12 +709,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
   },
   itemDetailTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.text,
     textAlign: 'center',
-    flex: 1,
-    marginHorizontal: 16,
   },
   deleteButton: {
     paddingVertical: 8,
@@ -831,13 +836,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginLeft: 8,
-    minWidth: 100,
+    minWidth: 140,
   },
   categoryDropdownText: {
     fontSize: 14,

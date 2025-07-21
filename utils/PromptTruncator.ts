@@ -267,7 +267,7 @@ export interface TruncationOptions {
  */
 export const PROMPT_LIMITS = {
   OUTFIT_GENERATION: 3000,
-  IMAGE_ANALYSIS: 2000,
+  IMAGE_ANALYSIS: 3500, // Increased from 2000 to preserve JSON format instructions
   STYLE_DESCRIPTION: 1500,
   QUICK_SUGGESTION: 500,
   DALLE_IMAGE: 3900, // DALL-E has a 4000 char limit, leave buffer

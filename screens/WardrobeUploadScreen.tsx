@@ -699,12 +699,13 @@ const WardrobeUploadScreen = () => {
 
   // Function to handle automatic description and saving of clothing item
   const handleAutoDescribeAndSave = async (imageUri: string, isBulkUpload = false) => {
+    // Show unified loading for both single and bulk uploads - user wants to see the header animation
+    unifiedLoading.showLoading({
+      ...LOADING_CONFIGS.IMAGE_ANALYSIS,
+      subtitle: isBulkUpload ? 'Analyzing your images...' : 'Analyzing your clothing item...',
+    });
+    
     if (!isBulkUpload) {
-      // Show unified loading overlay for single image analysis
-      unifiedLoading.showLoading({
-        ...LOADING_CONFIGS.IMAGE_ANALYSIS,
-        subtitle: 'Analyzing your clothing item...',
-      });
       setDescription(null);
       setTitle(null);
       setTags([]);
@@ -790,9 +791,8 @@ const WardrobeUploadScreen = () => {
         alert("Failed to analyze image");
       }
     } finally {
-      if (!isBulkUpload) {
-        unifiedLoading.hideLoading();
-      }
+      // Always hide loading since we now show it for both single and bulk uploads
+      unifiedLoading.hideLoading();
     }
   };
 
@@ -1831,6 +1831,40 @@ const WardrobeUploadScreen = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle[type]);
     } catch (error) {
       console.log('Haptic feedback not available:', error);
+    }
+  };
+
+  // Function to update outfit occasion
+  const updateOutfitOccasion = async (outfitId: string, occasion: string) => {
+    try {
+      console.log(`🔄 Updating outfit ${outfitId} occasion to: ${occasion}`);
+      
+      setLovedOutfits(prev => {
+        const updated = prev.map(outfit => {
+          if (outfit.id === outfitId) {
+            const updatedOutfit = { 
+              ...outfit, 
+              metadata: { ...outfit.metadata, occasion } 
+            };
+            console.log('📝 Updated outfit metadata:', updatedOutfit.metadata);
+            return updatedOutfit;
+          }
+          return outfit;
+        });
+        return updated;
+      });
+      
+      // Persist to storage - get the current state to ensure consistency
+      const currentOutfits = lovedOutfits.map(outfit => 
+        outfit.id === outfitId 
+          ? { ...outfit, metadata: { ...outfit.metadata, occasion } }
+          : outfit
+      );
+      await AsyncStorage.setItem('lovedOutfits', JSON.stringify(currentOutfits));
+      
+      console.log(`✅ Updated and persisted outfit ${outfitId} occasion to: ${occasion}`);
+    } catch (error) {
+      console.error('❌ Failed to update outfit occasion:', error);
     }
   };
 
@@ -3199,6 +3233,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     onMarkAsWorn={markOutfitAsWorn}
     onDelete={handleDeleteOutfit}
     categorizeItem={categorizeItem}
+    onUpdateOccasion={updateOutfitOccasion}
   />
 )}
 
