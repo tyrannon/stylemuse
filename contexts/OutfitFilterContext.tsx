@@ -288,30 +288,33 @@ export const matchesFilters = (outfit: any, filters: FilterState): boolean => {
     return true;
   }
 
+  // Get metadata from outfit (handle both old and new formats)
+  const metadata = outfit.metadata || {};
+
   // Check occasion match
   if (filters.occasion.length > 0) {
-    if (!outfit.occasion || !filters.occasion.includes(outfit.occasion)) {
+    if (!metadata.occasion || !filters.occasion.includes(metadata.occasion)) {
       return false;
     }
   }
 
   // Check style match
   if (filters.style.length > 0) {
-    if (!outfit.style || !filters.style.some(style => outfit.style?.includes(style))) {
+    if (!metadata.style || !filters.style.some(style => metadata.style?.includes(style))) {
       return false;
     }
   }
 
   // Check color palette match
   if (filters.colorPalette.length > 0) {
-    if (!outfit.colorPalette || !filters.colorPalette.includes(outfit.colorPalette)) {
+    if (!metadata.colorPaletteType || !filters.colorPalette.includes(metadata.colorPaletteType)) {
       return false;
     }
   }
 
   // Check season match
   if (filters.season.length > 0) {
-    if (!outfit.season || !filters.season.some(season => outfit.season?.includes(season))) {
+    if (!metadata.season || !filters.season.some(season => metadata.season?.includes(season))) {
       return false;
     }
   }
@@ -321,11 +324,13 @@ export const matchesFilters = (outfit: any, filters: FilterState): boolean => {
     const query = filters.searchQuery.toLowerCase();
     const searchableText = [
       outfit.description,
-      outfit.occasion,
-      outfit.style,
-      outfit.colorPalette,
-      outfit.season,
-      ...(outfit.tags || []),
+      metadata.occasion,
+      ...(metadata.style || []),
+      metadata.colorPaletteType,
+      ...(metadata.season || []),
+      ...(metadata.tags || []),
+      metadata.formality,
+      metadata.weatherAppropriateness,
     ].filter(Boolean).join(' ').toLowerCase();
     
     if (!searchableText.includes(query)) {

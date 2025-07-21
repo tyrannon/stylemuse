@@ -41,6 +41,18 @@ export interface OutfitGenerationState {
   generateOutfitSuggestions: (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => Promise<void>;
   clearGearSlots: () => void;
   setGearSlotItem: (slotType: keyof GearSlots, item: WardrobeItem | null) => void;
+  // Store the last generated outfit metadata
+  lastGeneratedMetadata?: {
+    occasion?: 'work' | 'casual' | 'formal' | 'party' | 'athletic' | 'date';
+    style?: string[];
+    colorPaletteType?: 'monochrome' | 'earth' | 'pastels' | 'brights' | 'neutrals' | 'jewel';
+    season?: string[];
+    formality?: string;
+    confidence?: number;
+    styleScore?: number;
+    tags?: string[];
+    weatherAppropriateness?: string;
+  };
   // Unified loading state
   unifiedLoading: {
     isLoading: boolean;
@@ -76,6 +88,7 @@ export const useOutfitGeneration = (
     hat: { itemId: null, itemImage: null, itemTitle: null },
     accessories: { itemId: null, itemImage: null, itemTitle: null },
   });
+  const [lastGeneratedMetadata, setLastGeneratedMetadata] = useState<OutfitGenerationState['lastGeneratedMetadata']>();
 
   // Function to generate outfit suggestions based on a selected item (or general suggestions if selectedItem is null)
   const generateOutfitSuggestions = async (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => {
@@ -162,6 +175,22 @@ export const useOutfitGeneration = (
         suggestedItemsCount: aiOutfit.suggestedItems?.length || 0
       });
       startTime();
+      
+      // Store the metadata from AI response
+      if (aiOutfit.metadata) {
+        setLastGeneratedMetadata({
+          occasion: aiOutfit.metadata.occasion,
+          style: aiOutfit.metadata.style,
+          colorPaletteType: aiOutfit.metadata.colorPaletteType,
+          season: aiOutfit.metadata.season,
+          formality: aiOutfit.formality || aiOutfit.metadata.formality,
+          confidence: aiOutfit.confidence,
+          styleScore: aiOutfit.styleScore,
+          tags: aiOutfit.metadata.tags,
+          weatherAppropriateness: aiOutfit.metadata.weatherAppropriateness,
+        });
+        console.log('📊 Stored outfit metadata:', aiOutfit.metadata);
+      }
       
       const suggestions = {
         top: null as WardrobeItem | null,
@@ -382,6 +411,7 @@ export const useOutfitGeneration = (
     setSelectedItemsForOutfit,
     gearSlots,
     setGearSlots,
+    lastGeneratedMetadata,
     
     // Functions
     generateOutfitSuggestions,

@@ -1526,6 +1526,14 @@ CRITICAL:
 - Focus on versatile pieces that would work with multiple outfits in their wardrobe
 - Consider the user's budget and provide realistic suggestions
 
+METADATA CLASSIFICATION:
+Analyze the outfit to determine:
+- OCCASION: work (professional settings), casual (everyday wear), formal (events/galas), party (night out), athletic (gym/sports), date (romantic occasions)
+- STYLE: classic (timeless), bohemian (free-spirited), minimalist (simple), sporty (athletic), edgy (bold), preppy (collegiate)
+- COLOR PALETTE TYPE: monochrome (single color), earth (browns/greens), pastels (soft colors), brights (vivid), neutrals (black/white/gray), jewel (rich tones)
+- SEASON: Based on fabric weight and coverage - can be multiple seasons
+- TAGS: Descriptive keywords for searchability
+
 Return ONLY raw JSON in this exact format:
 {
   "outfit": {
@@ -1557,7 +1565,15 @@ Return ONLY raw JSON in this exact format:
   "colorPalette": ["primary color", "secondary color", "accent color"],
   "formality": "casual/business casual/formal/athletic/etc",
   "confidence": 92,
-  "completionStatus": "complete/needs-items/enhanced-with-suggestions"
+  "completionStatus": "complete/needs-items/enhanced-with-suggestions",
+  "metadata": {
+    "occasion": "work/casual/formal/party/athletic/date",
+    "style": ["classic", "minimalist"],
+    "colorPaletteType": "monochrome/earth/pastels/brights/neutrals/jewel",
+    "season": ["spring", "summer", "fall", "winter"],
+    "tags": ["business", "professional", "elegant", "comfortable"],
+    "weatherAppropriateness": "perfect for 50-70°F weather"
+  }
 }`;
 
   // Truncate outfit generation prompt to fit within limits

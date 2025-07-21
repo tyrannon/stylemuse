@@ -68,6 +68,18 @@ export interface LovedOutfit {
   createdAt: Date;
   isLoved?: boolean;
   viewed?: boolean; // Track if user has opened this outfit - used for red dot indicators
+  // Metadata fields for filtering
+  metadata?: {
+    occasion?: 'work' | 'casual' | 'formal' | 'party' | 'athletic' | 'date';
+    style?: string[];
+    colorPaletteType?: 'monochrome' | 'earth' | 'pastels' | 'brights' | 'neutrals' | 'jewel';
+    season?: string[];
+    formality?: string;
+    confidence?: number;
+    styleScore?: number;
+    tags?: string[];
+    weatherAppropriateness?: string;
+  };
   // New wear tracking fields
   wearHistory: WearRecord[];
   lastWorn?: Date;

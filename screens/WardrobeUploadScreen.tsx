@@ -1144,6 +1144,8 @@ const WardrobeUploadScreen = () => {
             createdAt: new Date(),
             isLoved: false, // Don't automatically love generated outfits
             viewed: false, // New outfit hasn't been viewed yet
+            // Include metadata from AI generation
+            metadata: outfitGeneration.lastGeneratedMetadata,
             // Wear tracking fields
             wearHistory: [],
             timesWorn: 0,
@@ -1500,6 +1502,8 @@ const WardrobeUploadScreen = () => {
       createdAt: new Date(),
       isLoved: false, // Don't automatically love when saving
       viewed: false, // New outfit hasn't been viewed yet
+      // Include metadata from AI generation
+      metadata: outfitGeneration.lastGeneratedMetadata,
       // Wear tracking fields
       wearHistory: [],
       timesWorn: 0,
