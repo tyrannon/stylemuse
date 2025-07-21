@@ -1,8 +1,14 @@
 # StyleMuse Development Guide
-<!-- Last edited: 2025-07-19 by Claude Code -->
-<!-- Change: Added change tracking, created CONTEXT_GUIDE.md, optimized from 58.8k to 36.7k chars -->
+<!-- Last edited: 2025-07-21 by Claude Code -->
+<!-- Change: Updated branch information - all development on main-stable branch -->
 
 This document contains important information for development assistance and code maintenance.
+
+## 🔄 Branch Strategy
+**IMPORTANT**: All recent development has been happening on the `main-stable` branch, not `main`. 
+- **Primary Branch**: `main-stable` (use for all commits and PRs)
+- **Legacy Branch**: `main` (mostly inactive)
+- **Reason**: Stable development workflow with recent feature additions
 
 ## 🧭 Quick Start
 **New to the codebase?** Start with [`CONTEXT_GUIDE.md`](CONTEXT_GUIDE.md) for a complete navigation guide and documentation loading instructions.
