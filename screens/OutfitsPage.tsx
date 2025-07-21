@@ -10,6 +10,8 @@ import { useUnifiedLoading } from '../hooks/useUnifiedLoading';
 import { SafeImage } from '../utils/SafeImage';
 import { formatDate } from '../utils/dateUtils';
 import { useTheme } from '../contexts/ThemeContext';
+import { OutfitFilterBar } from '../components/OutfitFilterBar';
+import { useOutfitFilter, matchesFilters } from '../contexts/OutfitFilterContext';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
@@ -45,6 +47,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   const { theme } = useTheme();
   const unifiedLoading = useUnifiedLoading();
   const styles = createStyles(theme);
+  const { filters } = useOutfitFilter();
   
   const [activeTab, setActiveTab] = useState<'outfits' | 'analytics'>('outfits');
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -54,6 +57,15 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   // Multi-select state
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedOutfits, setSelectedOutfits] = useState<LovedOutfit[]>([]);
+  
+  // Filter outfits based on active filters
+  const filteredOutfits = React.useMemo(() => {
+    return lovedOutfits.filter(outfit => matchesFilters(outfit, filters));
+  }, [lovedOutfits, filters]);
+  
+  const filteredSortedOutfits = React.useMemo(() => {
+    return getSortedOutfits().filter(outfit => matchesFilters(outfit, filters));
+  }, [getSortedOutfits, filters]);
   
   // Check if there are any unviewed outfits
   const hasUnviewedOutfits = lovedOutfits.some(outfit => !outfit.viewed);
@@ -224,26 +236,30 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
 
 
   return (
-    <ScrollView style={{ flex: 1 }}>
-      <View style={styles.tabHeader}>
-        <TouchableOpacity
-          onPress={() => setActiveTab('outfits')}
-          style={[styles.tabButton, activeTab === 'outfits' && styles.activeTab]}
-        >
-          <Text style={[styles.tabText, activeTab === 'outfits' && styles.activeTabText]}>👗 Outfits</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab('analytics')}
-          style={[styles.tabButton, activeTab === 'analytics' && styles.activeTab]}
-        >
-          <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>📊 Analytics</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1 }}>
+      {/* Filter Bar */}
+      <OutfitFilterBar />
+      
+      <ScrollView style={{ flex: 1 }}>
+        <View style={styles.tabHeader}>
+          <TouchableOpacity
+            onPress={() => setActiveTab('outfits')}
+            style={[styles.tabButton, activeTab === 'outfits' && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, activeTab === 'outfits' && styles.activeTabText]}>👗 Outfits</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab('analytics')}
+            style={[styles.tabButton, activeTab === 'analytics' && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>📊 Analytics</Text>
+          </TouchableOpacity>
+        </View>
       
       <View style={{ marginTop: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
-            👗 Generated Outfits ({lovedOutfits.length})
+            👗 Generated Outfits ({filteredOutfits.length}{filteredOutfits.length !== lovedOutfits.length && ` of ${lovedOutfits.length}`})
           </Text>
           
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -320,10 +336,10 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
       
       <View style={{ paddingHorizontal: 20 }}>
         {/* Loved Outfits Section */}
-        {lovedOutfits.filter(outfit => outfit.isLoved).length > 0 && (
+        {filteredOutfits.filter(outfit => outfit.isLoved).length > 0 && (
           <View style={styles.lovedOutfitsSection}>
             <Text style={styles.lovedOutfitsSectionTitle}>
-              ❤️ Loved Outfits ({lovedOutfits.filter(outfit => outfit.isLoved).length})
+              ❤️ Loved Outfits ({filteredOutfits.filter(outfit => outfit.isLoved).length})
             </Text>
             <ScrollView
               horizontal
@@ -331,7 +347,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
               style={styles.lovedOutfitsScroll}
               contentContainerStyle={styles.lovedOutfitsScrollContent}
             >
-              {lovedOutfits.filter(outfit => outfit.isLoved).map((outfit, index) => (
+              {filteredOutfits.filter(outfit => outfit.isLoved).map((outfit, index) => (
                 <TouchableOpacity
                   key={outfit.id}
                   onPress={() => isMultiSelectMode ? toggleOutfitSelection(outfit) : openOutfitDetailView(outfit)}
@@ -418,7 +434,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
             📸 {lovedOutfits.filter(outfit => outfit.isLoved).length > 0 ? 'Other Generated Outfits' : 'All Generated Outfits'}
           </Text>
           <View style={styles.outfitsGrid}>
-            {getSortedOutfits()
+            {filteredSortedOutfits
               .filter(outfit => !outfit.isLoved) // Exclude loved outfits since they're shown above
               .map((outfit, index) => (
               <TouchableOpacity
@@ -535,7 +551,8 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
         steps={unifiedLoading.loadingConfig?.steps}
         style={unifiedLoading.loadingConfig?.style}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 

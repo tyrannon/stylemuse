@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import WardrobeUploadScreen from './screens/WardrobeUploadScreen';
 import { OnboardingNavigator } from './components/onboarding/OnboardingNavigator';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { OutfitFilterProvider } from './contexts/OutfitFilterContext';
 import { logger } from './utils/DebugLogger';
 import { LogCategories } from './constants/LogCategories';
 import { DataDebugger } from './utils/DataDebugger';
@@ -132,11 +133,13 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      {isOnboardingComplete ? (
-        <WardrobeUploadScreen />
-      ) : (
-        <OnboardingNavigator onComplete={handleOnboardingComplete} />
-      )}
+      <OutfitFilterProvider>
+        {isOnboardingComplete ? (
+          <WardrobeUploadScreen />
+        ) : (
+          <OnboardingNavigator onComplete={handleOnboardingComplete} />
+        )}
+      </OutfitFilterProvider>
     </ThemeProvider>
   );
 }
