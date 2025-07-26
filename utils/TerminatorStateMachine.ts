@@ -46,6 +46,15 @@ const actions = {
     consecutiveFailures: 0,
   }),
 
+  // Debug action to log state transitions
+  logStateTransition: (context: any, event: any, { state }: any) => {
+    console.log(`🎯 XState Transition: ${event.type} → ${state.value}`, {
+      detectedItems: context.detectedItems?.length || 0,
+      trackingConfidence: context.trackingConfidence,
+      errorMessage: context.errorMessage,
+    });
+  },
+
   // Start detection process
   triggerDetection: assign({
     detectionInProgress: true,
@@ -55,6 +64,7 @@ const actions = {
   // Save successful detection results
   saveDetection: assign(({ context, event }) => {
     if (event.type === 'DETECTION_SUCCESS') {
+      console.log(`🎯 saveDetection: Saving ${event.items.length} items:`, event.items.map(i => i.label));
       return {
         detectedItems: event.items,
         lastDetectionTime: Date.now(),
@@ -152,7 +162,11 @@ const guards = {
   },
 
   // Check if we have detected items
-  hasDetectedItems: ({ context }: { context: TerminatorContext }) => context.detectedItems.length > 0,
+  hasDetectedItems: ({ context }: { context: TerminatorContext }) => {
+    const hasItems = context.detectedItems.length > 0;
+    console.log(`🎯 Guard hasDetectedItems: ${hasItems} (items: ${context.detectedItems.length})`);
+    return hasItems;
+  },
 };
 
 /**
@@ -187,7 +201,7 @@ export const terminatorMachine = createMachine({
       on: {
         ACTIVATE: {
           target: 'scanning',
-          actions: ['startScanning', 'playScanHaptic'],
+          actions: ['startScanning', 'playScanHaptic', 'logStateTransition'],
         },
       },
     },
@@ -212,11 +226,11 @@ export const terminatorMachine = createMachine({
           {
             target: 'tracking',
             guard: 'hasDetectedItems',
-            actions: ['saveDetection', 'playDetectionHaptic'],
+            actions: ['saveDetection', 'playDetectionHaptic', 'logStateTransition'],
           },
           {
             target: 'scanning',
-            actions: ['saveDetection'],
+            actions: ['saveDetection', 'logStateTransition'],
           },
         ],
         DETECTION_FAILED: [

@@ -1,10 +1,10 @@
 /**
- * Ultra-Enhanced Targets Scroller with Advanced Animations
- * Morphing state transitions and premium visual effects
+ * Expo Go Compatible Targets Scroller
+ * DJI-inspired targets display using standard React Native components
  */
 
-import React, { useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,11 +13,9 @@ import Animated, {
   withSequence,
   withRepeat,
   interpolate,
-  useDerivedValue,
   runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import { 
   useDetectedItems, 
   useTerminatorState, 
@@ -28,7 +26,7 @@ import { DetectedClothingItem } from '../types/ClothingTypes';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Enhanced emoji mapping with confidence-based selection
+// Enhanced emoji mapping (DJI-style category indicators)
 const CATEGORY_EMOJIS = {
   top: ['👕', '👔', '🎽', '👘'],
   bottom: ['👖', '🩳', '👗', '🩱'],
@@ -39,44 +37,43 @@ const CATEGORY_EMOJIS = {
   default: ['👕', '👖', '👟'],
 };
 
-// Get emoji based on category and confidence
 const getItemEmoji = (category: string, confidence: number): string => {
   const emojis = CATEGORY_EMOJIS[category as keyof typeof CATEGORY_EMOJIS] || CATEGORY_EMOJIS.default;
   const index = Math.floor(confidence * emojis.length);
   return emojis[Math.min(index, emojis.length - 1)];
 };
 
-// Individual target item component with morphing animations
-const UltraTargetItem = React.memo<{
+// Individual target item (DJI-style tracking indicator)
+const DJITargetItem = React.memo<{
   item: DetectedClothingItem;
   index: number;
   stateColor: string;
   currentState: string;
   isVisible: boolean;
 }>(({ item, index, stateColor, currentState, isVisible }) => {
-  // Animation values
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
-  const rotation = useSharedValue(0);
   const glowIntensity = useSharedValue(0);
-  const morphProgress = useSharedValue(0);
-
-  // Confidence-based pulsing
   const confidencePulse = useSharedValue(0);
 
   useEffect(() => {
+    console.log(`🎯 DJI Target ${index} render:`, { 
+      label: item.label, 
+      confidence: item.confidence, 
+      isVisible, 
+      currentState 
+    });
+
     if (isVisible && currentState === 'tracking') {
-      // Staggered entrance animation
-      const delay = index * 150;
+      // DJI-style staggered entrance
+      const delay = index * 100;
       
       setTimeout(() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 200 });
         opacity.value = withSpring(1, { damping: 15 });
-        
-        // Confidence-based glow
         glowIntensity.value = withSpring(item.confidence || 0.5);
         
-        // Continuous confidence pulse
+        // DJI-style confidence pulse
         confidencePulse.value = withRepeat(
           withSequence(
             withTiming(0.2, { duration: 1000 }),
@@ -85,69 +82,34 @@ const UltraTargetItem = React.memo<{
           -1,
           false
         );
-        
-        // Subtle rotation for dynamic feel
-        rotation.value = withRepeat(
-          withTiming(360, { duration: 20000 }),
-          -1,
-          false
-        );
       }, delay);
     } else {
-      // Exit animation
       scale.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(0, { duration: 300 });
       cancelAnimation(confidencePulse);
-      cancelAnimation(rotation);
     }
   }, [isVisible, currentState, index, item.confidence]);
 
-  // Morph animation for state changes
-  useEffect(() => {
-    morphProgress.value = withSpring(currentState === 'tracking' ? 1 : 0, {
-      damping: 10,
-      stiffness: 100,
-    });
-  }, [currentState]);
-
-  // Animated styles
   const animatedStyle = useAnimatedStyle(() => {
     const animatedScale = scale.value * (1 + confidencePulse.value * 0.1);
     const animatedOpacity = opacity.value * (0.8 + confidencePulse.value * 0.2);
     
     return {
-      transform: [
-        { scale: animatedScale },
-        { rotate: `${rotation.value}deg` },
-      ],
+      transform: [{ scale: animatedScale }],
       opacity: animatedOpacity,
     };
   });
 
-  const glowStyle = useAnimatedStyle(() => {
-    const glowRadius = interpolate(
+  const shadowStyle = useAnimatedStyle(() => {
+    const shadowRadius = interpolate(
       glowIntensity.value + confidencePulse.value,
       [0, 1],
-      [0, 15]
+      [0, 8]
     );
     
     return {
-      shadowColor: stateColor,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.8,
-      shadowRadius: glowRadius,
-      elevation: glowRadius,
-    };
-  });
-
-  const backgroundStyle = useAnimatedStyle(() => {
-    const morphedRadius = interpolate(morphProgress.value, [0, 1], [8, 20]);
-    const morphedPadding = interpolate(morphProgress.value, [0, 1], [8, 12]);
-    
-    return {
-      borderRadius: morphedRadius,
-      paddingHorizontal: morphedPadding,
-      paddingVertical: morphedPadding * 0.7,
+      shadowRadius,
+      elevation: shadowRadius,
     };
   });
 
@@ -160,55 +122,61 @@ const UltraTargetItem = React.memo<{
 
   return (
     <Animated.View style={[styles.targetItem, animatedStyle]}>
-      <Animated.View style={[styles.targetBackground, backgroundStyle, glowStyle]}>
-        <BlurView intensity={20} style={styles.blurBackground}>
-          <View style={styles.targetContent}>
-            <Text style={[styles.targetEmoji, { color: stateColor }]}>
-              {emoji}
-            </Text>
-            <Text style={[styles.targetLabel, { color: stateColor }]}>
-              {item.label || 'TARGET'}
-            </Text>
-            <Text style={[styles.targetConfidence, { color: stateColor }]}>
-              {confidencePercentage}%
-            </Text>
-          </View>
-        </BlurView>
+      <Animated.View 
+        style={[
+          styles.targetBackground, 
+          { 
+            backgroundColor: stateColor + '20',
+            borderColor: stateColor + '60',
+            shadowColor: stateColor,
+          },
+          shadowStyle
+        ]}
+      >
+        <View style={styles.targetContent}>
+          <Text style={[styles.targetEmoji, { color: stateColor }]}>
+            {emoji}
+          </Text>
+          <Text style={[styles.targetLabel, { color: stateColor }]}>
+            {item.label || 'TARGET'}
+          </Text>
+          <Text style={[styles.targetConfidence, { color: stateColor }]}>
+            {confidencePercentage}%
+          </Text>
+        </View>
       </Animated.View>
     </Animated.View>
   );
 });
 
-// Main scroller component
-export const UltraTargetsScroller: React.FC = React.memo(() => {
-  // Context state
+// Main scroller component (DJI-inspired)
+export const ExpoCompatibleTargetsScroller: React.FC = React.memo(() => {
   const detectedItems = useDetectedItems();
   const currentState = useTerminatorState();
   const stateColor = useTerminatorColor();
   const stateDisplay = useTerminatorDisplay();
 
-  // Animation values
-  const scrollOffset = useSharedValue(0);
   const containerOpacity = useSharedValue(0);
   const headerScale = useSharedValue(0.8);
   const blinkOpacity = useSharedValue(1);
 
-  // Auto-scroll animation
+  // Debug logging
+  useEffect(() => {
+    console.log(`🎯 ExpoCompatibleTargetsScroller render:`, {
+      currentState,
+      itemCount: detectedItems.length,
+      shouldRender: currentState === 'tracking' && detectedItems.length > 0
+    });
+  });
+
   useEffect(() => {
     if (currentState === 'tracking' && detectedItems.length > 0) {
-      // Show container
+      console.log(`🎯 Targets Scroller: ACTIVATING with ${detectedItems.length} items`);
+      
       containerOpacity.value = withSpring(1, { damping: 15 });
       headerScale.value = withSpring(1, { damping: 12 });
       
-      // Start continuous scroll
-      const scrollDistance = detectedItems.length * 120 + 200;
-      scrollOffset.value = withRepeat(
-        withTiming(-scrollDistance, { duration: 8000 }),
-        -1,
-        false
-      );
-      
-      // Blinking effect for "TARGETS ACQUIRED"
+      // DJI-style blinking effect
       blinkOpacity.value = withRepeat(
         withSequence(
           withTiming(0.3, { duration: 300 }),
@@ -218,115 +186,95 @@ export const UltraTargetsScroller: React.FC = React.memo(() => {
         false
       );
     } else {
-      // Hide container
+      console.log(`🎯 Targets Scroller: DEACTIVATING`);
+      
       containerOpacity.value = withTiming(0, { duration: 500 });
       headerScale.value = withTiming(0.8, { duration: 500 });
-      cancelAnimation(scrollOffset);
       cancelAnimation(blinkOpacity);
     }
   }, [currentState, detectedItems.length]);
 
-  // Animated styles
   const containerStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
     transform: [{ scale: headerScale.value }],
-  }));
-
-  const scrollStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: scrollOffset.value }],
   }));
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: blinkOpacity.value,
   }));
 
-  // Performance monitoring
-  const renderCount = useSharedValue(0);
-  
-  useEffect(() => {
-    renderCount.value += 1;
-    if (renderCount.value % 30 === 0) {
-      runOnJS(() => {
-        console.log(`🎯 Targets Scroller: ${renderCount.value} renders, ${detectedItems.length} items`);
-      })();
-    }
-  });
-
-  // Add debug logging
-  console.log(`🎯 UltraTargetsScroller render:`, {
-    currentState,
-    detectedItemsCount: detectedItems.length,
-    stateDisplay,
-    shouldRender: detectedItems.length > 0 && currentState === 'tracking'
-  });
-
-  // Don't render if no items or not in tracking state
+  // Don't render if conditions not met
   if (detectedItems.length === 0 || currentState !== 'tracking') {
-    console.log(`🎯 UltraTargetsScroller: Not rendering - items: ${detectedItems.length}, state: ${currentState}`);
     return null;
   }
 
   return (
     <Animated.View style={[styles.container, containerStyle]}>
-      <BlurView intensity={30} style={styles.containerBlur}>
-        {/* Header */}
+      <View style={[styles.containerBackground, { backgroundColor: 'rgba(0, 0, 0, 0.7)', borderColor: stateColor + '60' }]}>
+        {/* DJI-style header */}
         <Animated.View style={[styles.header, headerStyle]}>
           <Text style={[styles.headerText, { color: stateColor }]}>
             🎯 TARGETS ACQUIRED: [{detectedItems.length} LOCKED]
           </Text>
         </Animated.View>
 
-        {/* Scrolling targets */}
-        <View style={styles.scrollContainer}>
-          <Animated.View style={[styles.scrollContent, scrollStyle]}>
-            {/* Duplicate items for seamless loop */}
-            {[...detectedItems, ...detectedItems, ...detectedItems].map((item, index) => (
-              <UltraTargetItem
-                key={`${item.id || 'item'}-${index}`}
-                item={item}
-                index={index % detectedItems.length}
-                stateColor={stateColor}
-                currentState={currentState}
-                isVisible={true}
-              />
-            ))}
-          </Animated.View>
-        </View>
+        {/* Horizontal scrolling targets (DJI-style) */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollContainer}
+        >
+          {detectedItems.map((item, index) => (
+            <DJITargetItem
+              key={`${item.id || 'item'}-${index}`}
+              item={item}
+              index={index}
+              stateColor={stateColor}
+              currentState={currentState}
+              isVisible={true}
+            />
+          ))}
+        </ScrollView>
 
-        {/* Status indicator */}
+        {/* Status indicator (DJI-style) */}
         <View style={styles.statusContainer}>
           <Text style={[styles.statusText, { color: stateColor }]}>
             {stateDisplay}
           </Text>
         </View>
-      </BlurView>
+      </View>
     </Animated.View>
   );
 });
 
-UltraTargetsScroller.displayName = 'UltraTargetsScroller';
+ExpoCompatibleTargetsScroller.displayName = 'ExpoCompatibleTargetsScroller';
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 100,
+    top: 80, // Below debug display
     left: 0,
     right: 0,
     height: 120,
-    zIndex: 1000,
+    zIndex: 999,
   },
   
-  containerBlur: {
+  containerBackground: {
     flex: 1,
-    borderRadius: 15,
-    marginHorizontal: 20,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   
   header: {
-    paddingHorizontal: 15,
-    paddingTop: 10,
+    paddingHorizontal: 12,
+    paddingTop: 8,
     alignItems: 'center',
   },
   
@@ -342,36 +290,30 @@ const styles = StyleSheet.create({
   
   scrollContainer: {
     height: 60,
-    overflow: 'hidden',
-    marginTop: 5,
+    marginTop: 4,
   },
   
   scrollContent: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   
   targetItem: {
-    marginHorizontal: 8,
+    marginHorizontal: 6,
     alignItems: 'center',
   },
   
   targetBackground: {
-    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 0, 0.3)',
-  },
-  
-  blurBackground: {
-    borderRadius: 15,
-    overflow: 'hidden',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
   },
   
   targetContent: {
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
   },
   
   targetEmoji: {
@@ -396,7 +338,7 @@ const styles = StyleSheet.create({
   
   statusContainer: {
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   
   statusText: {

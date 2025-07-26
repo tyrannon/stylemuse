@@ -323,6 +323,14 @@ export const UltraTerminatorOverlay: React.FC<UltraTerminatorOverlayProps> = Rea
     style,
   ], [cameraWidth, cameraHeight, style]);
 
+  // Add debug logging
+  console.log(`🎯 UltraTerminatorOverlay render:`, {
+    currentState,
+    detectedItemsCount: detectedItems.length,
+    boundingBoxesCount: boundingBoxes.length,
+    canvasSize: { width: cameraWidth, height: cameraHeight }
+  });
+
   return (
     <Canvas style={canvasStyle}>
       {/* Scanning line effect */}

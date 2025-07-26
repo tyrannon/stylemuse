@@ -17,8 +17,8 @@ import { detectMultipleClothingItems } from '../utils/openai';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
-import { UltraTerminatorOverlay } from '../components/UltraTerminatorOverlay';
-import { UltraTargetsScroller } from '../components/UltraTargetsScroller';
+import { ExpoCompatibleTerminatorOverlay } from '../components/ExpoCompatibleTerminatorOverlay';
+import { ExpoCompatibleTargetsScroller } from '../components/ExpoCompatibleTargetsScroller';
 import { TerminatorProvider, useTerminator } from '../contexts/TerminatorContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -446,17 +446,35 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
         </View>
       )}
       
-      {/* Ultra Terminator Vision Overlay */}
+      {/* Debug State Display */}
+      {terminatorMode && (
+        <View style={{
+          position: 'absolute',
+          top: 50,
+          left: 20,
+          right: 20,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          padding: 10,
+          borderRadius: 8,
+          zIndex: 1001
+        }}>
+          <Text style={{ color: '#00FF00', fontFamily: 'Courier New', fontSize: 12 }}>
+            🎯 DEBUG: State={getCurrentState()} | Items={getDetectedItems().length} | ShowBoxes={shouldShowBoundingBoxes().toString()} | ShowScroller={shouldShowTargetsScroller().toString()}
+          </Text>
+        </View>
+      )}
+
+      {/* Expo Compatible Terminator Vision Overlay */}
       {terminatorMode && shouldShowBoundingBoxes() && (
-        <UltraTerminatorOverlay
+        <ExpoCompatibleTerminatorOverlay
           cameraWidth={screenWidth}
           cameraHeight={screenHeight}
         />
       )}
       
-      {/* Ultra Targets Acquired Scroller */}
+      {/* Expo Compatible Targets Acquired Scroller */}
       {terminatorMode && shouldShowTargetsScroller() && (
-        <UltraTargetsScroller />
+        <ExpoCompatibleTargetsScroller />
       )}
       
       {/* Top Controls */}
