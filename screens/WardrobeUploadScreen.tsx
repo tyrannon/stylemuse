@@ -413,7 +413,7 @@ const WardrobeUploadScreen = () => {
   
   // Multi-item detection state
   const [detectedItemsState, setDetectedItemsState] = useState<any[]>([]);
-  const [cameraMode, setCameraMode] = useState<'single' | 'multi'>('single');
+  const [cameraMode, setCameraMode] = useState<'single' | 'multi' | 'terminator'>('single');
   
   
   // Header loading animation
@@ -925,6 +925,13 @@ const WardrobeUploadScreen = () => {
   const handleAddItemMultiItemCameraPress = async () => {
     // Go to camera screen directly in multi-item mode
     setCameraMode('multi');
+    modalState.setShowCamera(true);
+  };
+
+  // Function to handle Terminator Camera press from add item page 🎯
+  const handleAddItemTerminatorCameraPress = async () => {
+    // Go to camera screen directly in terminator mode
+    setCameraMode('terminator');
     modalState.setShowCamera(true);
   };
 
@@ -3280,6 +3287,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <AddItemPage
     onCameraPress={handleAddItemCameraPress}
     onMultiItemCameraPress={handleAddItemMultiItemCameraPress}
+    onTerminatorCameraPress={handleAddItemTerminatorCameraPress}
     onPhotoLibraryPress={handleAddItemPhotoLibraryPress}
     onBulkUploadPress={handleAddItemBulkUploadPress}
     onTextEntryPress={handleAddItemTextEntryPress}
@@ -3505,6 +3513,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
             showGrid={true}
             onMultiItemDetected={handleMultiItemDetected}
             defaultMultiItemMode={cameraMode === 'multi'}
+            defaultTerminatorMode={cameraMode === 'terminator'}
           />
         </View>
       )}

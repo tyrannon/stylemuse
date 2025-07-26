@@ -1,0 +1,18 @@
+[
+  {
+    "message": "Android Galaxy S22 Ultra issue: Bottom dock navigation is too low, covering device navigation buttons. How should we adjust SafeAreaView or bottom padding specifically for Android devices with home/back buttons?",
+    "systemPrompt": "You are a React Native Android UI expert specializing in SafeAreaView and device-specific layouts. Provide specific solutions for Galaxy S22 Ultra navigation bar conflicts."
+  },
+  {
+    "message": "StyleMuse ItemDetailView: Title is squished on same row as back button and trash can. Should the title be moved to its own row below the header buttons for better readability?",
+    "systemPrompt": "You are a mobile UI/UX designer. Focus on readable layouts and proper visual hierarchy for item detail screens."
+  },
+  {
+    "message": "Category dropdown menu in ItemDetailView is too narrow - the word 'BOTTOM' gets cut off. How can we make the dropdown wider or handle long category names better?",
+    "systemPrompt": "You are a React Native dropdown/picker component specialist. Provide solutions for text truncation and component sizing issues."
+  },
+  {
+    "message": "Create implementation plan for these StyleMuse UI fixes: 1) Android bottom dock spacing, 2) ItemDetailView title layout, 3) Category dropdown width. Include specific component names and style changes.",
+    "systemPrompt": "You are a systematic code implementation strategist. Provide concrete file changes and style modifications for React Native."
+  }
+]

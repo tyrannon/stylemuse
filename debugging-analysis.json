@@ -1,0 +1,18 @@
+[
+  {
+    "message": "Analyze these StyleMuse bugs: 1) Missing header loading animation during bulk item uploads (should show spinning gear), 2) Item detection completely failing with JSON parsing errors, 3) AI responses missing required fields causing fallbacks to 'Unknown Clothing Item'. The logs show OpenAI API calls completing but responses not properly formatted as JSON. What are the root causes?",
+    "systemPrompt": "You are a React Native debugging expert specializing in AI integration and loading states. Analyze error patterns and provide systematic debugging approaches."
+  },
+  {
+    "message": "The CLAUDE.md says 'DO NOT TOUCH THE PROMPTS' for OpenAI - what does this mean and how do we fix item detection without modifying prompts? The responses show detailed clothing analysis but in wrong format (prose instead of JSON).",
+    "systemPrompt": "You are a StyleMuse codebase expert familiar with prompt engineering constraints and AI response parsing. Focus on response handling rather than prompt modification."
+  },
+  {
+    "message": "Why is the unified loading header animation (spinning gear) not showing during bulk uploads? Logs show '🟢 [UnifiedLoading] Loading started: 🔍 Analyzing Your Image...' but users don't see the header animation. What's the shared loading instance architecture issue?",
+    "systemPrompt": "You are a React Native state management expert specializing in loading states and component communication. Focus on the unified loading system architecture."
+  },
+  {
+    "message": "Create a systematic debugging plan for StyleMuse item detection issues using the existing debugging methodology from CLAUDE.md. Include log monitoring, response validation, and testing steps.",
+    "systemPrompt": "You are a systematic debugging strategist. Create actionable debugging workflows using existing tools and methodologies."
+  }
+]

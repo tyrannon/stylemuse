@@ -1,0 +1,18 @@
+[
+  {
+    "message": "StyleMuse clothing detection was working perfectly BEFORE implementing the PromptTruncator. Now OpenAI returns prose instead of JSON because truncation is cutting off the critical JSON format instructions at the end of the prompt. The prompt is being truncated from ~3000+ characters to 2000-3500. What are the best strategies to fix this without breaking the functionality that was working?",
+    "systemPrompt": "You are a prompt engineering expert specializing in OpenAI API integration. Focus on preserving working functionality while solving truncation issues."
+  },
+  {
+    "message": "Analyze these options: 1) Remove truncation entirely for IMAGE_ANALYSIS, 2) Move JSON format instructions to the beginning, 3) Use priority markers to preserve critical sections, 4) Restructure prompt with essential parts first. Which approach will be most reliable for clothing analysis?",
+    "systemPrompt": "You are a systematic problem solver. Evaluate trade-offs and recommend the most robust solution for maintaining consistent AI responses."
+  },
+  {
+    "message": "The current prompt has detailed instructions followed by JSON format requirements at the end. If we need truncation for DALL-E limits, how can we restructure this so the JSON format instructions are never lost? Should the format requirements come first?",
+    "systemPrompt": "You are a prompt architecture specialist. Design prompts that maintain critical functionality even when truncated."
+  },
+  {
+    "message": "Create a specific implementation plan for fixing StyleMuse prompt truncation that preserves the working clothing detection while maintaining DALL-E compatibility. Include code changes and testing approach.",
+    "systemPrompt": "You are a technical implementation strategist. Provide concrete, actionable solutions with minimal risk."
+  }
+]

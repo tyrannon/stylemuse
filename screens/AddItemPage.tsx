@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 interface AddItemPageProps {
   onCameraPress: () => void;
   onMultiItemCameraPress: () => void;
+  onTerminatorCameraPress?: () => void;
   onPhotoLibraryPress: () => void;
   onBulkUploadPress: () => void;
   onTextEntryPress: () => void;
@@ -14,6 +15,7 @@ interface AddItemPageProps {
 export const AddItemPage: React.FC<AddItemPageProps> = ({
   onCameraPress,
   onMultiItemCameraPress,
+  onTerminatorCameraPress,
   onPhotoLibraryPress,
   onBulkUploadPress,
   onTextEntryPress,
@@ -62,6 +64,27 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
             </View>
             <Text style={styles.optionArrow}>›</Text>
           </TouchableOpacity>
+          
+          {onTerminatorCameraPress && (
+            <TouchableOpacity
+              style={[styles.option, styles.terminatorOption]}
+              onPress={() => handleOptionPress(onTerminatorCameraPress)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.optionIcon, styles.terminatorIcon]}>
+                <Text style={styles.terminatorEmoji}>🎯</Text>
+              </View>
+              <View style={styles.optionText}>
+                <Text style={[styles.optionTitle, styles.terminatorTitle]}>
+                  🤖 TERMINATOR VISION 🤖
+                </Text>
+                <Text style={[styles.optionSubtitle, styles.terminatorSubtitle]}>
+                  Live sci-fi detection with real-time overlay boxes
+                </Text>
+              </View>
+              <Text style={[styles.optionArrow, styles.terminatorArrow]}>⚡</Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity
             style={styles.option}
@@ -123,6 +146,14 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
             <Text style={styles.tipBullet}>•</Text>
             <Text style={styles.tipText}>Multi-Item Camera saves time with multiple pieces</Text>
           </View>
+          {onTerminatorCameraPress && (
+            <View style={[styles.tip, styles.terminatorTip]}>
+              <Text style={styles.terminatorTipBullet}>⚡</Text>
+              <Text style={[styles.tipText, styles.terminatorTipText]}>
+                Terminator Vision shows live detection boxes - SUPER COOL! 🎯
+              </Text>
+            </View>
+          )}
           <View style={styles.tip}>
             <Text style={styles.tipBullet}>•</Text>
             <Text style={styles.tipText}>Bulk Upload processes up to 10 photos at once</Text>
@@ -229,5 +260,69 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     flex: 1,
+  },
+  // Terminator Vision Styles 🎯
+  terminatorOption: {
+    borderWidth: 2,
+    borderColor: '#00FF00',
+    backgroundColor: 'rgba(0, 255, 0, 0.05)',
+    shadowColor: '#00FF00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  terminatorIcon: {
+    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+    borderWidth: 2,
+    borderColor: '#00FF00',
+  },
+  terminatorEmoji: {
+    fontSize: 32,
+    textShadowColor: '#00FF00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  terminatorTitle: {
+    color: '#00DD00',
+    fontWeight: '800',
+    fontSize: 16,
+    fontFamily: 'monospace',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    textShadowColor: '#00FF00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
+  },
+  terminatorSubtitle: {
+    color: '#00BB00',
+    fontFamily: 'monospace',
+    fontWeight: '600',
+  },
+  terminatorArrow: {
+    color: '#00FF00',
+    fontSize: 28,
+    textShadowColor: '#00FF00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  terminatorTip: {
+    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#00FF00',
+    paddingLeft: 12,
+  },
+  terminatorTipBullet: {
+    fontSize: 16,
+    color: '#00FF00',
+    marginRight: 8,
+    textShadowColor: '#00FF00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
+  },
+  terminatorTipText: {
+    color: '#00DD00',
+    fontWeight: '600',
+    fontFamily: 'monospace',
   },
 });

@@ -17,6 +17,8 @@ import { detectMultipleClothingItems } from '../utils/openai';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
+import { TerminatorOverlay } from '../components/TerminatorOverlay';
+import { TargetsAcquiredScroller } from '../components/TargetsAcquiredScroller';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -28,6 +30,7 @@ interface CameraScreenProps {
   flashMode?: 'on' | 'off' | 'auto';
   onMultiItemDetected?: (items: any[]) => void;
   defaultMultiItemMode?: boolean;
+  defaultTerminatorMode?: boolean;
 }
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
@@ -38,6 +41,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   flashMode = 'off',
   onMultiItemDetected,
   defaultMultiItemMode = false,
+  defaultTerminatorMode = false,
 }) => {
   const {
     state,
@@ -56,11 +60,48 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   const [isInitializing, setIsInitializing] = useState(true);
   const [multiItemMode, setMultiItemMode] = useState(defaultMultiItemMode); // Use prop default
   const [isProcessingMultiItem, setIsProcessingMultiItem] = useState(false);
+  const [terminatorMode, setTerminatorMode] = useState(defaultTerminatorMode);
+  const [detectedItems, setDetectedItems] = useState<any[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  
+  // New smart tracking states
+  const [terminatorState, setTerminatorState] = useState<'scanning' | 'detecting' | 'tracking' | 'lost'>('scanning');
+  const [trackingData, setTrackingData] = useState<any>(null);
+  const [lastDetectionTime, setLastDetectionTime] = useState<number>(0);
+  const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const styles = createStyles(theme);
 
   useEffect(() => {
     initializeCamera();
   }, []);
+
+  // Smart terminator mode - detect once, track continuously
+  useEffect(() => {
+    console.log('🎯 Terminator mode state:', { 
+      terminatorMode, 
+      terminatorState,
+      isCameraReady,
+      hasCamera: !!cameraRef.current 
+    });
+    
+    if (terminatorMode && isCameraReady) {
+      console.log('🎯 Terminator mode: ⚡ READY for smart detection/tracking');
+      setIsScanning(true);
+      setTerminatorState('scanning');
+    } else {
+      console.log('🎯 Terminator mode: ❌ Disabled - clearing state');
+      stopTracking();
+      setIsScanning(false);
+      setDetectedItems([]);
+      setTerminatorState('scanning');
+    }
+    
+    return () => {
+      stopTracking();
+      setIsScanning(false);
+    };
+  }, [terminatorMode, isCameraReady]);
 
   const initializeCamera = async () => {
     try {
@@ -106,6 +147,262 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       console.error('Photo capture error:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
+    }
+  };
+
+  // NEW: Smart tap-to-detect function
+  const triggerSmartDetection = async () => {
+    if (!cameraRef.current || terminatorState === 'detecting') {
+      console.log('🎯 Smart detection: Camera not ready or already detecting');
+      return;
+    }
+    
+    console.log('🎯 Smart detection: 🎯 TAP TRIGGERED - Starting one-time AI detection');
+    setTerminatorState('detecting');
+    
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        base64: true,
+        flash: 'off',
+        skipProcessing: true,
+      });
+      
+      if (photo && photo.base64) {
+        console.log('🎯 Smart detection: Photo captured for AI analysis');
+        const result = await detectMultipleClothingItems(photo.base64);
+        
+        if (result.success && result.items && result.items.length > 0) {
+          console.log('🎯 Smart detection: ✅ AI detected', result.items.length, 'items - SWITCHING TO TRACKING');
+          
+          const formattedItems = result.items.map((item: any, index: number) => ({
+            id: `tracked-${Date.now()}-${index}`,
+            label: item.itemType || 'Item',
+            confidence: (item.confidence || 50) / 100,
+            boundingBox: {
+              x: item.boundingBox?.top_left?.[0] || 10,
+              y: item.boundingBox?.top_left?.[1] || 10,
+              width: Math.abs((item.boundingBox?.bottom_right?.[0] || 90) - (item.boundingBox?.top_left?.[0] || 10)),
+              height: Math.abs((item.boundingBox?.bottom_right?.[1] || 90) - (item.boundingBox?.top_left?.[1] || 10)),
+            },
+            category: 'top' as const,
+            // Store tracking data
+            originalBox: item.boundingBox,
+            detectionTime: Date.now(),
+          }));
+          
+          setDetectedItems(formattedItems);
+          setTrackingData({
+            items: formattedItems,
+            lastFrame: photo.uri,
+            confidence: 1.0,
+            frameCount: 0
+          });
+          setLastDetectionTime(Date.now());
+          setTerminatorState('tracking');
+          
+          // Start continuous tracking
+          startTracking();
+          
+        } else {
+          console.log('🎯 Smart detection: ❌ No items detected - returning to scanning');
+          setTerminatorState('scanning');
+        }
+      }
+    } catch (error) {
+      console.error('🎯 Smart detection error:', error);
+      setTerminatorState('scanning');
+    }
+  };
+
+  // NEW: Start lightweight tracking
+  const startTracking = () => {
+    console.log('🎯 Tracking: 🚀 Starting continuous lightweight tracking');
+    
+    if (trackingIntervalRef.current) {
+      clearInterval(trackingIntervalRef.current);
+    }
+    
+    trackingIntervalRef.current = setInterval(() => {
+      updateTracking();
+    }, 100); // 10 FPS tracking - lightweight and responsive
+  };
+
+  // NEW: Stop tracking
+  const stopTracking = () => {
+    if (trackingIntervalRef.current) {
+      console.log('🎯 Tracking: 🛑 Stopping tracking');
+      clearInterval(trackingIntervalRef.current);
+      trackingIntervalRef.current = null;
+    }
+  };
+
+  // NEW: Lightweight tracking update
+  const updateTracking = () => {
+    if (!trackingData || terminatorState !== 'tracking') {
+      return;
+    }
+    
+    // Simple tracking simulation - in real implementation, use computer vision
+    const frameCount = trackingData.frameCount + 1;
+    const confidence = Math.max(0.3, trackingData.confidence - (frameCount * 0.005)); // Slowly degrade confidence
+    
+    // Simulate slight box movement (real implementation would use optical flow)
+    const updatedItems = trackingData.items.map((item: any) => ({
+      ...item,
+      boundingBox: {
+        ...item.boundingBox,
+        x: item.boundingBox.x + (Math.random() - 0.5) * 2, // Small random movement
+        y: item.boundingBox.y + (Math.random() - 0.5) * 2,
+      },
+      confidence: confidence,
+    }));
+    
+    setDetectedItems(updatedItems);
+    setTrackingData({
+      ...trackingData,
+      items: updatedItems,
+      confidence,
+      frameCount
+    });
+    
+    // Check if we've lost tracking
+    if (confidence < 0.4 || frameCount > 300) { // 30 seconds at 10 FPS
+      console.log('🎯 Tracking: ❌ Lost tracking - need re-detection');
+      setTerminatorState('lost');
+      stopTracking();
+      
+      // Auto return to scanning after a delay
+      setTimeout(() => {
+        if (terminatorState === 'lost') {
+          console.log('🎯 Tracking: 🔄 Auto-returning to scanning mode');
+          setTerminatorState('scanning');
+          setDetectedItems([]);
+        }
+      }, 2000);
+    }
+  };
+
+  // NEW: Handle camera tap for detection trigger
+  const handleCameraTap = () => {
+    if (terminatorMode && terminatorState === 'scanning') {
+      triggerSmartDetection();
+    }
+  };
+
+  // OLD function kept for compatibility but not used in smart mode
+  const captureAndAnalyzeFrame = async () => {
+    if (!cameraRef.current || state.isCapturing || isProcessingMultiItem) {
+      console.log('🎯 Terminator mode: Skipping frame capture - conditions not met:', {
+        hasCamera: !!cameraRef.current,
+        isCapturing: state.isCapturing,
+        isProcessingMultiItem
+      });
+      return;
+    }
+    
+    try {
+      console.log('🎯 Terminator mode: Starting SILENT frame capture...');
+      // Get base64 directly from camera - no fetch/FileReader needed!
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        base64: true, // Get base64 directly from camera
+        flash: 'off', // Force flash off in terminator mode
+        skipProcessing: true,
+      });
+      console.log('🎯 Terminator mode: Silent photo captured:', photo?.uri ? 'SUCCESS' : 'FAILED');
+      
+      if (photo && photo.base64) {
+        console.log('🎯 Terminator mode: Base64 ready, length:', photo.base64.length);
+
+        console.log('🎯 Terminator mode: Calling detectMultipleClothingItems...');
+        
+        // Real AI detection mode - no more fake data!
+        const result = await detectMultipleClothingItems(photo.base64);
+        
+        console.log('🎯 Terminator mode: API result:', {
+          success: result.success,
+          hasItems: !!result.items,
+          itemCount: result.items?.length || 0,
+          fullResult: result
+        });
+        
+        if (result.success && result.items && result.items.length > 0) {
+          console.log('🎯 Terminator mode: ✅ Real AI detected', result.items.length, 'items!');
+          // Convert API response to TerminatorOverlay format
+          const formattedItems = result.items.map((item: any, index: number) => {
+            console.log('🎯 Real detection - processing item:', item);
+            return {
+              id: `terminator-${Date.now()}-${index}`,
+              label: item.itemType || 'Item',
+              confidence: (item.confidence || 50) / 100, // Convert to 0-1 range
+              boundingBox: {
+                x: item.boundingBox?.top_left?.[0] || 10,
+                y: item.boundingBox?.top_left?.[1] || 10,
+                width: Math.abs((item.boundingBox?.bottom_right?.[0] || 90) - (item.boundingBox?.top_left?.[0] || 10)),
+                height: Math.abs((item.boundingBox?.bottom_right?.[1] || 90) - (item.boundingBox?.top_left?.[1] || 10)),
+              },
+              category: 'top' as const, // Default category
+            };
+          });
+          
+          console.log('🎯 Terminator mode: Real AI formatted items:', formattedItems);
+          
+          // Clear previous boxes before setting new ones
+          setDetectedItems([]);
+          setTimeout(() => {
+            setDetectedItems(formattedItems);
+            console.log('🎯 Terminator mode: ✅ Real items detected and set:', formattedItems.length);
+          }, 100);
+        } else {
+          console.log('🎯 Terminator mode: ❌ No clothing items detected by AI - clearing boxes');
+          setDetectedItems([]);
+        }
+      } else {
+        console.log('🎯 Terminator mode: ❌ Photo capture failed - no base64 data');
+      }
+    } catch (error) {
+      console.error('🎯 Terminator mode: 💥 DETROIT SMASH ERROR:', error);
+      
+      // Only show fallback for network issues to demonstrate the UI
+      if (error.message?.includes('Network request failed') || error.message?.includes('fetch') || error.message?.includes('ENOTFOUND')) {
+        console.log('🎯 Network error detected - showing demo detection for UI demonstration');
+        const fallbackResult = {
+          success: true,
+          items: [
+            {
+              itemType: 'Demo Item (No Network)',
+              confidence: 75,
+              boundingBox: {
+                top_left: [30, 40],
+                bottom_right: [70, 80]
+              }
+            }
+          ]
+        };
+        
+        const formattedItems = fallbackResult.items.map((item: any, index: number) => ({
+          id: `terminator-network-demo-${Date.now()}-${index}`,
+          label: item.itemType,
+          confidence: (item.confidence || 50) / 100,
+          boundingBox: {
+            x: item.boundingBox?.top_left?.[0] || 10,
+            y: item.boundingBox?.top_left?.[1] || 10,
+            width: Math.abs((item.boundingBox?.bottom_right?.[0] || 90) - (item.boundingBox?.top_left?.[0] || 10)),
+            height: Math.abs((item.boundingBox?.bottom_right?.[1] || 90) - (item.boundingBox?.top_left?.[1] || 10)),
+          },
+          category: 'top' as const,
+        }));
+        
+        setDetectedItems([]);
+        setTimeout(() => {
+          setDetectedItems(formattedItems);
+        }, 100);
+      } else {
+        // For other errors, just clear and continue scanning
+        console.log('🎯 API error - clearing boxes and continuing to scan');
+        setDetectedItems([]);
+      }
     }
   };
 
@@ -251,6 +548,21 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     Haptics.selectionAsync();
   };
 
+  const handleTerminatorToggle = () => {
+    setTerminatorMode(!terminatorMode);
+    Haptics.selectionAsync();
+    if (!terminatorMode) {
+      console.log('🎯 Terminator Vision Mode: ACTIVATED');
+    } else {
+      console.log('🎯 Terminator Vision Mode: DEACTIVATED');
+    }
+  };
+
+  const handleCameraReady = () => {
+    console.log('🎯 DETROIT SMASH: 📷 Camera is now READY! Setting isCameraReady to true');
+    setIsCameraReady(true);
+  };
+
   const handleFlashToggle = () => {
     toggleFlash();
     Haptics.selectionAsync();
@@ -301,13 +613,21 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       <StatusBar barStyle="light-content" backgroundColor="black" />
       
       {/* Camera View - Hide when processing multi-item */}
-      <CameraView
-        ref={cameraRef}
-        style={[styles.camera, isProcessingMultiItem && styles.hiddenCamera]}
-        facing={state.cameraType}
-        flash={state.flashMode}
-        zoom={state.zoom}
-      />
+      <TouchableOpacity
+        style={styles.cameraContainer}
+        onPress={handleCameraTap}
+        activeOpacity={1.0}
+        disabled={!terminatorMode}
+      >
+        <CameraView
+          ref={cameraRef}
+          style={[styles.camera, isProcessingMultiItem && styles.hiddenCamera]}
+          facing={state.cameraType}
+          flash={state.flashMode}
+          zoom={state.zoom}
+          onCameraReady={handleCameraReady}
+        />
+      </TouchableOpacity>
       
       {/* Grid Overlay */}
       {state.showGrid && (
@@ -317,6 +637,26 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           <View style={[styles.gridLine, { transform: [{ rotate: '90deg' }], left: '33.33%', top: '50%' }]} />
           <View style={[styles.gridLine, { transform: [{ rotate: '90deg' }], left: '66.66%', top: '50%' }]} />
         </View>
+      )}
+      
+      {/* Terminator Vision Overlay */}
+      {terminatorMode && (
+        <TerminatorOverlay
+          detectedItems={detectedItems}
+          cameraWidth={screenWidth}
+          cameraHeight={screenHeight}
+          isScanning={isScanning}
+          terminatorState={terminatorState}
+          trackingData={trackingData}
+        />
+      )}
+      
+      {/* Targets Acquired Scroller */}
+      {terminatorMode && detectedItems.length > 0 && terminatorState === 'tracking' && (
+        <TargetsAcquiredScroller
+          targets={detectedItems}
+          isScanning={false}
+        />
       )}
       
       {/* Top Controls */}
@@ -375,27 +715,44 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             />
           </TouchableOpacity>
         )}
+        
+        {mode === 'wardrobe' && (
+          <TouchableOpacity
+            style={[styles.sideButton, terminatorMode && styles.terminatorButtonActive]}
+            onPress={handleTerminatorToggle}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.terminatorIcon,
+              { color: terminatorMode ? '#00FF00' : 'white' }
+            ]}>
+              🎯
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Bottom Controls */}
-      <View style={styles.bottomControls}>
-        <View style={styles.captureContainer}>
-          <TouchableOpacity
-            style={[
-              styles.captureButton,
-              (state.isCapturing || isProcessingMultiItem) && styles.captureButtonActive
-            ]}
-            onPress={handleTakePicture}
-            disabled={state.isCapturing || isProcessingMultiItem}
-            activeOpacity={0.8}
-          >
-            <View style={styles.captureButtonInner} />
-          </TouchableOpacity>
-          {isProcessingMultiItem && (
-            <Text style={styles.processingText}>Detecting items...</Text>
-          )}
+      {/* Bottom Controls - Hide shutter button in Terminator mode */}
+      {!terminatorMode && (
+        <View style={styles.bottomControls}>
+          <View style={styles.captureContainer}>
+            <TouchableOpacity
+              style={[
+                styles.captureButton,
+                (state.isCapturing || isProcessingMultiItem) && styles.captureButtonActive
+              ]}
+              onPress={handleTakePicture}
+              disabled={state.isCapturing || isProcessingMultiItem}
+              activeOpacity={0.8}
+            >
+              <View style={styles.captureButtonInner} />
+            </TouchableOpacity>
+            {isProcessingMultiItem && (
+              <Text style={styles.processingText}>Detecting items...</Text>
+            )}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Mode-specific overlays */}
       {mode === 'wardrobe' && (
@@ -441,6 +798,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: 'white', // Keep white for camera overlay
     fontSize: 16,
     fontWeight: '500',
+  },
+  cameraContainer: {
+    flex: 1,
+    width: screenWidth,
+    height: screenHeight,
   },
   camera: {
     flex: 1,
@@ -510,6 +872,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: `${theme.colors.accent}30`, // Use theme accent with 30% opacity
     borderWidth: 2,
     borderColor: theme.colors.accent, // Use theme accent
+  },
+  terminatorButtonActive: {
+    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+    borderWidth: 2,
+    borderColor: '#00FF00',
+  },
+  terminatorIcon: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   bottomControls: {
     position: 'absolute',
