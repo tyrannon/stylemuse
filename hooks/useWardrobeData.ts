@@ -8,6 +8,7 @@ import { SuggestedItem } from '../services/SmartSuggestionsService';
 import { useTierManagement } from './useTierManagement';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
+import { ImagePersistenceService } from '../services/ImagePersistenceService';
 
 // Storage keys for AsyncStorage (legacy - migrating to StorageService)
 const STORAGE_KEYS = {
@@ -1227,39 +1228,106 @@ export const useWardrobeData = () => {
         return;
       }
       
-      const newWardrobeItems: WardrobeItem[] = croppedItems.map((item, index) => ({
-        image: item.croppedUri,
-        title: `${item.itemType} ${index + 1}`,
-        description: item.description,
-        tags: [item.itemType, 'multi-item-detection', 'ai-analyzed'],
-        color: 'auto-detected',
-        material: 'auto-detected',
-        style: item.itemType,
-        fit: 'auto-detected',
-        isNew: true, // Mark as new item
-        category: categorizeItem({ 
-          image: item.croppedUri,
-          title: item.description, // Use description as title for better categorization
-          description: item.description,
-          tags: [item.itemType],
-          style: item.itemType
-        } as WardrobeItem),
-        // Initialize laundry status as clean for new items
-        laundryStatus: 'clean',
-        laundryHistory: [{
-          status: 'clean',
-          changedAt: new Date(),
-          notes: 'Added to wardrobe via multi-item detection'
-        }],
-        timesWashed: 0,
-        needsSpecialCare: false,
-      }));
+      // Initialize ImagePersistenceService
+      const imageService = ImagePersistenceService.getInstance();
+      await imageService.initialize();
+      
+      console.log('🖼️ Persisting temporary images to permanent storage...');
+      logger.info(LogCategories.WARDROBE, 'Starting image persistence for bulk wardrobe items', {
+        itemCount: croppedItems.length
+      });
+      
+      // Persist all images and create wardrobe items with proper error handling
+      const persistedItems: WardrobeItem[] = [];
+      const failedItems: Array<{ item: any, error: string }> = [];
+      
+      for (let index = 0; index < croppedItems.length; index++) {
+        const item = croppedItems[index];
+        try {
+          // Generate unique item ID for persistent storage
+          const itemId = `wardrobe_${item.itemType}_${Date.now()}_${index}`;
+          
+          // Persist the temporary image to permanent storage
+          const persistentImage = await imageService.persistImage(
+            item.croppedUri,
+            'wardrobe',
+            itemId
+          );
+          
+          // Create wardrobe item with persistent image URI
+          const wardrobeItem: WardrobeItem = {
+            image: persistentImage.originalUri, // Use persistent URI instead of temp URI
+            title: `${item.itemType} ${index + 1}`,
+            description: item.description,
+            tags: [item.itemType, 'multi-item-detection', 'ai-analyzed'],
+            color: 'auto-detected',
+            material: 'auto-detected',
+            style: item.itemType,
+            fit: 'auto-detected',
+            isNew: true, // Mark as new item
+            category: categorizeItem({ 
+              image: persistentImage.originalUri,
+              title: item.description, // Use description as title for better categorization
+              description: item.description,
+              tags: [item.itemType],
+              style: item.itemType
+            } as WardrobeItem),
+            // Initialize laundry status as clean for new items
+            laundryStatus: 'clean',
+            laundryHistory: [{
+              status: 'clean',
+              changedAt: new Date(),
+              notes: 'Added to wardrobe via multi-item detection'
+            }],
+            timesWashed: 0,
+            needsSpecialCare: false,
+          };
+          
+          persistedItems.push(wardrobeItem);
+          
+          logger.debug(LogCategories.WARDROBE, 'Image persisted successfully', {
+            itemId,
+            originalUri: persistentImage.originalUri,
+            thumbnailUri: persistentImage.thumbnailUri,
+            fileSize: persistentImage.fileSize,
+            dimensions: persistentImage.dimensions
+          });
+          
+        } catch (imageError) {
+          const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error';
+          console.error(`❌ Failed to persist image for item ${index}:`, imageError);
+          logger.error(LogCategories.WARDROBE, 'Failed to persist image for wardrobe item', imageError as Error, {
+            itemIndex: index,
+            itemType: item.itemType,
+            croppedUri: item.croppedUri
+          });
+          
+          failedItems.push({ item, error: errorMessage });
+        }
+      }
+      
+      // Log persistence results
+      console.log(`✅ Successfully persisted ${persistedItems.length}/${croppedItems.length} images`);
+      if (failedItems.length > 0) {
+        console.warn(`⚠️ Failed to persist ${failedItems.length} images:`, failedItems.map(f => f.error));
+        logger.warn(LogCategories.WARDROBE, 'Some images failed to persist during bulk save', {
+          successCount: persistedItems.length,
+          failedCount: failedItems.length,
+          failedErrors: failedItems.map(f => f.error)
+        });
+      }
+      
+      // Only proceed if we have at least some successfully persisted items
+      if (persistedItems.length === 0) {
+        throw new Error('Failed to persist any images - cannot save wardrobe items');
+      }
 
-      // Add all new items to the wardrobe
-      const updatedItems = [...savedItems, ...newWardrobeItems];
-      console.log('[DEBUG] saveBulkWardrobeItems - New items with isNew:', newWardrobeItems.map(item => ({
+      // Add all successfully persisted items to the wardrobe
+      const updatedItems = [...savedItems, ...persistedItems];
+      console.log('[DEBUG] saveBulkWardrobeItems - New items with isNew:', persistedItems.map(item => ({
         title: item.title,
-        isNew: item.isNew
+        isNew: item.isNew,
+        image: item.image.substring(0, 50) + '...' // Log truncated image path
       })));
       setSavedItems(updatedItems);
       
@@ -1269,13 +1337,17 @@ export const useWardrobeData = () => {
       // Update tier management with new wardrobe count
       await tierManagement.updateWardrobeCount(updatedItems.length);
       
-      logger.info(LogCategories.MONETIZATION, 'Wardrobe items added successfully', {
-        itemsAdded: newWardrobeItems.length,
+      logger.info(LogCategories.WARDROBE, 'Bulk wardrobe items saved successfully', {
+        itemsAdded: persistedItems.length,
+        itemsFailed: failedItems.length,
         newTotalCount: updatedItems.length,
         userTier: tierManagement.userTier
       });
       
-      console.log(`✅ ${newWardrobeItems.length} items saved successfully to wardrobe`);
+      const successMessage = failedItems.length > 0 
+        ? `${persistedItems.length}/${croppedItems.length} items saved successfully to wardrobe`
+        : `${persistedItems.length} items saved successfully to wardrobe`;
+      console.log(`✅ ${successMessage}`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
