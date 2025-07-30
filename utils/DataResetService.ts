@@ -219,10 +219,10 @@ export class DataResetService {
       logger.info(LogCategories.STORAGE, 'Creating backup before reset');
       
       const { FullBackupService } = await import('../services/FullBackupService');
-      const backupId = await FullBackupService.createFullBackup('Pre-Reset Backup');
+      const backupMetadata = await FullBackupService.createFullBackup('Pre-Reset Backup');
       
-      logger.info(LogCategories.STORAGE, 'Backup created before reset', { backupId });
-      return backupId;
+      logger.info(LogCategories.STORAGE, 'Backup created before reset', { backupId: backupMetadata.id });
+      return backupMetadata.id;
     } catch (error) {
       logger.error(LogCategories.STORAGE, 'Failed to create backup before reset', error);
       return null;

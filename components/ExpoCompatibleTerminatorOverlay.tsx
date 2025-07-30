@@ -60,40 +60,29 @@ const DJIStyleBoundingBox = React.memo<{
   const cornerAnimation = useSharedValue(0);
 
   useEffect(() => {
-    console.log(`🎯 DJI Box ${index} rendering:`, { currentState, label: box.label, confidence: box.confidence });
+    // CRITICAL FIX: Simplified logging to prevent crashes
+    console.log('DJI Box rendering:', currentState);
     
-    if (currentState === 'tracking') {
-      // DJI-style smooth entrance
-      opacity.value = withSpring(1, { damping: 15, stiffness: 200 });
-      scale.value = withSpring(1, { damping: 12, stiffness: 180 });
-      
-      // Confidence-based pulse (like DJI's tracking confirmation)
-      const pulseFrequency = Math.max(1000, 3000 - (box.confidence * 2000));
-      pulseAnimation.value = withRepeat(
-        withSequence(
-          withTiming(0.3, { duration: 200 }),
-          withTiming(0, { duration: 800 })
-        ),
-        -1,
-        false
-      );
-      
-      // Corner animation (DJI's corner indicators)
-      cornerAnimation.value = withRepeat(
-        withTiming(1, { duration: 2000 }),
-        -1,
-        true
-      );
-    } else if (currentState === 'detecting') {
-      // Scanning animation
-      opacity.value = withTiming(0.6, { duration: 300 });
-      scale.value = withTiming(0.9, { duration: 300 });
-    } else {
-      // Fade out
-      opacity.value = withTiming(0, { duration: 300 });
-      scale.value = withTiming(0.8, { duration: 300 });
+    try {
+      if (currentState === 'tracking') {
+        // Simplified animations - no infinite repeats
+        opacity.value = withSpring(1, { damping: 15, stiffness: 200 });
+        scale.value = withSpring(1, { damping: 12, stiffness: 180 });
+        
+        // CRITICAL FIX: Single pulse instead of infinite repeat
+        pulseAnimation.value = withTiming(0.3, { duration: 500 });
+        cornerAnimation.value = withTiming(1, { duration: 1000 });
+      } else if (currentState === 'detecting') {
+        opacity.value = withTiming(0.6, { duration: 300 });
+        scale.value = withTiming(0.9, { duration: 300 });
+      } else {
+        opacity.value = withTiming(0, { duration: 300 });
+        scale.value = withTiming(0.8, { duration: 300 });
+      }
+    } catch (error) {
+      console.warn('Animation setup failed:', error);
     }
-  }, [currentState, box.confidence]);
+  }, [currentState]);
 
   const boxStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -161,17 +150,18 @@ const ScanningLine = React.memo<{
   const scanOpacity = useSharedValue(0);
 
   useEffect(() => {
-    console.log(`🎯 Scanning line:`, { isScanning, stateColor });
+    console.log('Scanning line:', isScanning);
     
-    if (isScanning) {
-      scanOpacity.value = withTiming(0.8, { duration: 300 });
-      scanPosition.value = withRepeat(
-        withTiming(cameraHeight, { duration: 2000 }),
-        -1,
-        false
-      );
-    } else {
-      scanOpacity.value = withTiming(0, { duration: 300 });
+    try {
+      if (isScanning) {
+        scanOpacity.value = withTiming(0.8, { duration: 300 });
+        // CRITICAL FIX: Single animation instead of infinite repeat
+        scanPosition.value = withTiming(cameraHeight, { duration: 2000 });
+      } else {
+        scanOpacity.value = withTiming(0, { duration: 300 });
+      }
+    } catch (error) {
+      console.warn('Scan animation failed:', error);
     }
   }, [isScanning, cameraHeight]);
 

@@ -46,13 +46,10 @@ const actions = {
     consecutiveFailures: 0,
   }),
 
-  // Debug action to log state transitions
-  logStateTransition: (context: any, event: any, { state }: any) => {
-    console.log(`🎯 XState Transition: ${event.type} → ${state.value}`, {
-      detectedItems: context.detectedItems?.length || 0,
-      trackingConfidence: context.trackingConfidence,
-      errorMessage: context.errorMessage,
-    });
+  // CRITICAL FIX: Simplified logging to prevent string processing crashes
+  logStateTransition: () => {
+    // Removed complex logging that was causing crashes
+    // This will be handled by safe logging in components instead
   },
 
   // Start detection process
@@ -64,18 +61,26 @@ const actions = {
   // Save successful detection results
   saveDetection: assign(({ context, event }) => {
     if (event.type === 'DETECTION_SUCCESS') {
-      console.log(`🎯 saveDetection: Saving ${event.items.length} items:`, event.items.map(i => i.label));
-      return {
-        detectedItems: event.items,
-        lastDetectionTime: Date.now(),
-        detectionInProgress: false,
-        consecutiveFailures: 0,
-        trackingData: {
-          startTime: Date.now(),
-          lastUpdate: Date.now(),
-          positions: [],
-        },
-      };
+      try {
+        // CRITICAL FIX: Safe logging without complex string operations
+        const itemCount = event.items?.length || 0;
+        console.log('Detection success:', itemCount, 'items');
+        
+        return {
+          detectedItems: event.items || [],
+          lastDetectionTime: Date.now(),
+          detectionInProgress: false,
+          consecutiveFailures: 0,
+          trackingData: {
+            startTime: Date.now(),
+            lastUpdate: Date.now(),
+            positions: [],
+          },
+        };
+      } catch (error) {
+        console.log('saveDetection error:', error);
+        return { detectionInProgress: false };
+      }
     }
     return {};
   }),
@@ -124,26 +129,39 @@ const actions = {
     trackingData: null,
   }),
 
-  // Haptic feedback actions
+  // CRITICAL FIX: Simplified haptic feedback to prevent memory leaks
   playDetectionHaptic: () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Lock-on confirmation
-    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 100);
+    try {
+      // Single haptic call - no setTimeout chains
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.warn('Haptic feedback failed:', error);
+    }
   },
 
   playTrackingHaptic: () => {
-    Haptics.selectionAsync();
+    try {
+      Haptics.selectionAsync();
+    } catch (error) {
+      console.warn('Tracking haptic failed:', error);
+    }
   },
 
   playErrorHaptic: () => {
-    // Error pattern: 3 heavy impacts
-    [0, 100, 200].forEach((delay) => {
-      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), delay);
-    });
+    try {
+      // Single heavy impact - no setTimeout loops
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } catch (error) {
+      console.warn('Error haptic failed:', error);
+    }
   },
 
   playScanHaptic: () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.warn('Scan haptic failed:', error);
+    }
   },
 };
 

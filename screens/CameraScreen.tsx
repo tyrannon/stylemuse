@@ -10,8 +10,9 @@ import {
   Platform,
 } from 'react-native';
 import { CameraView } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { CrashPreventionWrapper, safeHaptics } from '../utils/CrashPreventionWrapper';
 import { useCameraControls } from '../hooks/useCameraControls';
 import { detectMultipleClothingItems } from '../utils/openai';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
@@ -20,6 +21,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { ExpoCompatibleTerminatorOverlay } from '../components/ExpoCompatibleTerminatorOverlay';
 import { ExpoCompatibleTargetsScroller } from '../components/ExpoCompatibleTargetsScroller';
 import { TerminatorProvider, useTerminator } from '../contexts/TerminatorContext';
+import { emergencyFlags } from '../utils/EmergencyFeatureFlags';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -82,19 +84,47 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
 
   useEffect(() => {
     initializeCamera();
-  }, []);
-
-  // Initialize terminator mode with XState machine
-  useEffect(() => {
-    console.log('🎯 Camera initialization - terminatorMode:', terminatorMode, 'isCameraReady:', isCameraReady);
     
-    if (terminatorMode && isCameraReady) {
-      console.log('🎯 Activating Terminator system with XState');
-      activateTerminator();
-    } else if (!terminatorMode && isSystemActive()) {
-      console.log('🎯 Deactivating Terminator system');
+    // CRITICAL FIX: Cleanup on unmount to prevent crashes
+    return () => {
+      CrashPreventionWrapper.reset();
+      if (trackingIntervalRef.current) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
+      }
       deactivateTerminator();
-    }
+    };
+  }, [deactivateTerminator]);
+
+  // CRITICAL FIX: Safe terminator initialization with emergency checks
+  useEffect(() => {
+    const initializeTerminator = async () => {
+      try {
+        const isEnabled = !emergencyFlags.isTerminatorCameraDisabled();
+        
+        if (!isEnabled) {
+          console.warn('SAFETY: Terminator camera disabled by emergency flags');
+          setTerminatorMode(false);
+          return;
+        }
+
+        await CrashPreventionWrapper.safeAsync(async () => {
+          if (terminatorMode && isCameraReady) {
+            console.log('Safely activating Terminator system');
+            activateTerminator();
+          } else if (!terminatorMode && isSystemActive()) {
+            console.log('Safely deactivating Terminator system');
+            deactivateTerminator();
+          }
+        });
+      } catch (error) {
+        console.error('CRITICAL: Terminator initialization failed:', error);
+        await emergencyFlags.reportCrash('terminator');
+        setTerminatorMode(false);
+      }
+    };
+
+    initializeTerminator();
   }, [terminatorMode, isCameraReady, activateTerminator, deactivateTerminator, isSystemActive]);
 
   const initializeCamera = async () => {
@@ -122,38 +152,41 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
   };
 
   const handleTakePicture = async () => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // CRITICAL FIX: Use safe wrapper to prevent crashes
+    await CrashPreventionWrapper.safeAsync(async () => {
+      safeHaptics.impact('Medium');
       const photoUri = await takePicture();
       
       if (photoUri) {
         if (multiItemMode && onMultiItemDetected) {
           await handleMultiItemDetection(photoUri);
         } else {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          safeHaptics.notification('Success');
           onPhotoTaken(photoUri);
         }
       } else {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        safeHaptics.notification('Error');
         Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
       }
-    } catch (error) {
-      console.error('Photo capture error:', error);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
-    }
+    }, {
+      onError: (error) => {
+        CrashPreventionWrapper.safeLog('Photo capture error:', error);
+        safeHaptics.notification('Error');
+        Alert.alert('Photo Error', 'Failed to capture photo. Please try again.');
+      }
+    });
   };
 
-  // Updated smart detection using XState machine
+  // CRITICAL FIX: Safe smart detection to prevent Hermes crashes
   const triggerSmartDetection = async () => {
-    if (!cameraRef.current || getCurrentState() === 'detecting') {
-      console.log('🎯 Smart detection: Camera not ready or already detecting');
-      return;
-    }
-    
-    console.log('🎯 Smart detection: 🎯 TAP TRIGGERED - Starting XState detection');
-    
-    try {
+    await CrashPreventionWrapper.safeAsync(async () => {
+      if (!cameraRef.current || getCurrentState() === 'detecting') {
+        CrashPreventionWrapper.safeLog('Smart detection: Camera not ready or already detecting');
+        return;
+      }
+      
+      CrashPreventionWrapper.safeLog('Smart detection: TAP TRIGGERED - Starting detection');
+      
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.7,
         base64: true,
@@ -162,16 +195,16 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
       });
       
       if (photo && photo.base64) {
-        console.log('🎯 Smart detection: Photo captured, triggering detection');
+        CrashPreventionWrapper.safeLog('Smart detection: Photo captured, triggering detection');
         triggerDetection(photo.base64);
         
         const result = await detectMultipleClothingItems(photo.base64);
         
         if (result.success && result.items && result.items.length > 0) {
-          console.log('🎯 Smart detection: ✅ AI detected', result.items.length, 'items');
+          CrashPreventionWrapper.safeLog('Smart detection: AI detected items:', result.items.length);
           
           const formattedItems = result.items.map((item: any, index: number) => ({
-            id: `tracked-${Date.now()}-${index}`,
+            id: 'tracked-' + Date.now() + '-' + index, // Safe string concatenation
             label: item.itemType || 'Item',
             confidence: (item.confidence || 50) / 100,
             boundingBox: {
@@ -186,14 +219,16 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
           reportDetectionSuccess(formattedItems);
           
         } else {
-          console.log('🎯 Smart detection: ❌ No items detected');
+          CrashPreventionWrapper.safeLog('Smart detection: No items detected');
           reportDetectionFailure('No items detected');
         }
       }
-    } catch (error) {
-      console.error('🎯 Smart detection error:', error);
-      reportDetectionFailure(error.message || 'Detection failed');
-    }
+    }, {
+      onError: (error) => {
+        CrashPreventionWrapper.safeLog('Smart detection error:', error);
+        reportDetectionFailure('Detection failed');
+      }
+    });
   };
 
   // Cleanup tracking intervals
@@ -224,20 +259,18 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
     });
     
     try {
-      // Step 1: Loading high-resolution image data
-      console.log('📸 Loading high-resolution image data...');
+      // CRITICAL FIX: Simplified loading without setTimeout chains
+      console.log('Processing image data...');
       const response = await fetch(photoUri);
       const blob = await response.blob();
-      await new Promise(resolve => setTimeout(resolve, 400));
       
       // Mark step 1 complete
       let updatedSteps = [...initialSteps];
       updatedSteps[0] = { ...updatedSteps[0], completed: true };
       unifiedLoading.updateSteps(updatedSteps);
       
-      // Step 2: Initializing neural networks
-      console.log('🧠 Initializing neural networks...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Step 2: Processing
+      console.log('Initializing detection...');
       
       // Mark step 2 complete
       updatedSteps[1] = { ...updatedSteps[1], completed: true };
@@ -252,27 +285,21 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
         reader.readAsDataURL(blob);
       });
 
-      // Step 3: Scanning for clothing objects
-      console.log('👁️ Scanning for clothing objects...');
-      await new Promise(resolve => setTimeout(resolve, 400));
+      // Step 3: AI Detection - CRITICAL FIX: No setTimeout delays
+      console.log('Running AI detection...');
       
       // Mark step 3 complete
       updatedSteps[2] = { ...updatedSteps[2], completed: true };
       unifiedLoading.updateSteps(updatedSteps);
       
-      // Step 4: Starting AI detection
-      console.log('🏷️ Classifying detected items...');
-      updatedSteps[3] = { ...updatedSteps[3], completed: true };
-      unifiedLoading.updateSteps(updatedSteps);
-      
+      // CRITICAL FIX: Direct API call without artificial delays
       const result = await detectMultipleClothingItems(base64);
       
-      // Step 5: Post-processing
-      console.log('📏 Calculating precise boundaries...');
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Step 4: Processing results
+      console.log('Processing results...');
       
-      // Mark step 5 complete
-      updatedSteps[4] = { ...updatedSteps[4], completed: true };
+      // Mark step 4 complete
+      updatedSteps[3] = { ...updatedSteps[3], completed: true };
       unifiedLoading.updateSteps(updatedSteps);
       
       console.log('📊 Multi-item detection result:', result);
@@ -289,25 +316,11 @@ const CameraScreenInternal: React.FC<CameraScreenProps> = ({
           item.itemType?.toLowerCase().includes('heel')
         );
         
-        await new Promise(resolve => setTimeout(resolve, 400));
+        // CRITICAL FIX: Complete all steps without setTimeout delays
+        updatedSteps[4] = { ...updatedSteps[4], completed: true };
         updatedSteps[5] = { ...updatedSteps[5], completed: true };
-        unifiedLoading.updateSteps(updatedSteps);
-        
-        // Step 7: Analyzing colors and patterns
-        console.log('🎨 Analyzing colors and patterns...');
-        await new Promise(resolve => setTimeout(resolve, 350));
         updatedSteps[6] = { ...updatedSteps[6], completed: true };
-        unifiedLoading.updateSteps(updatedSteps);
-        
-        // Step 8: Preparing cropping coordinates
-        console.log('📦 Preparing cropping coordinates...');
-        await new Promise(resolve => setTimeout(resolve, 300));
         updatedSteps[7] = { ...updatedSteps[7], completed: true };
-        unifiedLoading.updateSteps(updatedSteps);
-        
-        // Step 9: Finalizing cyberpunk bounding boxes
-        console.log('✨ Finalizing cyberpunk bounding boxes...');
-        await new Promise(resolve => setTimeout(resolve, 400));
         updatedSteps[8] = { ...updatedSteps[8], completed: true };
         unifiedLoading.updateSteps(updatedSteps);
         
@@ -762,8 +775,34 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
 });
 
-// Main wrapper component with TerminatorProvider
+// CRITICAL FIX: Main wrapper component with crash protection
 export const CameraScreen: React.FC<CameraScreenProps> = (props) => {
+  // Global error boundary for Terminator crashes
+  useEffect(() => {
+    const originalHandler = (globalThis as any).ErrorUtils?.getGlobalHandler();
+    
+    const crashHandler = (error: any, isFatal?: boolean) => {
+      if (error?.message?.includes('stringPrototypeCharCodeAt') || 
+          error?.message?.includes('GeneratorInnerFunction') ||
+          error?.message?.includes('memmove')) {
+        console.error('CRITICAL: Hermes engine crash detected in Terminator camera');
+        emergencyFlags.reportCrash('terminator');
+      }
+      
+      if (originalHandler) {
+        originalHandler(error, isFatal);
+      }
+    };
+    
+    (globalThis as any).ErrorUtils?.setGlobalHandler(crashHandler);
+    
+    return () => {
+      if (originalHandler) {
+        (globalThis as any).ErrorUtils?.setGlobalHandler(originalHandler);
+      }
+    };
+  }, []);
+
   return (
     <TerminatorProvider>
       <CameraScreenInternal {...props} />

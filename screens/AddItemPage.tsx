@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../contexts/ThemeContext';
+import { FeatureFlags } from '../config/FeatureFlags';
 
 interface AddItemPageProps {
   onCameraPress: () => void;
@@ -65,7 +66,7 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
             <Text style={styles.optionArrow}>›</Text>
           </TouchableOpacity>
           
-          {onTerminatorCameraPress && (
+          {onTerminatorCameraPress && FeatureFlags.TERMINATOR_CAMERA_ENABLED && (
             <TouchableOpacity
               style={[styles.option, styles.terminatorOption]}
               onPress={() => handleOptionPress(onTerminatorCameraPress)}
@@ -84,6 +85,15 @@ export const AddItemPage: React.FC<AddItemPageProps> = ({
               </View>
               <Text style={[styles.optionArrow, styles.terminatorArrow]}>⚡</Text>
             </TouchableOpacity>
+          )}
+          
+          {/* Development Feature Flag Notice */}
+          {__DEV__ && !FeatureFlags.TERMINATOR_CAMERA_ENABLED && onTerminatorCameraPress && (
+            <View style={styles.devNotice}>
+              <Text style={styles.devNoticeText}>
+                🛠️ Terminator Camera disabled via feature flag (development issues)
+              </Text>
+            </View>
           )}
           
           <TouchableOpacity
@@ -323,6 +333,23 @@ const createStyles = (theme: any) => StyleSheet.create({
   terminatorTipText: {
     color: '#00DD00',
     fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  
+  // Development notice styles
+  devNotice: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+  },
+  devNoticeText: {
+    color: '#FF8C00',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
     fontFamily: 'monospace',
   },
 });

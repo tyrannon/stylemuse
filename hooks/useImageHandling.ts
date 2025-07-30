@@ -156,6 +156,12 @@ export const useImageHandling = (): ImageHandlingState => {
     }
   };
 
+  // Wrapper function for backwards compatibility (single parameter)
+  const downloadImage = async (imageUrl: string): Promise<string | null> => {
+    const defaultItemId = `download_${Date.now()}`;
+    return downloadAndSaveImage(imageUrl, defaultItemId);
+  };
+
   // Generate image for clothing item
   const handleGenerateItemImage = async (item: WardrobeItem): Promise<string | null> => {
     if (generatingImageForItem === item.image) return null;
@@ -219,6 +225,6 @@ export const useImageHandling = (): ImageHandlingState => {
     downloadAndSaveImage,
     handleGenerateItemImage,
     generateImageForItem: handleGenerateItemImage, // Alias for backwards compatibility
-    downloadImage: downloadAndSaveImage, // Alias for backwards compatibility
+    downloadImage, // Wrapper function for single parameter compatibility
   };
 };

@@ -73,14 +73,12 @@ const DJITargetItem = React.memo<{
         opacity.value = withSpring(1, { damping: 15 });
         glowIntensity.value = withSpring(item.confidence || 0.5);
         
-        // DJI-style confidence pulse
-        confidencePulse.value = withRepeat(
-          withSequence(
-            withTiming(0.2, { duration: 1000 }),
-            withTiming(0, { duration: 1000 })
-          ),
-          -1,
-          false
+        // CRITICAL FIX: Limited pulse instead of infinite repeat
+        confidencePulse.value = withSequence(
+          withTiming(0.2, { duration: 1000 }),
+          withTiming(0, { duration: 1000 }),
+          withTiming(0.1, { duration: 800 }),
+          withTiming(0, { duration: 800 })
         );
       }, delay);
     } else {
@@ -176,14 +174,12 @@ export const ExpoCompatibleTargetsScroller: React.FC = React.memo(() => {
       containerOpacity.value = withSpring(1, { damping: 15 });
       headerScale.value = withSpring(1, { damping: 12 });
       
-      // DJI-style blinking effect
-      blinkOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.3, { duration: 300 }),
-          withTiming(1, { duration: 700 })
-        ),
-        -1,
-        false
+      // CRITICAL FIX: Limited blink instead of infinite repeat
+      blinkOpacity.value = withSequence(
+        withTiming(0.3, { duration: 300 }),
+        withTiming(1, { duration: 700 }),
+        withTiming(0.5, { duration: 400 }),
+        withTiming(1, { duration: 600 })
       );
     } else {
       console.log(`🎯 Targets Scroller: DEACTIVATING`);

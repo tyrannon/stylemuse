@@ -47,7 +47,7 @@ export class PersistenceService {
         AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS).then(data => data ? JSON.parse(data) : []),
         AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA).then(data => data ? JSON.parse(data) : null),
         AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE).then(data => data || null),
-        AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER).then(data => data || null),
+        AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER).then(data => data as 'male' | 'female' | 'nonbinary' | null),
         AsyncStorage.getItem(STORAGE_KEYS.WISHLIST_ITEMS).then(data => data ? JSON.parse(data) : []),
         AsyncStorage.getItem(STORAGE_KEYS.SUGGESTED_ITEMS).then(data => data ? JSON.parse(data) : [])
       ]);

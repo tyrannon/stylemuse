@@ -53,6 +53,7 @@ import { LogCategories } from '../constants/LogCategories';
 
 // Types
 import { StyleRecommendation } from '../types/StyleAdvice';
+import { EnhancedStyleDNA } from '../types/StyleDNA';
 import { STORAGE_KEYS } from '../constants/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -298,19 +299,6 @@ const WardrobeUploadScreen = () => {
     console.log(`✅ [WardrobeUpload] ${operation} refresh complete`);
   }, [clearAllData, wardrobeData.loadWardrobeData]);
 
-  // Handle random outfit generation
-  const handleRandomOutfit = useCallback(async (options?: any) => {
-    console.log('🎲 [WardrobeUpload] Random outfit handler called', {
-      savedItemsLength: savedItems.length,
-      hasRandomOutfit: !!randomOutfit,
-      hasOutfitGeneration: !!outfitGeneration
-    });
-    
-    const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
-    if (generatedOutfit) {
-      outfitGeneration.setGearSlots(generatedOutfit);
-    }
-  }, [randomOutfit, outfitGeneration, savedItems]);
 
   // Helper functions to get theme-appropriate images
   const getGenerateOutfitIcon = () => {
@@ -355,6 +343,20 @@ const WardrobeUploadScreen = () => {
   const smartSuggestions = useSmartSuggestions();
   const randomOutfit = useRandomOutfit(savedItems);
   // Removed separate styleDNALoading - now using main unifiedLoading
+
+  // Handle random outfit generation
+  const handleRandomOutfit = useCallback(async (options?: any) => {
+    console.log('🎲 [WardrobeUpload] Random outfit handler called', {
+      savedItemsLength: savedItems.length,
+      hasRandomOutfit: !!randomOutfit,
+      hasOutfitGeneration: !!outfitGeneration
+    });
+    
+    const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
+    if (generatedOutfit) {
+      outfitGeneration.setGearSlots(generatedOutfit);
+    }
+  }, [randomOutfit, outfitGeneration, savedItems]);
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
@@ -1849,7 +1851,7 @@ const WardrobeUploadScreen = () => {
       setLovedOutfits(prev => {
         const updated = prev.map(outfit => {
           if (outfit.id === outfitId) {
-            const updatedOutfit = { 
+            const updatedOutfit: LovedOutfit = { 
               ...outfit, 
               metadata: { ...outfit.metadata, occasion } 
             };

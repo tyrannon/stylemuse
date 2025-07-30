@@ -8,10 +8,15 @@ import { OutfitFilterProvider } from './contexts/OutfitFilterContext';
 import { logger } from './utils/DebugLogger';
 import { LogCategories } from './constants/LogCategories';
 import { DataDebugger } from './utils/DataDebugger';
+import { ImageRepairIntegration } from './services/ImageRepairIntegration';
+import { BrokenImageRepairModal } from './components/BrokenImageRepairModal';
+import { DataMigrationModal } from './components/DataMigrationModal';
 
 export default function App() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageRepairNeeded, setImageRepairNeeded] = useState(false);
+  const [repairInfo, setRepairInfo] = useState(null);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -44,12 +49,38 @@ export default function App() {
         });
         setIsOnboardingComplete(completed);
       }
+
+      // Perform image repair check for existing users
+      if (hasExistingData) {
+        await checkImageRepairNeeds();
+      }
     } catch (error) {
       logger.error(LogCategories.APP_LIFECYCLE, 'Failed to check onboarding status', error);
       // On error, assume onboarding is complete to prevent blocking
       setIsOnboardingComplete(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkImageRepairNeeds = async () => {
+    try {
+      logger.info(LogCategories.APP_LIFECYCLE, 'Checking image repair needs');
+      const repairIntegration = ImageRepairIntegration.getInstance();
+      const checkResult = await repairIntegration.performStartupImageCheck();
+      
+      if (checkResult.needsRepair || checkResult.needsLegacyMigration) {
+        setImageRepairNeeded(true);
+        setRepairInfo(checkResult);
+        logger.info(LogCategories.APP_LIFECYCLE, 'Image repair needed', {
+          needsRepair: checkResult.needsRepair,
+          needsLegacyMigration: checkResult.needsLegacyMigration,
+          brokenCount: checkResult.repairInfo?.brokenCount
+        });
+      }
+    } catch (error) {
+      logger.error(LogCategories.APP_LIFECYCLE, 'Failed to check image repair needs', error);
+      // Don't block app startup on repair check failure
     }
   };
 
@@ -120,6 +151,27 @@ export default function App() {
     }
   };
 
+  const handleImageRepairComplete = async (summary) => {
+    try {
+      logger.info(LogCategories.APP_LIFECYCLE, 'Image repair completed', {
+        success: summary.success,
+        recoveredItems: summary.recoveredItems,
+        failedItems: summary.failedItems
+      });
+
+      setImageRepairNeeded(false);
+      setRepairInfo(null);
+      
+      // Show results to user
+      const repairIntegration = ImageRepairIntegration.getInstance();
+      if (summary.success) {
+        await repairIntegration.repairService.showRepairResults(summary);
+      }
+    } catch (error) {
+      logger.error(LogCategories.APP_LIFECYCLE, 'Failed to handle repair completion', error);
+    }
+  };
+
   // Show loading screen while checking onboarding status
   if (isLoading) {
     return (
@@ -138,6 +190,29 @@ export default function App() {
           <WardrobeUploadScreen />
         ) : (
           <OnboardingNavigator onComplete={handleOnboardingComplete} />
+        )}
+        
+        {/* Image Repair Modals */}
+        {imageRepairNeeded && repairInfo && (
+          <>
+            {repairInfo.needsLegacyMigration ? (
+              <DataMigrationModal
+                visible={true}
+                onComplete={handleImageRepairComplete}
+              />
+            ) : (
+              <BrokenImageRepairModal
+                visible={true}
+                onComplete={handleImageRepairComplete}
+                options={{
+                  dryRun: false,
+                  removeUnrecoverable: true,
+                  backupBeforeRepair: true,
+                  maxRecoveryAttempts: 5
+                }}
+              />
+            )}
+          </>
         )}
       </OutfitFilterProvider>
     </ThemeProvider>

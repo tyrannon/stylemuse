@@ -16,6 +16,7 @@ export const LogCategories = {
   DATABASE: 'database',
   CACHE: 'cache',
   STORAGE: 'storage',
+  MIGRATION: 'migration',
   
   // UI/UX
   USER_ACTION: 'user.action',

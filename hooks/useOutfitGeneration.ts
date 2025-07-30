@@ -53,6 +53,7 @@ export interface OutfitGenerationState {
     tags?: string[];
     weatherAppropriateness?: string;
   };
+  setLastGeneratedMetadata: (metadata: OutfitGenerationState['lastGeneratedMetadata']) => void;
   // Unified loading state
   unifiedLoading: {
     isLoading: boolean;
@@ -92,6 +93,15 @@ export const useOutfitGeneration = (
 
   // Function to generate outfit suggestions based on a selected item (or general suggestions if selectedItem is null)
   const generateOutfitSuggestions = async (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => {
+    // Use AI to generate intelligent outfit selection
+    const outfitContext = context || {
+      occasion: 'casual',
+      location: 'general',
+      weather: 'moderate',
+      time: 'day',
+      style: 'coordinated'
+    };
+
     try {
       // Check AI generation limits before proceeding
       const aiLimitCheck = await tierManagement.checkAIGeneration();
@@ -131,14 +141,6 @@ export const useOutfitGeneration = (
         itemType,
         selectedItem: selectedItem?.title || 'general outfit generation',
       });
-      // Use AI to generate intelligent outfit selection
-      const outfitContext = context || {
-        occasion: 'casual',
-        location: 'general',
-        weather: 'moderate',
-        time: 'day',
-        style: 'coordinated'
-      };
       
       logger.info(LogCategories.OUTFIT_GENERATION, 'Starting outfit generation', {
         selectedItem: selectedItem?.title || 'general outfit generation',

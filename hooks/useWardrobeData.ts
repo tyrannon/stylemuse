@@ -476,6 +476,60 @@ export const useWardrobeData = () => {
 
   // OUTFIT MEMORY & RE-SUGGESTION FUNCTIONS
   
+  // Calculate when an outfit should be suggested again
+  const calculateNextSuggestionDate = useCallback((timesWorn: number, lastWornDate: Date): Date => {
+    const now = new Date(lastWornDate);
+    let daysToAdd = 7; // Default 1 week
+    
+    // Adjust suggestion frequency based on how often it's been worn
+    if (timesWorn === 1) {
+      daysToAdd = 14; // 2 weeks for first re-wear
+    } else if (timesWorn <= 3) {
+      daysToAdd = 10; // 10 days for lightly worn items
+    } else if (timesWorn <= 6) {
+      daysToAdd = 7; // 1 week for moderately worn items
+    } else {
+      daysToAdd = 14; // 2 weeks for heavily worn items
+    }
+    
+    now.setDate(now.getDate() + daysToAdd);
+    return now;
+  }, []);
+  
+  // Function to automatically mark items as dirty when outfit is worn
+  const markOutfitItemsAsDirty = useCallback(async (outfitItems: string[]) => {
+    try {
+      const itemsToUpdate = savedItems.filter(item => 
+        outfitItems.includes(item.image) && item.laundryStatus !== 'dirty'
+      );
+
+      if (itemsToUpdate.length === 0) return;
+
+      const updatedItems = savedItems.map(savedItem => {
+        if (outfitItems.includes(savedItem.image) && savedItem.laundryStatus !== 'dirty') {
+          const laundryRecord: LaundryRecord = {
+            status: 'dirty',
+            changedAt: new Date(),
+            previousStatus: savedItem.laundryStatus || 'clean',
+            notes: 'Auto-marked dirty from outfit wear',
+          };
+
+          return {
+            ...savedItem,
+            laundryStatus: 'dirty' as LaundryStatus,
+            laundryHistory: [...(savedItem.laundryHistory || []), laundryRecord],
+          };
+        }
+        return savedItem;
+      });
+
+      setSavedItems(updatedItems);
+      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
+    } catch (error) {
+      console.error('Error marking outfit items as dirty:', error);
+    }
+  }, [savedItems]);
+  
   // Function to mark an outfit as worn
   const markOutfitAsWorn = useCallback(async (outfitId: string, rating?: number, event?: string, location?: string) => {
     try {
@@ -538,25 +592,6 @@ export const useWardrobeData = () => {
     }
   }, [lovedOutfits, calculateNextSuggestionDate, markOutfitItemsAsDirty]);
   
-  // Calculate when an outfit should be suggested again
-  const calculateNextSuggestionDate = useCallback((timesWorn: number, lastWornDate: Date): Date => {
-    const now = new Date(lastWornDate);
-    let daysToAdd = 7; // Default 1 week
-    
-    // Adjust suggestion frequency based on how often it's been worn
-    if (timesWorn === 1) {
-      daysToAdd = 14; // 2 weeks for first re-wear
-    } else if (timesWorn <= 3) {
-      daysToAdd = 10; // 10 days for lightly worn items
-    } else if (timesWorn <= 6) {
-      daysToAdd = 7; // 1 week for moderately worn items
-    } else {
-      daysToAdd = 14; // 2 weeks for heavily worn items
-    }
-    
-    now.setDate(now.getDate() + daysToAdd);
-    return now;
-  }, []);
   
   // Get outfits that are ready to be re-suggested
   const getOutfitsReadyForReSuggestion = useCallback((): LovedOutfit[] => {
@@ -764,39 +799,6 @@ export const useWardrobeData = () => {
     }
   }, [savedItems]);
 
-  // Function to automatically mark items as dirty when outfit is worn
-  const markOutfitItemsAsDirty = useCallback(async (outfitItems: string[]) => {
-    try {
-      const itemsToUpdate = savedItems.filter(item => 
-        outfitItems.includes(item.image) && item.laundryStatus !== 'dirty'
-      );
-
-      if (itemsToUpdate.length === 0) return;
-
-      const updatedItems = savedItems.map(savedItem => {
-        if (outfitItems.includes(savedItem.image) && savedItem.laundryStatus !== 'dirty') {
-          const laundryRecord: LaundryRecord = {
-            status: 'dirty',
-            changedAt: new Date(),
-            previousStatus: savedItem.laundryStatus || 'clean',
-            notes: 'Auto-marked dirty from outfit wear',
-          };
-
-          return {
-            ...savedItem,
-            laundryStatus: 'dirty' as LaundryStatus,
-            laundryHistory: [...(savedItem.laundryHistory || []), laundryRecord],
-          };
-        }
-        return savedItem;
-      });
-
-      setSavedItems(updatedItems);
-      await AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(updatedItems));
-    } catch (error) {
-      console.error('Error marking outfit items as dirty:', error);
-    }
-  }, [savedItems]);
 
   // Function to get items by laundry status
   const getItemsByLaundryStatus = useCallback((status: LaundryStatus) => {
