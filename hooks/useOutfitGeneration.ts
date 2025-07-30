@@ -8,6 +8,7 @@ import { useUnifiedLoading, LOADING_CONFIGS } from './useUnifiedLoading';
 import { useTierManagement } from './useTierManagement';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
+import { WeatherService } from '../services/WeatherService';
 // import { useBackgroundTasks } from '../contexts/BackgroundTaskContext';
 
 export interface GearSlot {
@@ -93,12 +94,19 @@ export const useOutfitGeneration = (
 
   // Function to generate outfit suggestions based on a selected item (or general suggestions if selectedItem is null)
   const generateOutfitSuggestions = async (selectedItem: WardrobeItem | null, styleDNA?: any, context?: any) => {
-    // Use AI to generate intelligent outfit selection
+    // Get current weather data for intelligent outfit suggestions
+    const weatherData = await WeatherService.getCurrentWeather();
+    const weatherContext = weatherData ? WeatherService.getWeatherContext(weatherData) : null;
+    
+    // Use AI to generate intelligent outfit selection with weather context
     const outfitContext = context || {
       occasion: 'casual',
-      location: 'general',
-      weather: 'moderate',
-      time: 'day',
+      location: weatherData?.location || 'general',
+      weather: weatherContext?.description || 'moderate',
+      temperature: weatherData?.temperature,
+      weatherCondition: weatherData?.condition || 'moderate',
+      weatherAppropriateness: weatherContext?.appropriateFor || [],
+      time: new Date().getHours() < 17 ? 'day' : 'evening',
       style: 'coordinated'
     };
 
@@ -178,7 +186,7 @@ export const useOutfitGeneration = (
       });
       startTime();
       
-      // Store the metadata from AI response
+      // Store the metadata from AI response, including weather context
       if (aiOutfit.metadata) {
         setLastGeneratedMetadata({
           occasion: aiOutfit.metadata.occasion,
@@ -189,9 +197,14 @@ export const useOutfitGeneration = (
           confidence: aiOutfit.confidence,
           styleScore: aiOutfit.styleScore,
           tags: aiOutfit.metadata.tags,
-          weatherAppropriateness: aiOutfit.metadata.weatherAppropriateness,
+          weatherAppropriateness: weatherContext?.description || aiOutfit.metadata.weatherAppropriateness || 'moderate weather',
         });
-        console.log('📊 Stored outfit metadata:', aiOutfit.metadata);
+        console.log('📊 Stored outfit metadata with weather:', {
+          ...aiOutfit.metadata,
+          weatherAppropriateness: weatherContext?.description,
+          temperature: weatherData?.temperature,
+          location: weatherData?.location
+        });
       }
       
       const suggestions = {

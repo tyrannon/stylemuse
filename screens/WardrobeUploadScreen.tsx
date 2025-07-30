@@ -18,6 +18,7 @@ import { useModalState } from '../hooks/useModalState';
 import { useOutfitGeneration } from '../hooks/useOutfitGeneration';
 import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
 import { useRandomOutfit } from '../hooks/useRandomOutfit';
+import { useWeatherData } from '../hooks/useWeatherData';
 
 // Components
 import { SafeImage } from '../utils/SafeImage';
@@ -47,6 +48,7 @@ import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
 import { DataMigrationService, MigrationSummary } from '../services/DataMigrationService';
+import { WeatherService } from '../services/WeatherService';
 import { createStyles } from './styles/WardrobeUploadScreen.styles';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
@@ -342,6 +344,7 @@ const WardrobeUploadScreen = () => {
   const outfitGeneration = useOutfitGeneration(savedItems, categorizeItem, navigateToBuilderWithScroll, unifiedLoading);
   const smartSuggestions = useSmartSuggestions();
   const randomOutfit = useRandomOutfit(savedItems);
+  const weatherData = useWeatherData();
   // Removed separate styleDNALoading - now using main unifiedLoading
 
   // Handle random outfit generation
@@ -2800,6 +2803,19 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     🎮 Outfit Builder
   </Text>
   
+  {/* Weather Context Display */}
+  {weatherData.hasWeatherData && weatherData.weatherData && (
+    <View style={styles.weatherContextBanner}>
+      <Text style={styles.weatherText}>
+        {WeatherService.getWeatherEmoji(weatherData.weatherData.condition)} {weatherData.weatherData.temperature}°C • {weatherData.weatherData.condition} in {weatherData.weatherData.location}
+      </Text>
+      {weatherData.weatherContext && (
+        <Text style={styles.weatherDescription}>
+          {weatherData.weatherContext.description}
+        </Text>
+      )}
+    </View>
+  )}
 
   {/* Random Outfit Generator */}
   <View style={styles.randomOutfitSection}>

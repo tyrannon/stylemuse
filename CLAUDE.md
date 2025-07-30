@@ -31,6 +31,7 @@ This document contains essential development information. **For detailed feature
 - [`docs/systems/DEBUG_LOGGING.md`](docs/systems/DEBUG_LOGGING.md) - Comprehensive logging system
 - [`docs/systems/PROMPT_TRUNCATION.md`](docs/systems/PROMPT_TRUNCATION.md) - AI prompt optimization
 - [`docs/systems/ITEM_TRACKING.md`](docs/systems/ITEM_TRACKING.md) - Viewing and tracking systems
+- [`docs/systems/USER_BEHAVIOR_RESEARCH.md`](docs/systems/USER_BEHAVIOR_RESEARCH.md) - Evidence-based user engagement insights
 
 ### 🛠️ Tools & Guides
 - [`docs/tools/CLAUDE_PROMPTER.md`](docs/tools/CLAUDE_PROMPTER.md) - CLI tool integration
@@ -121,25 +122,39 @@ endTracking(); // Automatically logs duration
 - Integrated with unified loading system and shared loading instances
 - Uses `outfitGeneration.gearSlots` for state management
 
-## Feature Priority Analysis (2025-07-26)
+## Feature Priority Analysis (2025-07-30)
+**Updated based on comprehensive user behavior research - see [`docs/systems/USER_BEHAVIOR_RESEARCH.md`](docs/systems/USER_BEHAVIOR_RESEARCH.md)**
 
-### 🎯 High Priority - Next Implementation
+### 🎯 High Priority - Evidence-Based User Needs
 1. **Terminator Vision Camera** - ✅ **READY FOR PRODUCTION BUILD TESTING** (Feature flags enabled!)
-2. **Social Sharing + Community** - High user engagement potential  
-3. **Smart Wardrobe Optimization** - Leverage existing metadata system
+2. **Weather Integration** - ✅ **REINSTATED** - 90% acceptance rate for weather-based suggestions among engaged users
+3. **Automated Analytics Dashboard** - Show wardrobe utilization insights without manual logging
 
-### 🔄 Medium Priority - Future Releases  
-4. **AR Try-On Experience** - Complex but high differentiator
-5. **Style Analytics Dashboard** - Build on existing tracking systems
+### 🔄 Medium Priority - Optimization Focus  
+4. **Speed Dial UX Enhancement** - Morning/evening contextual suggestions based on peak usage times
+5. **Local Analytics Implementation** - Track engagement patterns without cloud complexity
 
-### ❌ Lower Priority - Postponed
-- **Weather Integration** - Lower user value during testing
-- **Calendar Integration** - Removed due to over-engineering
+### ❌ Lower Priority - Research-Debunked Features
+- **Social Sharing + Community** - ❌ **REMOVED** - Privacy concerns outweigh benefits for personal apps
+- **Outfit History/Journal** - ❌ **REMOVED** - Only 2-5% of users maintain daily logging habits
+- **AR Try-On Experience** - ❌ **POSTPONED** - Complex implementation, no evidence of user demand
 
-### 📋 Current Active Tasks
-- ✅ **Complete** - All major plus ultra redesign tasks finished
-- 🎯 **Ready for Testing** - Ultra Terminator Camera system with XState integration
-- 🚀 **Next Phase** - User testing and performance optimization
+### 📋 Current Active Tasks (2025-07-30)
+**Phase 2: Evidence-Based User Engagement Features**
+
+🎯 **HIGH PRIORITY EXECUTION:**
+1. **Weather Integration Revival** - Reinstating with OpenWeather API (90% user acceptance rate)
+2. **Automated Analytics Dashboard** - Local-first wardrobe insights without manual logging
+3. **Speed Dial UX Enhancement** - Contextual suggestions for morning/evening peak usage
+
+🔧 **IMPLEMENTATION STRATEGY:**
+- **Subagent Coordination**: Use specialized subagents for complex multi-step tasks
+- **Claude-Prompter Integration**: Leverage architectural insights and grumpy senior dev reviews
+- **Evidence-Based Development**: All features backed by user behavior research
+
+✅ **COMPLETED PHASES:**
+- Phase 1: Plus Ultra Terminator Camera system - PRODUCTION READY
+- User Behavior Research - Comprehensive analysis completed
 
 ### Recent Completions (2025-07-26)
 - ✅ **Plus Ultra Terminator Camera Redesign** - Complete system overhaul with XState + Skia + Reanimated 3
@@ -164,6 +179,44 @@ endTracking(); // Automatically logs duration
 - ❌ **REMOVED Calendar Integration Feature** (2025-07-13) - Over-engineered with performance issues
 
 **See full changelog**: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
+
+## 🚀 Phase 2 Execution Plan (2025-07-30)
+
+### **Implementation Roadmap**
+
+**🥇 PRIORITY 1: Weather Integration Revival**
+- **Subagent**: Architectural analysis and API integration
+- **Claude-Prompter**: Senior dev review of weather-outfit correlation logic
+- **Deliverable**: Simple weather-based outfit suggestions in speed dial
+
+**🥈 PRIORITY 2: Automated Analytics Dashboard**  
+- **Subagent**: Local analytics architecture and data modeling
+- **Claude-Prompter**: Grumpy dev review of privacy-first approach
+- **Deliverable**: Wardrobe utilization insights without cloud complexity
+
+**🥉 PRIORITY 3: Speed Dial UX Enhancement**
+- **Subagent**: UX research and contextual suggestion algorithms
+- **Claude-Prompter**: User experience optimization review
+- **Deliverable**: Morning/evening contextual outfit recommendations
+
+### **Subagent Coordination Protocol**
+1. **Analyze** - Each subagent uses claude-prompter for architectural insights
+2. **Design** - Subagents collaborate on implementation strategy
+3. **Review** - Grumpy senior dev evaluates all proposals via claude-prompter
+4. **Execute** - Implement with continuous senior dev oversight
+5. **Test** - Local analytics validation and user experience testing
+
+### **Claude-Prompter Integration Commands**
+```bash
+# Architectural insights for each feature
+~/.local/bin/claude-prompter-global suggest -t "Weather integration for React Native fashion app" --claude-analysis
+
+# Senior dev reality checks
+~/.local/bin/claude-prompter-global prompt -m "Grumpy senior dev: Review this weather API integration approach" --send
+
+# Cross-feature coordination
+~/.local/bin/claude-prompter-global prompt -m "How do these 3 features work together for daily user engagement?" --send
+```
 
 ## Next Session Notes 📝
 

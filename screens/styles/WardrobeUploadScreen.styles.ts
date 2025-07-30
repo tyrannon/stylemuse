@@ -2390,4 +2390,29 @@ export const createStyles = (theme: any) => StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  
+  // Weather Context Styles
+  weatherContextBanner: {
+    backgroundColor: theme.colors.surface || theme.colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  weatherText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  weatherDescription: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
 });
