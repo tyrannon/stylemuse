@@ -10,6 +10,17 @@ export interface RandomOutfitOptions {
   avoidRecentlyWorn?: boolean;
   formalityLevel?: number;
   preferredColors?: string[];
+  // Weather context for intelligent outfit suggestions
+  weatherContext?: {
+    temperature: number;
+    condition: string;
+    appropriateFor: string[];
+  };
+  // Time context for morning/evening suggestions
+  timeContext?: {
+    hour: number;
+    period: 'morning' | 'afternoon' | 'evening' | 'night';
+  };
 }
 
 export interface OutfitPieces {
@@ -52,14 +63,11 @@ export class RandomOutfitGenerator {
       const allJackets = wardrobe.filter(item => this.isCategory(item, 'jackets'));
       const allAccessories = wardrobe.filter(item => this.isCategory(item, 'accessories'));
       
-      // Randomly select items from each category
-      const outfit = {
-        top: this.pickRandom(allTops),
-        bottom: this.pickRandom(allBottoms),
-        shoes: this.pickRandom(allShoes),
-        jacket: options.includeJacket && Math.random() > 0.5 ? this.pickRandom(allJackets) : null,
-        accessories: options.includeAccessories && Math.random() > 0.6 ? this.pickRandom(allAccessories) : null
-      };
+      // Apply weather-aware outfit selection
+      const outfit = this.generateWeatherAwareOutfit(
+        { tops: allTops, bottoms: allBottoms, shoes: allShoes, jackets: allJackets, accessories: allAccessories },
+        options
+      );
       
       // Ensure we have at least one piece
       if (!outfit.top && !outfit.bottom) {
@@ -583,5 +591,95 @@ export class RandomOutfitGenerator {
     stats.estimatedCombinations = tops * bottoms * shoes;
 
     return stats;
+  }
+
+  /**
+   * Generate outfit with weather and time awareness
+   */
+  private static generateWeatherAwareOutfit(
+    categories: {
+      tops: WardrobeItem[];
+      bottoms: WardrobeItem[];
+      shoes: WardrobeItem[];
+      jackets: WardrobeItem[];
+      accessories: WardrobeItem[];
+    },
+    options: RandomOutfitOptions
+  ): OutfitPieces {
+    const { weatherContext, timeContext } = options;
+    
+    // Base probabilities (without weather)
+    let jacketProbability = options.includeJacket ? 0.5 : 0;
+    let accessoryProbability = options.includeAccessories ? 0.4 : 0;
+    
+    // Adjust for weather conditions
+    if (weatherContext) {
+      const temp = weatherContext.temperature;
+      const condition = weatherContext.condition.toLowerCase();
+      
+      console.log('🌤️ [RandomOutfit] Weather-aware generation:', { temp, condition });
+      
+      // Temperature-based adjustments
+      if (temp < 10) {
+        // Cold weather - definitely need jacket
+        jacketProbability = Math.min(0.9, jacketProbability + 0.4);
+        console.log('🥶 Cold weather detected, increasing jacket probability to', jacketProbability);
+      } else if (temp < 20) {
+        // Cool weather - likely need jacket
+        jacketProbability = Math.min(0.7, jacketProbability + 0.2);
+        console.log('🌤️ Cool weather detected, jacket probability:', jacketProbability);
+      } else if (temp > 30) {
+        // Hot weather - avoid jacket
+        jacketProbability = 0;
+        console.log('🔥 Hot weather detected, avoiding jackets');
+      }
+      
+      // Condition-based adjustments
+      if (condition.includes('rain') || condition.includes('storm')) {
+        jacketProbability = Math.min(0.8, jacketProbability + 0.3);
+        accessoryProbability = Math.min(0.7, accessoryProbability + 0.2); // Umbrella, hat
+        console.log('🌧️ Rainy weather detected, adjusted probabilities');
+      }
+      
+      if (condition.includes('snow')) {
+        jacketProbability = 0.9;
+        accessoryProbability = Math.min(0.8, accessoryProbability + 0.3); // Hat, gloves
+        console.log('❄️ Snowy weather detected, winter gear prioritized');
+      }
+    }
+    
+    // Adjust for time of day
+    if (timeContext) {
+      const { period } = timeContext;
+      
+      console.log('🕐 [RandomOutfit] Time-aware adjustments for', period);
+      
+      if (period === 'evening' || period === 'night') {
+        // Evening/night - more likely to need jacket and accessories
+        jacketProbability = Math.min(0.8, jacketProbability + 0.2);
+        accessoryProbability = Math.min(0.6, accessoryProbability + 0.1);
+      } else if (period === 'morning') {
+        // Morning - might be cooler, light jacket
+        jacketProbability = Math.min(0.6, jacketProbability + 0.1);
+      }
+    }
+    
+    // Generate the outfit with adjusted probabilities
+    const outfit: OutfitPieces = {
+      top: this.pickRandom(categories.tops),
+      bottom: this.pickRandom(categories.bottoms),
+      shoes: this.pickRandom(categories.shoes),
+      jacket: Math.random() < jacketProbability ? this.pickRandom(categories.jackets) : null,
+      accessories: Math.random() < accessoryProbability ? this.pickRandom(categories.accessories) : null
+    };
+    
+    console.log('✅ [RandomOutfit] Weather-aware outfit generated:', {
+      hasJacket: !!outfit.jacket,
+      hasAccessories: !!outfit.accessories,
+      finalJacketProb: jacketProbability,
+      finalAccessoryProb: accessoryProbability
+    });
+    
+    return outfit;
   }
 }

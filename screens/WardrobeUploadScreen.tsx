@@ -352,14 +352,44 @@ const WardrobeUploadScreen = () => {
     console.log('🎲 [WardrobeUpload] Random outfit handler called', {
       savedItemsLength: savedItems.length,
       hasRandomOutfit: !!randomOutfit,
-      hasOutfitGeneration: !!outfitGeneration
+      hasOutfitGeneration: !!outfitGeneration,
+      hasWeather: !!weatherData.weatherContext
     });
     
-    const generatedOutfit = await randomOutfit.generateRandomOutfit(options);
+    // Add weather and time context to outfit generation
+    const now = new Date();
+    const hour = now.getHours();
+    
+    const enrichedOptions = {
+      ...options,
+      // Add weather context if available
+      weatherContext: weatherData.weatherContext ? {
+        temperature: weatherData.weatherContext.temperature,
+        condition: weatherData.weatherContext.condition,
+        appropriateFor: weatherData.weatherContext.appropriateFor
+      } : undefined,
+      // Add time context
+      timeContext: {
+        hour,
+        period: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night'
+      }
+    };
+    
+    console.log('🌤️ [WardrobeUpload] Generating outfit with context', {
+      weather: enrichedOptions.weatherContext,
+      time: enrichedOptions.timeContext
+    });
+    
+    const generatedOutfit = await randomOutfit.generateRandomOutfit(enrichedOptions);
     if (generatedOutfit) {
       outfitGeneration.setGearSlots(generatedOutfit);
+      
+      // Track analytics for the generated outfit
+      const { AnalyticsService } = await import('../services/AnalyticsService');
+      const outfitId = `speed_dial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await AnalyticsService.trackOutfitGeneration(generatedOutfit, outfitId, savedItems);
     }
-  }, [randomOutfit, outfitGeneration, savedItems]);
+  }, [randomOutfit, outfitGeneration, savedItems, weatherData.weatherContext]);
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);

@@ -50,6 +50,14 @@ export interface WardrobeItem {
   timesWashed?: number;
   washFrequency?: number; // days between typical washes
   needsSpecialCare?: boolean;
+  // Cost tracking fields for analytics
+  purchasePrice?: number;
+  purchaseDate?: Date;
+  purchaseCurrency?: string; // Default to user's currency
+  // Usage tracking for analytics
+  timesWornInOutfits?: number; // Track how many times used in generated outfits
+  lastUsedInOutfit?: Date; // Last time this item was included in a generated outfit
+  outfitGenerationHistory?: string[]; // Array of outfit IDs where this item was used
 }
 
 export interface WearRecord {

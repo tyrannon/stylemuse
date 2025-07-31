@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Alert } from 'react-native';
-import { LovedOutfit } from '../hooks/useWardrobeData';
+import { LovedOutfit, WardrobeItem } from '../hooks/useWardrobeData';
 import { SmartOutfitSuggestions } from './components/SmartOutfitSuggestions';
 import { OutfitAnalytics } from './components/OutfitAnalytics';
+import { WardrobeAnalyticsDashboard } from './components/WardrobeAnalyticsDashboard';
 import { MarkAsWornModal } from './components/MarkAsWornModal';
 import { AIOutfitAssistant } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
@@ -25,6 +26,8 @@ interface OutfitsPageProps {
   markOutfitAsWorn: (outfitId: string, rating?: number, event?: string, location?: string) => void;
   markAllOutfitsAsViewed?: () => Promise<number>;
   navigateToBuilder: () => void;
+  // For wardrobe analytics
+  savedItems: WardrobeItem[];
   // Bulk operations
   deleteBulkOutfits?: (outfitIds: string[]) => Promise<void>;
   downloadBulkImages?: (imageUris: string[]) => Promise<void>;
@@ -41,6 +44,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
   markOutfitAsWorn,
   markAllOutfitsAsViewed,
   navigateToBuilder,
+  savedItems,
   // Bulk operations
   deleteBulkOutfits,
   downloadBulkImages,
@@ -235,10 +239,22 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
           </TouchableOpacity>
         </View>
         
-        <OutfitAnalytics
-          stats={outfitStats}
-          onOutfitPress={openOutfitDetailView}
-        />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <OutfitAnalytics
+            stats={outfitStats}
+            onOutfitPress={openOutfitDetailView}
+          />
+          
+          <View style={{ marginTop: 20 }}>
+            <WardrobeAnalyticsDashboard
+              savedItems={savedItems}
+              onItemPress={(item) => {
+                // Could navigate to item detail or wardrobe screen
+                console.log('Analytics item pressed:', item.title);
+              }}
+            />
+          </View>
+        </ScrollView>
       </View>
     );
   }
