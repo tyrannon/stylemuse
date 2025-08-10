@@ -180,10 +180,17 @@ export const CurrencyDisplay: React.FC<CurrencyDisplayProps> = ({
   return (
     <View style={compact ? styles.containerCompact : styles.container}>
       {/* Always show coins and gems */}
-      <View style={styles.primaryCurrencies}>
-        {renderCurrencyItem('coins', currency.styleCoins, animationValues.coins)}
-        {renderCurrencyItem('gems', currency.fashionGems, animationValues.gems)}
-      </View>
+      {compact ? (
+        <>
+          {renderCurrencyItem('coins', currency.styleCoins, animationValues.coins)}
+          {renderCurrencyItem('gems', currency.fashionGems, animationValues.gems)}
+        </>
+      ) : (
+        <View style={styles.primaryCurrencies}>
+          {renderCurrencyItem('coins', currency.styleCoins, animationValues.coins)}
+          {renderCurrencyItem('gems', currency.fashionGems, animationValues.gems)}
+        </View>
+      )}
 
       {/* Show additional currencies if requested */}
       {showAllCurrencies && (currency.dustParticles > 0 || currency.trophyTokens > 0) && (
@@ -205,6 +212,7 @@ const styles = StyleSheet.create({
   containerCompact: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   primaryCurrencies: {
     flexDirection: 'row',
@@ -229,11 +237,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   currencyItemCompact: {
-    marginHorizontal: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    marginHorizontal: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
     borderWidth: 1,
+    minWidth: 50,
+    minHeight: 28,
+    justifyContent: 'center',
   },
   currencyContent: {
     flexDirection: 'row',

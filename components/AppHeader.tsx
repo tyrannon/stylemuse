@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CurrencyDisplay } from './CurrencyDisplay';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,14 +17,17 @@ export default function AppHeader({ showCurrency = true, userId = 'user123' }: A
   const isCompact = width < 380; // Adjust for smaller devices
 
   return (
-    <View style={[
-      styles.header, 
-      { 
-        paddingTop: insets.top + 8,
-        backgroundColor: theme.background
-      }
-    ]}>
-      <View style={styles.brand}>
+    <View 
+      style={[
+        styles.header, 
+        { 
+          paddingTop: insets.top + 8,
+          backgroundColor: theme.background
+        }
+      ]}
+      pointerEvents="box-none"
+    >
+      <View style={styles.brand} pointerEvents="box-none">
         <Text style={[styles.title, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
           StyleMuse
         </Text>
@@ -34,8 +37,17 @@ export default function AppHeader({ showCurrency = true, userId = 'user123' }: A
       </View>
 
       {showCurrency && !isCompact && (
-        <View style={styles.actions}>
-          <CurrencyDisplay userId={userId} />
+        <View style={styles.actions} pointerEvents="box-none">
+          <View style={styles.currencyWrapper}>
+            <CurrencyDisplay 
+              userId={userId} 
+              compact={true}
+              onCurrencyPress={(type) => {
+                console.log(`Currency ${type} pressed`);
+                // TODO: Navigate to store or show currency details
+              }}
+            />
+          </View>
         </View>
       )}
     </View>
@@ -81,6 +93,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
+    flexGrow: 0,
+  },
+  currencyWrapper: {
+    minWidth: 120,
+    height: 32,
+    flexGrow: 0,
     flexShrink: 0,
   },
 });
