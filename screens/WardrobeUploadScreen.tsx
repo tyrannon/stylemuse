@@ -2040,9 +2040,9 @@ const WardrobeUploadScreen = () => {
   };
 
   // Function to clear gear slot
-  const clearGearSlot = async (slotKey: string) => {
-    // Play error sound when removing item from slot
-    await soundService.playSound('error');
+  const clearGearSlot = (slotKey: string) => {
+    // Play error sound when removing item from slot (non-blocking)
+    soundService.playSound('error').catch(console.error);
     
     outfitGeneration.setGearSlots({
       ...outfitGeneration.gearSlots,
@@ -3812,10 +3812,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <View style={{ marginTop: 16, alignItems: 'center' }}>
     <Animated.View style={{ transform: [{ scale: clearAllBounce }] }}>
       <TouchableOpacity
-        onPress={async () => {
+        onPress={() => {
           createBounceAnimation(clearAllBounce).start();
-          // Play error sound when clearing all slots
-          await soundService.playSound('error');
+          // Play error sound when clearing all slots (non-blocking)
+          soundService.playSound('error').catch(console.error);
           outfitGeneration.setGearSlots({
             top: { itemId: null, itemImage: null, itemTitle: null },
             bottom: { itemId: null, itemImage: null, itemTitle: null },
