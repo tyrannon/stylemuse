@@ -2042,7 +2042,7 @@ const WardrobeUploadScreen = () => {
   // Function to clear gear slot
   const clearGearSlot = (slotKey: string) => {
     // Play error sound when removing item from slot (non-blocking)
-    soundService.playSound('error').catch(console.error);
+    soundService.playError().catch(console.error);
     
     outfitGeneration.setGearSlots({
       ...outfitGeneration.gearSlots,
@@ -3815,7 +3815,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         onPress={() => {
           createBounceAnimation(clearAllBounce).start();
           // Play error sound when clearing all slots (non-blocking)
-          soundService.playSound('error').catch(console.error);
+          soundService.playError().catch(console.error);
           outfitGeneration.setGearSlots({
             top: { itemId: null, itemImage: null, itemTitle: null },
             bottom: { itemId: null, itemImage: null, itemTitle: null },
