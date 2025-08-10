@@ -1,20 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CurrencyDisplay } from './CurrencyDisplay';
 import { useTheme } from '../contexts/ThemeContext';
+import { StreakDisplay } from './StreakDisplay';
+import { useNavigation } from '@react-navigation/native';
 
 interface AppHeaderProps {
   showCurrency?: boolean;
   userId?: string;
+  showStreak?: boolean;
 }
 
-export default function AppHeader({ showCurrency = true, userId = 'user123' }: AppHeaderProps) {
+export default function AppHeader({ showCurrency = true, userId = 'user123', showStreak = true }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { theme } = useTheme();
+  const navigation = useNavigation();
   
   const isCompact = width < 380; // Adjust for smaller devices
+  
+  const handleStreakPress = () => {
+    // Navigate to StreakCalendarScreen
+    navigation.navigate('StreakCalendar' as never);
+  };
 
   return (
     <View 
@@ -36,18 +45,28 @@ export default function AppHeader({ showCurrency = true, userId = 'user123' }: A
         </View>
       </View>
 
-      {showCurrency && !isCompact && (
+      {!isCompact && (
         <View style={styles.actions} pointerEvents="box-none">
-          <View style={styles.currencyWrapper}>
-            <CurrencyDisplay 
-              userId={userId} 
-              compact={true}
-              onCurrencyPress={(type) => {
-                console.log(`Currency ${type} pressed`);
-                // TODO: Navigate to store or show currency details
-              }}
-            />
-          </View>
+          {showStreak && (
+            <View style={styles.streakWrapper}>
+              <StreakDisplay 
+                compact={true}
+                onPress={handleStreakPress}
+              />
+            </View>
+          )}
+          {showCurrency && (
+            <View style={styles.currencyWrapper}>
+              <CurrencyDisplay 
+                userId={userId} 
+                compact={true}
+                onCurrencyPress={(type) => {
+                  console.log(`Currency ${type} pressed`);
+                  // TODO: Navigate to store or show currency details
+                }}
+              />
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -100,6 +119,10 @@ const styles = StyleSheet.create({
     minWidth: 120,
     height: 32,
     flexGrow: 0,
+    flexShrink: 0,
+  },
+  streakWrapper: {
+    marginRight: 8,
     flexShrink: 0,
   },
 });

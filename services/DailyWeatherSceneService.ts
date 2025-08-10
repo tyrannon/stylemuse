@@ -139,6 +139,24 @@ export class DailyWeatherSceneService {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(LogCategories.API_CALLS, 'DALL-E API error', new Error(errorText), {
+          status: response.status,
+          error: errorText
+        });
+        
+        // Return fallback image for development
+        if (__DEV__) {
+          return {
+            imageUrl: 'https://picsum.photos/seed/weather-scene/400/300',
+            date: context.dateKey,
+            prompt: prompt,
+            weatherData: context.weather,
+            styleDNA: context.styleDNA,
+            timestamp: Date.now()
+          };
+        }
+        
         throw new Error(`DALL-E API error: ${response.status}`);
       }
 

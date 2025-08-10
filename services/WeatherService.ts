@@ -114,15 +114,15 @@ export class WeatherService {
    * Get human-readable weather description for outfit suggestions
    */
   private static getWeatherDescription(weather: WeatherData): string {
-    const temp = weather.temperature;
+    const temp = weather.temperature; // This is always in Celsius from the API
     const condition = weather.condition;
-    const tempDisplay = temperatureUtils.formatTemperature(temp);
     
-    if (temp < 0) return `Very cold (${tempDisplay}) - bundle up!`;
-    if (temp < 10) return `Cold (${tempDisplay}) - wear layers`;
-    if (temp < 20) return `Cool (${tempDisplay}) - light jacket recommended`;
-    if (temp < 30) return `Warm (${tempDisplay}) - comfortable weather`;
-    return `Hot (${tempDisplay}) - stay cool!`;
+    // Use descriptive terms without showing temperature values to avoid confusion
+    if (temp < 0) return `Very cold weather - bundle up!`;
+    if (temp < 10) return `Cold weather - wear layers`;
+    if (temp < 20) return `Cool weather - light jacket recommended`;
+    if (temp < 30) return `Comfortable weather`;
+    return `Hot weather - stay cool!`;
   }
   
   /**
