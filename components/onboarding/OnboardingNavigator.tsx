@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../../utils/DebugLogger';
@@ -153,43 +152,41 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
   };
 
   return (
-    <NavigationContainer independent={true}>
-      <Stack.Navigator
-        initialRouteName={screens[currentStep]?.name || 'Welcome'}
-        screenOptions={{
-          headerShown: false,
-          cardStyleInterpolator: ({ current: { progress } }) => ({
-            cardStyle: {
-              opacity: progress,
-              transform: [
-                {
-                  translateX: progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  }),
-                },
-              ],
-            },
-          }),
-        }}
-      >
-        {screens.map((screen, index) => (
-          <Stack.Screen
-            key={screen.name}
-            name={screen.name}
-            component={screen.component}
-            initialParams={{
-              onboardingData,
-              setOnboardingData,
-              currentStep: index,
-              totalSteps: screens.length,
-              saveProgress: saveOnboardingProgress,
-              completeOnboarding,
-              skipOnboarding,
-            }}
-          />
-        ))}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator
+      initialRouteName={screens[currentStep]?.name || 'Welcome'}
+      screenOptions={{
+        headerShown: false,
+        cardStyleInterpolator: ({ current: { progress } }) => ({
+          cardStyle: {
+            opacity: progress,
+            transform: [
+              {
+                translateX: progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [300, 0],
+                }),
+              },
+            ],
+          },
+        }),
+      }}
+    >
+      {screens.map((screen, index) => (
+        <Stack.Screen
+          key={screen.name}
+          name={screen.name}
+          component={screen.component}
+          initialParams={{
+            onboardingData,
+            setOnboardingData,
+            currentStep: index,
+            totalSteps: screens.length,
+            saveProgress: saveOnboardingProgress,
+            completeOnboarding,
+            skipOnboarding,
+          }}
+        />
+      ))}
+    </Stack.Navigator>
   );
 };

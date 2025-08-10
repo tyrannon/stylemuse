@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Animated, ScrollView, Image, 
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { soundService } from '../../../services/SoundService';
 
 // Preload dock icons to prevent sequential loading
 const preloadIcons = () => {
@@ -34,6 +35,7 @@ interface BottomNavigationProps {
   pickMultipleImages: () => void;
   openCamera: () => void;
   openAddItemModal: () => void;
+  navigateToGamificationTest?: () => void;  // Optional for gamification access
   triggerHaptic: (type?: 'light' | 'medium' | 'heavy') => void;
   
   // Scroll ref for scroll-to-top functionality
@@ -67,6 +69,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   pickMultipleImages,
   openCamera,
   openAddItemModal,
+  navigateToGamificationTest,
   triggerHaptic,
   mainScrollViewRef,
   builderShakeValue,
@@ -122,7 +125,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       }}>
         <TouchableOpacity
           onPress={() => {
-            triggerHaptic('light');
+            soundService.playButtonTap();
             bounceButton(builderShakeValue);
             if (!showOutfitBuilder) {
               navigateToBuilder();
@@ -149,7 +152,7 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
       }}>
         <TouchableOpacity
           onPress={() => {
-            triggerHaptic('light');
+            soundService.playButtonTap();
             bounceButton(wardrobeShakeValue);
             if (!showWardrobe) {
               navigateToWardrobe();
@@ -181,10 +184,17 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
       {/* Center Add Button */}
       <TouchableOpacity
         onPress={() => {
-          triggerHaptic('medium');
+          soundService.playButtonTap();
           openAddItemModal();
         }}
+        onLongPress={() => {
+          if (navigateToGamificationTest) {
+            triggerHaptic('heavy');
+            navigateToGamificationTest();
+          }
+        }}
         style={styles.centerAddButton}
+        delayLongPress={800}
       >
         <Image 
           source={getAddIcon()}
@@ -200,7 +210,7 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
       }}>
         <TouchableOpacity
           onPress={() => {
-            triggerHaptic('light');
+            soundService.playButtonTap();
             bounceButton(outfitsShakeValue);
             // If outfit detail is open, just go back to outfits
             if (showingOutfitDetail) {
@@ -241,7 +251,7 @@ style={[styles.bottomNavIcon, { opacity: 1.0 }]}
       }}>
         <TouchableOpacity
           onPress={() => {
-            triggerHaptic('light');
+            soundService.playButtonTap();
             bounceButton(profileShakeValue);
             if (!showProfilePage) {
               navigateToProfile();

@@ -1349,6 +1349,18 @@ export const useWardrobeData = () => {
       // Update tier management with new wardrobe count
       await tierManagement.updateWardrobeCount(updatedItems.length);
       
+      // Track wardrobe achievements
+      try {
+        const { IntegratedAchievements } = await import('./useAchievementIntegration');
+        await IntegratedAchievements.onWardrobeItemsAdded('test_user_achievements', updatedItems.length);
+        logger.info(LogCategories.GAMIFICATION, 'Wardrobe achievement tracking completed', {
+          itemsAdded: persistedItems.length,
+          totalItems: updatedItems.length
+        });
+      } catch (achievementError) {
+        logger.warn(LogCategories.GAMIFICATION, 'Failed to track wardrobe achievements', achievementError);
+      }
+      
       logger.info(LogCategories.WARDROBE, 'Bulk wardrobe items saved successfully', {
         itemsAdded: persistedItems.length,
         itemsFailed: failedItems.length,

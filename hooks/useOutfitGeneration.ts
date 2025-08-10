@@ -361,6 +361,22 @@ export const useOutfitGeneration = (
         userTier: tierManagement.userTier
       });
       
+      // Track outfit creation achievement
+      try {
+        const { IntegratedAchievements } = await import('./useAchievementIntegration');
+        const isNightTime = new Date().getHours() >= 22 || new Date().getHours() <= 6;
+        await IntegratedAchievements.onOutfitCreated('test_user_achievements', { 
+          isNightTime, 
+          weatherContext: weatherContext 
+        });
+        logger.info(LogCategories.GAMIFICATION, 'Outfit creation achievement tracked', {
+          isNightTime,
+          hasWeatherContext: !!weatherContext
+        });
+      } catch (achievementError) {
+        logger.warn(LogCategories.GAMIFICATION, 'Failed to track outfit creation achievement', achievementError);
+      }
+      
       // Log AI reasoning for debugging
       if (aiOutfit.reasoning) {
         console.log('🤖 AI Reasoning:', aiOutfit.reasoning);

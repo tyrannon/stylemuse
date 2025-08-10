@@ -27,6 +27,148 @@ export class PersistenceService {
   private static readonly BACKUP_VERSION = '1.0.0';
 
   /**
+   * 📖 LOAD DATA: Instance method to load wardrobe data
+   * Used by BrokenImageRepairService and DataMigrationService
+   */
+  async loadData(): Promise<{
+    wardrobeItems: WardrobeItem[];
+    lovedOutfits: LovedOutfit[];
+    styleDNA: EnhancedStyleDNA | null;
+    profileImage: string | null;
+    selectedGender: 'male' | 'female' | 'nonbinary' | null;
+    wishlistItems: WishlistItem[];
+    suggestedItems: SuggestedItem[];
+  }> {
+    try {
+      const [
+        wardrobeItems,
+        lovedOutfits,
+        styleDNA,
+        profileImage,
+        selectedGender,
+        wishlistItems,
+        suggestedItems
+      ] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA).then(data => data ? JSON.parse(data) : null),
+        AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE).then(data => data || null),
+        AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER).then(data => data as 'male' | 'female' | 'nonbinary' | null),
+        AsyncStorage.getItem(STORAGE_KEYS.WISHLIST_ITEMS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.SUGGESTED_ITEMS).then(data => data ? JSON.parse(data) : [])
+      ]);
+
+      return {
+        wardrobeItems,
+        lovedOutfits,
+        styleDNA,
+        profileImage,
+        selectedGender,
+        wishlistItems,
+        suggestedItems
+      };
+    } catch (error) {
+      console.error('❌ Error loading data:', error);
+      // Return empty data structure on error
+      return {
+        wardrobeItems: [],
+        lovedOutfits: [],
+        styleDNA: null,
+        profileImage: null,
+        selectedGender: null,
+        wishlistItems: [],
+        suggestedItems: []
+      };
+    }
+  }
+
+  /**
+   * 💾 SAVE DATA: Instance method to save wardrobe data
+   * Used by BrokenImageRepairService after repairs
+   */
+  async saveData(data: {
+    wardrobeItems?: WardrobeItem[];
+    lovedOutfits?: LovedOutfit[];
+    styleDNA?: EnhancedStyleDNA | null;
+    profileImage?: string | null;
+    selectedGender?: 'male' | 'female' | 'nonbinary' | null;
+    wishlistItems?: WishlistItem[];
+    suggestedItems?: SuggestedItem[];
+  }): Promise<void> {
+    try {
+      const promises = [];
+      
+      if (data.wardrobeItems !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.WARDROBE_ITEMS, JSON.stringify(data.wardrobeItems)));
+      }
+      if (data.lovedOutfits !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.LOVED_OUTFITS, JSON.stringify(data.lovedOutfits)));
+      }
+      if (data.styleDNA !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.STYLE_DNA, JSON.stringify(data.styleDNA)));
+      }
+      if (data.profileImage !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.PROFILE_IMAGE, data.profileImage || ''));
+      }
+      if (data.selectedGender !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.SELECTED_GENDER, data.selectedGender || ''));
+      }
+      if (data.wishlistItems !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.WISHLIST_ITEMS, JSON.stringify(data.wishlistItems)));
+      }
+      if (data.suggestedItems !== undefined) {
+        promises.push(AsyncStorage.setItem(STORAGE_KEYS.SUGGESTED_ITEMS, JSON.stringify(data.suggestedItems)));
+      }
+      
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('❌ Error saving data:', error);
+      throw new Error('Failed to save data');
+    }
+  }
+
+  /**
+   * 📥 LOAD DATA: Instance method to load app data for repair services
+   */
+  async loadData(): Promise<StyleMuseBackup['data']> {
+    try {
+      console.log('📥 Loading StyleMuse app data...');
+
+      // Gather all data from AsyncStorage
+      const [
+        wardrobeItems,
+        lovedOutfits,
+        styleDNA,
+        profileImage,
+        selectedGender,
+        wishlistItems,
+        suggestedItems
+      ] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.WARDROBE_ITEMS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.LOVED_OUTFITS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.STYLE_DNA).then(data => data ? JSON.parse(data) : null),
+        AsyncStorage.getItem(STORAGE_KEYS.PROFILE_IMAGE).then(data => data || null),
+        AsyncStorage.getItem(STORAGE_KEYS.SELECTED_GENDER).then(data => data as 'male' | 'female' | 'nonbinary' | null),
+        AsyncStorage.getItem(STORAGE_KEYS.WISHLIST_ITEMS).then(data => data ? JSON.parse(data) : []),
+        AsyncStorage.getItem(STORAGE_KEYS.SUGGESTED_ITEMS).then(data => data ? JSON.parse(data) : [])
+      ]);
+
+      return {
+        wardrobeItems,
+        lovedOutfits,
+        styleDNA,
+        profileImage,
+        selectedGender,
+        wishlistItems,
+        suggestedItems
+      };
+    } catch (error) {
+      console.error('❌ Error loading app data:', error);
+      throw new Error('Failed to load app data');
+    }
+  }
+
+  /**
    * 🔥 ULTIMATE BACKUP: Create complete app data backup
    */
   static async createFullBackup(): Promise<StyleMuseBackup> {
@@ -260,6 +402,17 @@ export class PersistenceService {
       console.error('❌ Auto backup failed:', error);
       // Don't throw - auto backup failures shouldn't break the app
     }
+  }
+
+  /**
+   * 📋 GET BACKUP STATS: Alias for getBackupInfo for backward compatibility
+   */
+  static async getBackupStats(): Promise<{
+    hasLocalBackup: boolean;
+    lastBackupDate: Date | null;
+    backupSize: string;
+  }> {
+    return PersistenceService.getBackupInfo();
   }
 
   /**

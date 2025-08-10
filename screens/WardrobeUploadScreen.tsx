@@ -1,5 +1,6 @@
-import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Button, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Modal, Pressable, TextInput, Animated, Dimensions, Alert, ActivityIndicator, AppState } from 'react-native';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Removed React Navigation dependency - using custom navigation system
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,6 +20,7 @@ import { useOutfitGeneration } from '../hooks/useOutfitGeneration';
 import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
 import { useRandomOutfit } from '../hooks/useRandomOutfit';
 import { useWeatherData } from '../hooks/useWeatherData';
+import { useScreenFocus } from '../hooks/useScreenFocus';
 
 // Components
 import { SafeImage } from '../utils/SafeImage';
@@ -38,10 +40,13 @@ import { OnlineItemCard } from './components/StyleAdvice/OnlineItemCard';
 import { TextItemEntryModal } from '../components/TextItemEntryModal';
 import { RandomOutfitButtons } from '../components/RandomOutfitButton';
 import { AddItemPage } from './AddItemPage';
+import GamificationTestScreen from './GamificationTestScreen';
+import CardCollectionScreen from './CardCollectionScreen';
 import { AIOutfitAssistant, AIOutfitAssistantRef } from '../components/AIOutfitAssistant';
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
+import { CurrencyDisplay } from '../components/CurrencyDisplay';
 import { MultiModelImageSelector } from '../components/MultiModelImageSelector';
 import { multiModelGenerator, ModelResult } from '../utils/multiModelOutfitGenerator';
 import { costTracker } from '../utils/CostTracker';
@@ -148,6 +153,8 @@ const WardrobeUploadScreen = () => {
     showOutfitsPage,
     showProfilePage,
     showAddItemPage,
+    showGamificationTest,
+    showCardCollection,
     showingItemDetail,
     showingOutfitDetail,
     detailViewItem,
@@ -160,6 +167,9 @@ const WardrobeUploadScreen = () => {
     navigateToOutfits,
     navigateToProfile,
     navigateToAddItem,
+    navigateToGamificationTest,
+    navigateToCardCollection,
+    goBackFromCardCollection,
     goBackToProfile,
     goBackToWardrobe,
     goBackToOutfits,
@@ -316,44 +326,67 @@ const WardrobeUploadScreen = () => {
     console.log(`✅ [WardrobeUpload] ${operation} refresh complete`);
   }, [clearAllData, wardrobeData.loadWardrobeData]);
 
+  // Load daily weather scene function (extracted for reuse)
+  const loadDailyWeatherScene = useCallback(async (source = 'initial') => {
+    if (weatherData && weatherData.weatherData) {
+      try {
+        logger.info(LogCategories.API_CALLS, `Loading daily weather scene (${source})`, {
+          location: weatherData.weatherData.location,
+          condition: weatherData.weatherData.condition,
+          temperature: weatherData.weatherData.temperature
+        });
+
+        const scene = await DailyWeatherSceneService.getTodaysWeatherScene(
+          weatherData.weatherData,
+          styleDNA, // Pass StyleDNA for personalization
+          selectedGender // Pass selected gender for gender-aware prompts
+        );
+
+        if (scene) {
+          setDailyWeatherScene({
+            imageUrl: scene.imageUrl,
+            prompt: scene.prompt,
+            date: scene.date
+          });
+          logger.info(LogCategories.API_CALLS, `Daily weather scene loaded successfully (${source})`, {
+            date: scene.date,
+            location: weatherData.weatherData.location
+          });
+        } else {
+          logger.warn(LogCategories.API_CALLS, `No daily weather scene available (${source})`);
+        }
+      } catch (error) {
+        logger.error(LogCategories.API_CALLS, `Failed to load daily weather scene (${source})`, error as Error);
+      }
+    }
+  }, [weatherData?.weatherData, styleDNA, selectedGender]);
+
   // Load daily weather scene when weather data is available
   useEffect(() => {
-    const loadDailyWeatherScene = async () => {
-      if (weatherData && weatherData.weatherData) {
-        try {
-          logger.info(LogCategories.API_CALLS, 'Loading daily weather scene', {
-            location: weatherData.weatherData.location,
-            condition: weatherData.weatherData.condition,
-            temperature: weatherData.weatherData.temperature
-          });
+    loadDailyWeatherScene('weather-data-change');
+  }, [loadDailyWeatherScene]);
 
-          const scene = await DailyWeatherSceneService.getTodaysWeatherScene(
-            weatherData.weatherData,
-            styleDNA, // Pass StyleDNA for personalization
-            selectedGender // Pass selected gender for gender-aware prompts
-          );
-
-          if (scene) {
-            setDailyWeatherScene({
-              imageUrl: scene.imageUrl,
-              prompt: scene.prompt,
-              date: scene.date
-            });
-            logger.info(LogCategories.API_CALLS, 'Daily weather scene loaded successfully', {
-              date: scene.date,
-              location: weatherData.weatherData.location
-            });
-          } else {
-            logger.warn(LogCategories.API_CALLS, 'No daily weather scene available');
-          }
-        } catch (error) {
-          logger.error(LogCategories.API_CALLS, 'Failed to load daily weather scene', error as Error);
-        }
+  // Refresh scene when screen comes into focus (navigation)
+  useScreenFocus(
+    useCallback(() => {
+      if (weatherData?.weatherData) {
+        loadDailyWeatherScene('navigation-focus');
       }
-    };
+    }, [loadDailyWeatherScene, weatherData?.weatherData]),
+    [weatherData?.weatherData]
+  );
 
-    loadDailyWeatherScene();
-  }, [weatherData?.weatherData, styleDNA, selectedGender]); // Re-run when weather data, StyleDNA, or gender changes
+  // Refresh scene when app becomes active (from background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && weatherData?.weatherData) {
+        logger.info(LogCategories.USER_ACTION, 'App became active, refreshing weather scene');
+        loadDailyWeatherScene('app-active');
+      }
+    });
+
+    return () => subscription?.remove();
+  }, [loadDailyWeatherScene, weatherData?.weatherData]);
 
   // Handle scene regeneration with rate limiting
   const handleRegenerateWeatherScene = useCallback(async () => {
@@ -2485,14 +2518,29 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         >
           <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
 
-{/* App Title */}
+{/* App Title with Currency Display */}
 <View style={{ marginBottom: 20, alignItems: 'center' }}>
-  <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: theme.colors.text }}>
-    StyleMuse
-  </Text>
-  <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
-    AI-Powered Virtual Closet ✨
-  </Text>
+  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20 }}>
+    <View style={{ flex: 1 }} />
+    <View style={{ alignItems: 'center' }}>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: theme.colors.text }}>
+        StyleMuse
+      </Text>
+      <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
+        AI-Powered Virtual Closet ✨
+      </Text>
+    </View>
+    <View style={{ flex: 1, alignItems: 'flex-end' }}>
+      <CurrencyDisplay 
+        userId="user123"
+        compact={true}
+        onCurrencyPress={(currencyType) => {
+          console.log(`User tapped ${currencyType}`);
+          // Could navigate to store or show currency details
+        }}
+      />
+    </View>
+  </View>
 </View>
 
 {/* Bulk upload progress is now handled by UnifiedLoadingOverlay */}
@@ -3923,6 +3971,21 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   />
 )}
 
+{/* Gamification Test Screen */}
+{showGamificationTest && (
+  <GamificationTestScreen 
+    onNavigateToCardCollection={navigateToCardCollection}
+    onGoBack={navigateToBuilder} 
+  />
+)}
+
+{/* Card Collection Screen */}
+{showCardCollection && (
+  <CardCollectionScreen 
+    onGoBack={goBackFromCardCollection}
+  />
+)}
+
 
         </ScrollView>
       </View>
@@ -3943,6 +4006,7 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         pickMultipleImages={pickMultipleImages}
         openCamera={openCamera}
         openAddItemModal={openAddItemModal}
+        navigateToGamificationTest={navigateToGamificationTest}
         triggerHaptic={triggerHaptic}
         mainScrollViewRef={mainScrollViewRef}
         builderShakeValue={builderShakeValue}

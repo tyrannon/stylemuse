@@ -24,6 +24,7 @@ export const LogCategories = {
   RENDER: 'render',
   
   // System
+  SYSTEM: 'system',
   NETWORK: 'network',
   MEMORY: 'memory',
   CRASH: 'crash',
@@ -32,7 +33,12 @@ export const LogCategories = {
   // Business
   MONETIZATION: 'monetization',
   ANALYTICS: 'analytics',
-  SUBSCRIPTION: 'subscription'
+  SUBSCRIPTION: 'subscription',
+  
+  // Gamification
+  GAMIFICATION: 'gamification',
+  SOUND: 'sound',
+  ACHIEVEMENTS: 'achievements'
 } as const;
 
 export type LogCategory = typeof LogCategories[keyof typeof LogCategories];

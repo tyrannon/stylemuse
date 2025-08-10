@@ -8,6 +8,8 @@ export const useNavigationState = () => {
   const [showOutfitsPage, setShowOutfitsPage] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
   const [showAddItemPage, setShowAddItemPage] = useState(false);
+  const [showGamificationTest, setShowGamificationTest] = useState(false);
+  const [showCardCollection, setShowCardCollection] = useState(false);
   
   // Camera and photo editing states
   const [showCameraScreen, setShowCameraScreen] = useState(false);
@@ -54,6 +56,8 @@ export const useNavigationState = () => {
     setShowProfilePage(false);
     setShowOutfitsPage(false);
     setShowAddItemPage(false);
+    setShowGamificationTest(false);
+    setShowCardCollection(false);
     closeAllDetails();
   };
 
@@ -64,6 +68,8 @@ export const useNavigationState = () => {
     setShowProfilePage(false);
     setShowOutfitsPage(false);
     setShowAddItemPage(false);
+    setShowGamificationTest(false);
+    setShowCardCollection(false);
     closeAllDetails();
   };
 
@@ -74,6 +80,8 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowAddItemPage(false);
+    setShowGamificationTest(false);
+    setShowCardCollection(false);
     closeAllDetails();
   };
 
@@ -84,6 +92,8 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowOutfitsPage(false);
     setShowAddItemPage(false);
+    setShowGamificationTest(false);
+    setShowCardCollection(false);
     closeAllDetails();
   };
 
@@ -95,7 +105,38 @@ export const useNavigationState = () => {
     setShowLovedItems(false);
     setShowProfilePage(false);
     setShowOutfitsPage(false);
+    setShowGamificationTest(false);
+    setShowCardCollection(false);
     closeAllDetails();
+  };
+
+  const navigateToGamificationTest = () => {
+    setShowGamificationTest(true);
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowOutfitsPage(false);
+    setShowProfilePage(false);
+    setShowAddItemPage(false);
+    setShowCardCollection(false);
+    closeAllDetails();
+  };
+
+  const navigateToCardCollection = () => {
+    setShowCardCollection(true);
+    setShowGamificationTest(false);
+    setShowOutfitBuilder(false);
+    setShowWardrobe(false);
+    setShowLovedItems(false);
+    setShowOutfitsPage(false);
+    setShowProfilePage(false);
+    setShowAddItemPage(false);
+    closeAllDetails();
+  };
+
+  const goBackFromCardCollection = () => {
+    setShowCardCollection(false);
+    setShowGamificationTest(true);
   };
 
   const goBackToProfile = () => {
@@ -191,6 +232,10 @@ export const useNavigationState = () => {
     setShowProfilePage,
     showAddItemPage,
     setShowAddItemPage,
+    showGamificationTest,
+    setShowGamificationTest,
+    showCardCollection,
+    setShowCardCollection,
     
     // Camera and photo editing states
     showCameraScreen,
@@ -260,6 +305,9 @@ export const useNavigationState = () => {
     navigateToOutfits,
     navigateToProfile,
     navigateToAddItem,
+    navigateToGamificationTest,
+    navigateToCardCollection,
+    goBackFromCardCollection,
     goBackToProfile,
     navigateToCamera,
     navigateToPhotoEditing,

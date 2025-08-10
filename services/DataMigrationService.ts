@@ -142,7 +142,7 @@ export class DataMigrationService {
 
       // Save updated data
       if (recoveredItems.length > 0) {
-        await this.persistenceService.saveData(wardrobeData);
+        await this.persistenceService.saveData({ wardrobeItems: items });
         console.log(`✅ Saved updated wardrobe data with ${recoveredItems.length} recovered items`);
       }
 

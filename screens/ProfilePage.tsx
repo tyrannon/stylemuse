@@ -14,6 +14,7 @@ import { temperatureUtils, TemperatureUnit } from '../utils/TemperatureUtils';
 import { DailyWeatherSceneService, DailyWeatherScene } from '../services/DailyWeatherSceneService';
 import * as Haptics from 'expo-haptics';
 import { SettingsRow, SettingsSection, ThemeModeOption } from '../components/SettingsComponents';
+import { soundService } from '../services/SoundService';
 
 interface ProfilePageProps {
   profileImage: string | null;
@@ -45,7 +46,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onRefreshData,
 }) => {
   const { theme, themeMode, colorScheme, isDark, setThemeMode, setColorScheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'about'>('profile');
   const styles = createStyles(theme);
 
   return (
@@ -92,6 +93,24 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             ⚙️ Settings
           </Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'about' && { borderBottomColor: theme.colors.primary }
+          ]}
+          onPress={() => {
+            triggerHaptic('light');
+            setActiveTab('about');
+          }}
+        >
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'about' ? theme.colors.primary : theme.colors.textSecondary }
+          ]}>
+            ℹ️ About
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tab Content */}
@@ -113,7 +132,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             theme={theme}
             styles={styles}
           />
-        ) : (
+        ) : activeTab === 'settings' ? (
           <SettingsTabContent
             theme={theme}
             themeMode={themeMode}
@@ -123,6 +142,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             setColorScheme={setColorScheme}
             triggerHaptic={triggerHaptic}
             onRefreshData={onRefreshData}
+            styles={styles}
+          />
+        ) : (
+          <AboutTabContent
+            theme={theme}
             styles={styles}
           />
         )}
@@ -316,6 +340,27 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
   const [featuredImages, setFeaturedImages] = useState<GenerationRecord[]>([]);
   const [weatherScenes, setWeatherScenes] = useState<DailyWeatherScene[]>([]);
   const [loadingImages, setLoadingImages] = useState(false);
+  
+  // Sound settings state
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [ambienceEnabled, setAmbienceEnabled] = useState(true);
+  const [currentTheme, setCurrentTheme] = useState<'ocean' | 'forest' | 'rain' | 'fireplace'>('ocean');
+
+  // Load sound settings
+  useEffect(() => {
+    const loadSoundSettings = async () => {
+      try {
+        setSoundEffectsEnabled(soundService.getSoundEnabled());
+        setMusicEnabled(soundService.getMusicEnabled());
+        setAmbienceEnabled(soundService.getAmbienceEnabled());
+        setCurrentTheme(soundService.getCurrentTheme() as 'ocean' | 'forest' | 'rain' | 'fireplace');
+      } catch (error) {
+        logger.error(LogCategories.STORAGE, 'Failed to load sound settings', error);
+      }
+    };
+    loadSoundSettings();
+  }, []);
 
   // Load saved AI model preference and usage stats
   useEffect(() => {
@@ -400,6 +445,18 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
       logger.info(LogCategories.USER_ACTION, 'Temperature unit changed', { unit });
     } catch (error) {
       logger.error(LogCategories.STORAGE, 'Failed to save temperature unit', error);
+    }
+  };
+
+  const handleThemeChange = async (theme: 'ocean' | 'forest' | 'rain' | 'fireplace') => {
+    try {
+      await soundService.setTheme(theme);
+      setCurrentTheme(theme);
+      triggerHaptic('light');
+      logger.info(LogCategories.USER_ACTION, 'Ambience theme changed', { theme });
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Failed to change ambience theme', error);
+      Alert.alert('Error', 'Failed to change ambience theme.');
     }
   };
 
@@ -819,6 +876,97 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
         </View>
       )}
 
+      {/* Sound & Music Section */}
+      <SettingsSection title="Sound & Music" theme={theme}>
+        <SettingsRow
+          icon="🔊"
+          title="Sound Effects"
+          subtitle="Button taps and UI sounds"
+          theme={theme}
+          hasChevron={false}
+          rightComponent={
+            <Switch
+              value={soundEffectsEnabled}
+              onValueChange={async (value) => {
+                triggerHaptic('light');
+                await soundService.setSoundEnabled(value);
+                setSoundEffectsEnabled(value);
+                logger.info(LogCategories.USER_ACTION, 'Sound effects toggled', { enabled: value });
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={theme.colors.card}
+            />
+          }
+        />
+        
+        <SettingsRow
+          icon="🎵"
+          title="Background Music"
+          subtitle={`Now playing: ${soundService.getCurrentTimeOfDay()} track`}
+          theme={theme}
+          hasChevron={false}
+          rightComponent={
+            <Switch
+              value={musicEnabled}
+              onValueChange={async (value) => {
+                triggerHaptic('light');
+                await soundService.setMusicEnabled(value);
+                setMusicEnabled(value);
+                logger.info(LogCategories.USER_ACTION, 'Background music toggled', { enabled: value });
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={theme.colors.card}
+            />
+          }
+        />
+        
+        <SettingsRow
+          icon="🌊"
+          title="Peaceful Ambience"
+          subtitle={`${currentTheme === 'ocean' ? '🌊 Ocean Waves' : 
+                     currentTheme === 'forest' ? '🌲 Forest Sounds' :
+                     currentTheme === 'rain' ? '🌧️ Gentle Rain' : '🔥 Cozy Fireplace'}`}
+          theme={theme}
+          hasChevron={false}
+          rightComponent={
+            <Switch
+              value={ambienceEnabled}
+              onValueChange={async (value) => {
+                triggerHaptic('light');
+                await soundService.setAmbienceEnabled(value);
+                setAmbienceEnabled(value);
+                logger.info(LogCategories.USER_ACTION, 'Ambience toggled', { enabled: value, theme: currentTheme });
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor={theme.colors.card}
+            />
+          }
+        />
+        
+        <SettingsRow
+          icon="🎨"
+          title="Ambience Theme"
+          value={currentTheme === 'ocean' ? '🌊 Ocean' : 
+                 currentTheme === 'forest' ? '🌲 Forest' :
+                 currentTheme === 'rain' ? '🌧️ Rain' : '🔥 Fireplace'}
+          onPress={() => {
+            triggerHaptic('light');
+            Alert.alert(
+              'Choose Peaceful Theme',
+              'Select your preferred ambient soundscape',
+              [
+                { text: '🌊 Ocean Waves', onPress: () => handleThemeChange('ocean') },
+                { text: '🌲 Forest Sounds', onPress: () => handleThemeChange('forest') },
+                { text: '🌧️ Gentle Rain', onPress: () => handleThemeChange('rain') },
+                { text: '🔥 Cozy Fireplace', onPress: () => handleThemeChange('fireplace') },
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          }}
+          theme={theme}
+        />
+      </SettingsSection>
+
       {/* Account & Subscription Section */}
       <SettingsSection title="Account & Subscription" theme={theme}>
         <SettingsRow
@@ -1050,6 +1198,120 @@ const BackupSection: React.FC<BackupSectionProps> = ({ theme, styles, onRefreshD
         onClose={() => setShowBackupManager(false)}
         onRefreshData={onRefreshData}
       />
+    </View>
+  );
+};
+
+// About Tab Content Component
+const AboutTabContent: React.FC<{ theme: any; styles: any }> = ({ theme, styles }) => {
+  return (
+    <View style={styles.tabContentContainer}>
+      {/* App Info Section */}
+      <View style={[styles.aboutSection, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.aboutTitle, { color: theme.colors.primary }]}>
+          StyleMuse
+        </Text>
+        <Text style={[styles.aboutVersion, { color: theme.colors.textSecondary }]}>
+          Version 1.0.0
+        </Text>
+        <Text style={[styles.aboutDescription, { color: theme.colors.text }]}>
+          Your AI-powered fashion companion with peaceful vibes 🌊
+        </Text>
+      </View>
+
+      {/* Credits Section */}
+      <View style={[styles.creditsSection, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          🙏 Credits & Thanks
+        </Text>
+        
+        <View style={styles.creditItem}>
+          <Text style={[styles.creditTitle, { color: theme.colors.text }]}>
+            🎵 Background Music
+          </Text>
+          <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+            Towball's Crossing by Towball
+          </Text>
+          <TouchableOpacity 
+            onPress={() => {
+              // Open link to Towball's itch.io page
+              Alert.alert(
+                'Visit Towball', 
+                'Opens in browser: https://towball.itch.io/towballs-crossing',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Open', onPress: () => {
+                    logger.info(LogCategories.USER_ACTION, 'Opening Towball credit link');
+                  }}
+                ]
+              );
+            }}
+            style={[styles.creditLink, { backgroundColor: theme.colors.primary + '20' }]}
+          >
+            <Text style={[styles.creditLinkText, { color: theme.colors.primary }]}>
+              🔗 towball.itch.io/towballs-crossing
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.creditItem}>
+          <Text style={[styles.creditTitle, { color: theme.colors.text }]}>
+            🌊 Ambient Sounds
+          </Text>
+          <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+            Ocean waves, rain, forest, and fireplace sounds for peaceful vibes
+          </Text>
+        </View>
+
+        <View style={styles.creditItem}>
+          <Text style={[styles.creditTitle, { color: theme.colors.text }]}>
+            🤖 AI Technology
+          </Text>
+          <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+            Powered by OpenAI GPT-5 and Claude
+          </Text>
+        </View>
+
+        <View style={styles.creditItem}>
+          <Text style={[styles.creditTitle, { color: theme.colors.text }]}>
+            💎 Gamification Design
+          </Text>
+          <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+            Inspired by Pokemon TCG and fashion gaming
+          </Text>
+        </View>
+      </View>
+
+      {/* Developer Section */}
+      <View style={[styles.developerSection, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          👨‍💻 Development
+        </Text>
+        <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+          Built with React Native, Expo, and lots of ☕
+        </Text>
+        <Text style={[styles.creditDescription, { color: theme.colors.textSecondary, marginTop: 10 }]}>
+          Special thanks to the StyleMuse community for feedback and support!
+        </Text>
+      </View>
+
+      {/* Contact Section */}
+      <View style={[styles.contactSection, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          📧 Get in Touch
+        </Text>
+        <Text style={[styles.creditDescription, { color: theme.colors.textSecondary }]}>
+          Questions, feedback, or suggestions?
+        </Text>
+        <TouchableOpacity 
+          style={[styles.contactButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => {
+            Alert.alert('Contact', 'Contact feature coming soon!');
+          }}
+        >
+          <Text style={styles.contactButtonText}>Send Feedback</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -1506,5 +1768,74 @@ const createStyles = (theme: any) => StyleSheet.create({
   tempUnitOptionText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // About Tab Styles
+  aboutSection: {
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  aboutTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  aboutVersion: {
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  aboutDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  creditsSection: {
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+  },
+  creditItem: {
+    marginBottom: 20,
+  },
+  creditTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  creditDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  creditLink: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  creditLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  developerSection: {
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+  },
+  contactSection: {
+    padding: 20,
+    marginBottom: 30,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  contactButton: {
+    marginTop: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  contactButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

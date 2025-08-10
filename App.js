@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import WardrobeUploadScreen from './screens/WardrobeUploadScreen';
-import { OnboardingNavigator } from './components/onboarding/OnboardingNavigator';
+import { NavigationContainer } from '@react-navigation/native';
+import { RootNavigator } from './navigation/RootNavigator';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { OutfitFilterProvider } from './contexts/OutfitFilterContext';
 import { logger } from './utils/DebugLogger';
@@ -11,16 +11,38 @@ import { DataDebugger } from './utils/DataDebugger';
 import { ImageRepairIntegration } from './services/ImageRepairIntegration';
 import { BrokenImageRepairModal } from './components/BrokenImageRepairModal';
 import { DataMigrationModal } from './components/DataMigrationModal';
+import { soundService } from './services/SoundService';
+import { DailyRewardNotification } from './components/DailyRewardNotification';
 
 export default function App() {
-  const [isOnboardingComplete, setIsOnboardingComplete] = useState(null);
+  const [initialRoute, setInitialRoute] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageRepairNeeded, setImageRepairNeeded] = useState(false);
   const [repairInfo, setRepairInfo] = useState(null);
+  const [userId] = useState('user123'); // For now, use a static user ID
 
   useEffect(() => {
     checkOnboardingStatus();
+    initializeSoundService();
   }, []);
+
+  const initializeSoundService = async () => {
+    try {
+      // Temporarily disable sound service initialization for debugging
+      // await soundService.initialize();
+      logger.info(LogCategories.SOUND, 'Sound service initialization skipped for debugging');
+    } catch (error) {
+      logger.error(LogCategories.SOUND, 'Failed to initialize sound service', error);
+    }
+  };
+
+  const handleWardrobeItemsEarned = (items) => {
+    logger.info(LogCategories.GAMIFICATION, 'User earned wardrobe items from daily rewards', { 
+      itemCount: items?.length || 0,
+      items: items?.map(item => ({ name: item.name, rarity: item.rarity })) || []
+    });
+    // Items will be automatically added to wardrobe by the reward system
+  };
 
 
   const checkOnboardingStatus = async () => {
@@ -39,7 +61,7 @@ export default function App() {
       if (hasExistingData && !onboardingCompleted) {
         logger.info(LogCategories.APP_LIFECYCLE, 'Existing user detected - skipping onboarding');
         await AsyncStorage.setItem('onboardingCompleted', 'true');
-        setIsOnboardingComplete(true);
+        setInitialRoute('MainApp');
       } else {
         const completed = onboardingCompleted === 'true';
         logger.info(LogCategories.APP_LIFECYCLE, 'Onboarding status determined', {
@@ -47,7 +69,7 @@ export default function App() {
           hasExistingData,
           isNewUser: !completed && !hasExistingData
         });
-        setIsOnboardingComplete(completed);
+        setInitialRoute(completed ? 'MainApp' : 'Onboarding');
       }
 
       // Perform image repair check for existing users
@@ -57,7 +79,7 @@ export default function App() {
     } catch (error) {
       logger.error(LogCategories.APP_LIFECYCLE, 'Failed to check onboarding status', error);
       // On error, assume onboarding is complete to prevent blocking
-      setIsOnboardingComplete(true);
+      setInitialRoute('MainApp');
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +161,8 @@ export default function App() {
         completedAt: onboardingData.completedAt
       });
 
-      setIsOnboardingComplete(true);
+      await AsyncStorage.setItem('onboardingCompleted', 'true');
+      setInitialRoute('MainApp');
       
       // Optional: You can use the onboarding data to initialize app state
       // For example, set user preferences, tier, etc.
@@ -173,7 +196,7 @@ export default function App() {
   };
 
   // Show loading screen while checking onboarding status
-  if (isLoading) {
+  if (isLoading || !initialRoute) {
     return (
       <ThemeProvider>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
@@ -186,11 +209,12 @@ export default function App() {
   return (
     <ThemeProvider>
       <OutfitFilterProvider>
-        {isOnboardingComplete ? (
-          <WardrobeUploadScreen />
-        ) : (
-          <OnboardingNavigator onComplete={handleOnboardingComplete} />
-        )}
+        <NavigationContainer>
+          <RootNavigator 
+            initialRouteName={initialRoute}
+            onOnboardingComplete={handleOnboardingComplete}
+          />
+        </NavigationContainer>
         
         {/* Image Repair Modals */}
         {imageRepairNeeded && repairInfo && (
@@ -214,6 +238,12 @@ export default function App() {
             )}
           </>
         )}
+        
+        {/* Daily Reward Notification Overlay */}
+        <DailyRewardNotification 
+          userId={userId}
+          onWardrobeItemsEarned={handleWardrobeItemsEarned}
+        />
       </OutfitFilterProvider>
     </ThemeProvider>
   );
