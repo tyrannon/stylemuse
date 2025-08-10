@@ -47,6 +47,7 @@ import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
 import { CurrencyDisplay } from '../components/CurrencyDisplay';
+import AppHeader from '../components/AppHeader';
 import { MultiModelImageSelector } from '../components/MultiModelImageSelector';
 import { multiModelGenerator, ModelResult } from '../utils/multiModelOutfitGenerator';
 import { costTracker } from '../utils/CostTracker';
@@ -396,13 +397,19 @@ const WardrobeUploadScreen = () => {
       // Check daily regeneration limit (3 per day for cost control)
       const today = new Date().toISOString().split('T')[0];
       const storageKey = `weather_scene_regenerations_${today}`;
+      
+      // Clean up old regeneration counts from previous days
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const oldKey = `weather_scene_regenerations_${yesterday}`;
+      await AsyncStorage.removeItem(oldKey);
+      
       const storedCount = await AsyncStorage.getItem(storageKey);
       const currentCount = storedCount ? parseInt(storedCount, 10) : 0;
 
       if (currentCount >= 3) {
         Alert.alert(
           '🎨 Daily Limit Reached',
-          'You\'ve reached your daily limit of 3 scene regenerations. This helps keep the app cost-effective!\n\nTry again tomorrow for fresh scenes.',
+          `You've used ${currentCount} of 3 daily scene regenerations. This helps keep the app cost-effective!\n\nTry again tomorrow for fresh scenes.`,
           [{ text: 'OK', style: 'default' }]
         );
         return;
@@ -454,13 +461,24 @@ const WardrobeUploadScreen = () => {
           });
         }, 150); // Update in the middle of the transition
 
+        // Update regeneration count for today
+        await AsyncStorage.setItem(storageKey, (currentCount + 1).toString());
+
         // Haptic feedback for successful regeneration
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         logger.info(LogCategories.USER_ACTION, 'Weather scene regenerated successfully', {
           newSceneDate: newScene.date,
-          regenerationsUsed: currentCount + 1
+          regenerationsUsed: currentCount + 1,
+          remainingToday: 2 - currentCount
         });
+        
+        // Show success message with count
+        Alert.alert(
+          '✨ Scene Refreshed!',
+          `New scene generated (${currentCount + 1}/3 daily). ${2 - currentCount} regenerations remaining today.`,
+          [{ text: 'Nice!', style: 'default' }]
+        );
       } else {
         Alert.alert(
           '⚠️ Generation Failed',
@@ -2520,27 +2538,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 {/* App Title with Currency Display */}
 <View style={{ marginBottom: 20, alignItems: 'center' }}>
-  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20 }}>
-    <View style={{ flex: 1 }} />
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 5, color: theme.colors.text }}>
-        StyleMuse
-      </Text>
-      <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>
-        AI-Powered Virtual Closet ✨
-      </Text>
-    </View>
-    <View style={{ flex: 1, alignItems: 'flex-end' }}>
-      <CurrencyDisplay 
-        userId="user123"
-        compact={true}
-        onCurrencyPress={(currencyType) => {
-          console.log(`User tapped ${currencyType}`);
-          // Could navigate to store or show currency details
-        }}
-      />
-    </View>
-  </View>
+  <AppHeader 
+    showCurrency={true}
+    userId="user123"
+  />
 </View>
 
 {/* Bulk upload progress is now handled by UnifiedLoadingOverlay */}

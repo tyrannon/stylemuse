@@ -35,6 +35,18 @@ export class DailyWeatherSceneService {
   private static readonly MAX_STORED_SCENES = 30; // Keep 30 days of scenes
 
   /**
+   * Clear regeneration count for debugging (DEV only)
+   */
+  static async resetRegenerationCount(): Promise<void> {
+    if (__DEV__) {
+      const today = this.getTodayKey();
+      const storageKey = `weather_scene_regenerations_${today}`;
+      await AsyncStorage.removeItem(storageKey);
+      logger.info(LogCategories.API_CALLS, 'Reset daily regeneration count');
+    }
+  }
+
+  /**
    * Get today's weather scene (cached or generate new)
    */
   static async getTodaysWeatherScene(
