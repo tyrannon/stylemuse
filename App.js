@@ -13,6 +13,8 @@ import { BrokenImageRepairModal } from './components/BrokenImageRepairModal';
 import { DataMigrationModal } from './components/DataMigrationModal';
 import { soundService } from './services/SoundService';
 import { DailyRewardNotification } from './components/DailyRewardNotification';
+import { imageRecoveryService } from './services/ImageRecoveryService';
+import { streakService } from './services/StreakService';
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState(null);
@@ -24,6 +26,8 @@ export default function App() {
   useEffect(() => {
     checkOnboardingStatus();
     initializeSoundService();
+    initializeImageRecovery();
+    checkDailyStreak();
   }, []);
 
   const initializeSoundService = async () => {
@@ -33,6 +37,44 @@ export default function App() {
       logger.info(LogCategories.SOUND, 'Sound service initialization skipped for debugging');
     } catch (error) {
       logger.error(LogCategories.SOUND, 'Failed to initialize sound service', error);
+    }
+  };
+
+  const initializeImageRecovery = async () => {
+    try {
+      // Run image recovery check on app launch
+      const recoveryReport = await imageRecoveryService.checkAndRecoverOnLaunch();
+      if (recoveryReport && recoveryReport.issuesFound > 0) {
+        logger.info(LogCategories.APP_LIFECYCLE, 'Image recovery performed', {
+          found: recoveryReport.issuesFound,
+          fixed: recoveryReport.issuesFixed
+        });
+      }
+    } catch (error) {
+      logger.error(LogCategories.APP_LIFECYCLE, 'Failed to initialize image recovery', error);
+    }
+  };
+
+  const checkDailyStreak = async () => {
+    try {
+      // Check and update daily streak
+      const streakResult = await streakService.checkDailyStreak();
+      if (streakResult.isNewDay) {
+        logger.info(LogCategories.GAMIFICATION, 'Daily streak updated', {
+          currentStreak: streakResult.streakData.currentStreak,
+          maintained: streakResult.streakMaintained,
+          freezeUsed: streakResult.freezeUsed
+        });
+        
+        // Handle milestone rewards
+        if (streakResult.milestonesReached.length > 0) {
+          logger.info(LogCategories.GAMIFICATION, 'Streak milestones reached!', {
+            milestones: streakResult.milestonesReached.map(m => m.days)
+          });
+        }
+      }
+    } catch (error) {
+      logger.error(LogCategories.GAMIFICATION, 'Failed to check daily streak', error);
     }
   };
 

@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   title: { 
-    fontSize: 24, 
+    fontSize: 20, 
     fontWeight: '800',
     flexShrink: 1,
     minWidth: 0,
