@@ -42,6 +42,10 @@ import { AIOutfitAssistant, AIOutfitAssistantRef } from '../components/AIOutfitA
 import { UnifiedLoadingOverlay } from '../components/UnifiedLoadingOverlay';
 import { useUnifiedLoading, LOADING_CONFIGS } from '../hooks/useUnifiedLoading';
 import { useTheme } from '../contexts/ThemeContext';
+import { MultiModelImageSelector } from '../components/MultiModelImageSelector';
+import { multiModelGenerator, ModelResult } from '../utils/multiModelOutfitGenerator';
+import { costTracker } from '../utils/CostTracker';
+import { temperatureUtils } from '../utils/TemperatureUtils';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -49,6 +53,7 @@ import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
 import { DataMigrationService, MigrationSummary } from '../services/DataMigrationService';
 import { WeatherService } from '../services/WeatherService';
+import { DailyWeatherSceneService } from '../services/DailyWeatherSceneService';
 import { createStyles } from './styles/WardrobeUploadScreen.styles';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
@@ -98,6 +103,7 @@ const WardrobeUploadScreen = () => {
     
     preloadSpeedDialImages();
   }, []); // Only run once on mount
+
   
   // Extract data and functions from hooks
   const {
@@ -205,6 +211,15 @@ const WardrobeUploadScreen = () => {
   const [migrationChecked, setMigrationChecked] = useState(false);
   const migrationService = DataMigrationService.getInstance();
 
+  // Multi-model generation state
+  const [multiModelResults, setMultiModelResults] = useState<ModelResult[] | null>(null);
+  const [multiModelRecommendedIndex, setMultiModelRecommendedIndex] = useState(0);
+  const [showMultiModelSelector, setShowMultiModelSelector] = useState(false);
+  const [isGeneratingMultiModel, setIsGeneratingMultiModel] = useState(false);
+  const [dailyWeatherScene, setDailyWeatherScene] = useState<{imageUrl: string; prompt: string; date: string} | null>(null);
+  const [isRegeneratingScene, setIsRegeneratingScene] = useState(false);
+  const sceneOpacity = useRef(new Animated.Value(1)).current;
+
   // Wrapper for openOutfitDetailView that marks outfit as viewed
   // This function handles the viewing tracking when user opens an outfit detail
   const openOutfitDetailViewWithTracking = useCallback(async (outfit: any) => {
@@ -301,6 +316,136 @@ const WardrobeUploadScreen = () => {
     console.log(`✅ [WardrobeUpload] ${operation} refresh complete`);
   }, [clearAllData, wardrobeData.loadWardrobeData]);
 
+  // Load daily weather scene when weather data is available
+  useEffect(() => {
+    const loadDailyWeatherScene = async () => {
+      if (weatherData && weatherData.weatherData) {
+        try {
+          logger.info(LogCategories.API_CALLS, 'Loading daily weather scene', {
+            location: weatherData.weatherData.location,
+            condition: weatherData.weatherData.condition,
+            temperature: weatherData.weatherData.temperature
+          });
+
+          const scene = await DailyWeatherSceneService.getTodaysWeatherScene(
+            weatherData.weatherData,
+            styleDNA, // Pass StyleDNA for personalization
+            selectedGender // Pass selected gender for gender-aware prompts
+          );
+
+          if (scene) {
+            setDailyWeatherScene({
+              imageUrl: scene.imageUrl,
+              prompt: scene.prompt,
+              date: scene.date
+            });
+            logger.info(LogCategories.API_CALLS, 'Daily weather scene loaded successfully', {
+              date: scene.date,
+              location: weatherData.weatherData.location
+            });
+          } else {
+            logger.warn(LogCategories.API_CALLS, 'No daily weather scene available');
+          }
+        } catch (error) {
+          logger.error(LogCategories.API_CALLS, 'Failed to load daily weather scene', error as Error);
+        }
+      }
+    };
+
+    loadDailyWeatherScene();
+  }, [weatherData?.weatherData, styleDNA, selectedGender]); // Re-run when weather data, StyleDNA, or gender changes
+
+  // Handle scene regeneration with rate limiting
+  const handleRegenerateWeatherScene = useCallback(async () => {
+    if (!weatherData?.weatherData || isRegeneratingScene) return;
+
+    try {
+      // Check daily regeneration limit (3 per day for cost control)
+      const today = new Date().toISOString().split('T')[0];
+      const storageKey = `weather_scene_regenerations_${today}`;
+      const storedCount = await AsyncStorage.getItem(storageKey);
+      const currentCount = storedCount ? parseInt(storedCount, 10) : 0;
+
+      if (currentCount >= 3) {
+        Alert.alert(
+          '🎨 Daily Limit Reached',
+          'You\'ve reached your daily limit of 3 scene regenerations. This helps keep the app cost-effective!\n\nTry again tomorrow for fresh scenes.',
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+
+      setIsRegeneratingScene(true);
+      
+      logger.info(LogCategories.USER_ACTION, 'Regenerating weather scene', {
+        location: weatherData.weatherData.location,
+        currentCount,
+        selectedGender
+      });
+
+      // Force regenerate by clearing today's cache and generating new
+      await DailyWeatherSceneService.clearTodaysCache();
+
+      const newScene = await DailyWeatherSceneService.getTodaysWeatherScene(
+        weatherData.weatherData,
+        styleDNA,
+        selectedGender
+      );
+
+      if (newScene) {
+        // Update the regeneration count
+        await AsyncStorage.setItem(storageKey, (currentCount + 1).toString());
+        
+        // Smooth transition: fade out, update scene, fade in
+        Animated.sequence([
+          // Fade out current scene
+          Animated.timing(sceneOpacity, {
+            toValue: 0.3,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          // Fade back in with new scene
+          Animated.timing(sceneOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Update scene during fade transition
+        setTimeout(() => {
+          setDailyWeatherScene({
+            imageUrl: newScene.imageUrl,
+            prompt: newScene.prompt,
+            date: newScene.date
+          });
+        }, 150); // Update in the middle of the transition
+
+        // Haptic feedback for successful regeneration
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        logger.info(LogCategories.USER_ACTION, 'Weather scene regenerated successfully', {
+          newSceneDate: newScene.date,
+          regenerationsUsed: currentCount + 1
+        });
+      } else {
+        Alert.alert(
+          '⚠️ Generation Failed',
+          'Unable to generate a new scene right now. Please try again in a moment.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      logger.error(LogCategories.API_CALLS, 'Failed to regenerate weather scene', error as Error);
+      Alert.alert(
+        '❌ Error',
+        'Something went wrong while generating a new scene. Please try again.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } finally {
+      setIsRegeneratingScene(false);
+    }
+  }, [weatherData?.weatherData, styleDNA, selectedGender, isRegeneratingScene]);
 
   // Helper functions to get theme-appropriate images
   const getGenerateOutfitIcon = () => {
@@ -390,6 +535,324 @@ const WardrobeUploadScreen = () => {
       await AnalyticsService.trackOutfitGeneration(generatedOutfit, outfitId, savedItems);
     }
   }, [randomOutfit, outfitGeneration, savedItems, weatherData.weatherContext]);
+
+  // Multi-model outfit image generation handler
+  const handleMultiModelGeneration = useCallback(async () => {
+    // Early return checks with logging
+    if (isGeneratingMultiModel) {
+      logger.warn(LogCategories.OUTFIT_GENERATION, 'Multi-model generation already in progress');
+      return;
+    }
+
+    if (getEquippedItems().length < 1) {
+      logger.warn(LogCategories.OUTFIT_GENERATION, 'No equipped items for multi-model generation');
+      Alert.alert(
+        "No Items Equipped",
+        "Please equip at least one clothing item to generate outfits.",
+        [{ text: "OK", style: "default" }]
+      );
+      return;
+    }
+
+    logger.info(LogCategories.OUTFIT_GENERATION, '🎭 Starting multi-model outfit image generation', {
+      equippedItems: getEquippedItems().length,
+      hasStyleDNA: !!styleDNA,
+      hasWeatherData: !!weatherData.weatherData,
+      timestamp: new Date().toISOString()
+    });
+
+    setIsGeneratingMultiModel(true);
+    
+    try {
+      // Start unified loading for multi-model generation
+      logger.info(LogCategories.OUTFIT_GENERATION, '⏳ Starting unified loading overlay');
+      if (unifiedLoading && typeof unifiedLoading.showLoading === 'function') {
+        unifiedLoading.showLoading({
+          title: 'Generating with Multiple AI Models',
+          subtitle: 'Creating outfit images with GPT-5 family...',
+          style: 'generate',
+          icon: '🎭',
+        });
+      } else {
+        logger.warn(LogCategories.OUTFIT_GENERATION, 'Unified loading not available, continuing without overlay');
+      }
+
+      // Create clothing items array from equipped gear with detailed logging
+      const equippedItems = getEquippedItems();
+      logger.info(LogCategories.OUTFIT_GENERATION, '👕 Processing equipped items', {
+        equippedItems: equippedItems.map(item => ({ title: item.title, category: item.category })),
+        totalCount: equippedItems.length
+      });
+
+      const clothingItems = equippedItems.map(item => {
+        // getEquippedItems() already returns wardrobe items, so we can use them directly
+        const processedItem = {
+          title: item.title || 'Unknown Item',
+          description: item.description || item.title || 'Unknown Item',
+          color: item.color || 'unknown',
+          material: item.material || 'unknown', 
+          style: item.style || 'unknown',
+          category: item.category || 'unknown'
+        };
+
+        logger.debug(LogCategories.OUTFIT_GENERATION, `📋 Processed item`, {
+          title: processedItem.title,
+          category: processedItem.category
+        });
+
+        return processedItem;
+      });
+
+      // Create generation context with validation
+      const context = {
+        occasion: 'general',
+        style: 'contemporary',
+        location: 'general',
+        timeOfDay: new Date().getHours() < 12 ? 'morning' : 
+                   new Date().getHours() < 17 ? 'afternoon' : 'evening',
+        ...(weatherData.weatherData && {
+          weather: weatherData.weatherData.condition,
+          temperature: weatherData.weatherData.temperature
+        })
+      };
+
+      logger.info(LogCategories.OUTFIT_GENERATION, '🌐 Generation context prepared', context);
+
+      // Generate with multiple models using production multi-model generator
+      logger.info(LogCategories.OUTFIT_GENERATION, '🚀 Starting multi-model generation...');
+      
+      let results: any[] = [];
+      let recommendedIndex: number = 0;
+      
+      try {
+        logger.info(LogCategories.OUTFIT_GENERATION, '🔄 Starting production multi-model generation...');
+        
+        const generationResult = await multiModelGenerator.generateMultiModelOutfits(
+          clothingItems,
+          styleDNA,
+          context,
+          selectedGender
+        );
+        logger.info(LogCategories.OUTFIT_GENERATION, '✅ Production generation completed');
+        
+        results = generationResult.results;
+        recommendedIndex = generationResult.recommendedIndex;
+        
+        if (!results || !Array.isArray(results)) {
+          throw new Error('Invalid results from multi-model generation');
+        }
+        
+        logger.info(LogCategories.OUTFIT_GENERATION, '✅ Results validated', {
+          resultsCount: results.length,
+          recommendedIndex
+        });
+      } catch (generationError) {
+        logger.error(LogCategories.OUTFIT_GENERATION, '❌ Failed to execute multi-model generation', generationError as Error);
+        throw new Error(`Multi-model generation failed: ${generationError instanceof Error ? generationError.message : 'Unknown generation error'}`);
+      }
+
+      // Final validation
+      if (!results || !Array.isArray(results) || results.length === 0) {
+        throw new Error('Multi-model generation returned no results');
+      }
+
+      logger.info(LogCategories.OUTFIT_GENERATION, '✅ Multi-model generation completed successfully', {
+        resultsCount: results.length,
+        successfulResults: results.filter(r => r.imageUrl).length,
+        totalCost: results.reduce((sum, r) => sum + r.cost, 0).toFixed(4),
+        recommendedIndex,
+        recommendedModel: results[recommendedIndex]?.model,
+        models: results.map(r => r.model).join(', ')
+      });
+
+      // Set results and show modal
+      setMultiModelResults(results);
+      setMultiModelRecommendedIndex(recommendedIndex);
+      setShowMultiModelSelector(true);
+
+      logger.info(LogCategories.OUTFIT_GENERATION, '🎉 Multi-model selector modal opened');
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      logger.error(LogCategories.OUTFIT_GENERATION, '❌ Multi-model generation failed', error as Error, {
+        errorMessage,
+        equippedItemsCount: getEquippedItems().length,
+        hasStyleDNA: !!styleDNA,
+        errorType: error?.constructor?.name || 'Unknown'
+      });
+
+      // Show user-friendly error message
+      Alert.alert(
+        "Generation Failed",
+        `Unable to generate outfit images with multiple models.\n\nError: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`,
+        [{ text: "OK", style: "default" }]
+      );
+    } finally {
+      logger.info(LogCategories.OUTFIT_GENERATION, '🏁 Multi-model generation cleanup');
+      setIsGeneratingMultiModel(false);
+      
+      // Hide loading overlay if available
+      if (unifiedLoading && typeof unifiedLoading.hideLoading === 'function') {
+        unifiedLoading.hideLoading();
+      }
+    }
+  }, [
+    isGeneratingMultiModel, 
+    getEquippedItems, 
+    outfitGeneration.gearSlots, 
+    savedItems, 
+    styleDNA, 
+    weatherData.weatherData,
+    unifiedLoading
+  ]);
+
+  // Handle multi-model image selection
+  const handleMultiModelImageSelection = useCallback(async (result: ModelResult, rating: number) => {
+    logger.info(LogCategories.USER_ACTION, 'User selected multi-model result', {
+      model: result.model,
+      rating,
+      hasImage: !!result.imageUrl
+    });
+
+    // Update the current outfit generation with selected image  
+    if (result.imageUrl) {
+      outfitGeneration.setGeneratedOutfit(result.imageUrl);
+
+      // Also save this outfit to the collection with AI model tracking
+      try {
+        const equippedItems = getEquippedItems();
+        const equippedItemIds = equippedItems.map(item => item.id);
+        const outfitId = `multi_selected_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const aiModelName = result.model === 'gpt-5' ? 'gpt-5' :
+                           result.model === 'gpt-5-mini' ? 'gpt-5-mini' :
+                           result.model === 'gpt-5-nano' ? 'gpt-5-nano' : 
+                           result.model;
+
+        const newOutfit: LovedOutfit = {
+          id: outfitId,
+          image: result.imageUrl,
+          weatherData: weatherData.weatherData,
+          styleDNA: styleDNA || null,
+          selectedItems: equippedItemIds,
+          gender: selectedGender,
+          createdAt: new Date(),
+          isLoved: false,
+          viewed: false,
+          aiModel: aiModelName, // Track which model generated this
+          wearHistory: [],
+          lastWorn: undefined,
+          timesWorn: 0,
+          hasBeenViewed: false,
+          metadata: {
+            occasion: 'general',
+            style: ['ai-generated'],
+            tags: [`generated-by-${aiModelName}`, rating > 0 ? `rated-${rating}-stars` : 'no-rating'],
+            weatherAppropriateness: weatherData.weatherData?.condition || 'unknown'
+          }
+        };
+
+        // Add the outfit to the collection
+        setLovedOutfits(prev => [newOutfit, ...prev]);
+        
+        // Increment unviewed outfits count for badge
+        setUnviewedOutfitsCount(prev => prev + 1);
+        
+        // Track generation cost
+        await costTracker.recordGeneration(result.model as 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5', true);
+        
+        logger.info(LogCategories.OUTFIT_GENERATION, 'Selected multi-model outfit saved', {
+          outfitId,
+          aiModel: aiModelName,
+          rating,
+          hasImage: !!result.imageUrl
+        });
+      } catch (error) {
+        logger.error(LogCategories.OUTFIT_GENERATION, 'Failed to save selected multi-model outfit', error as Error);
+      }
+    }
+    
+    // Close the selector after a brief delay
+    setTimeout(() => {
+      setShowMultiModelSelector(false);
+    }, 1000);
+  }, [outfitGeneration, getEquippedItems, weatherData, styleDNA, selectedGender, setLovedOutfits]);
+
+  const handleSaveAllMultiModelResults = useCallback(async (results: ModelResult[]) => {
+    logger.info(LogCategories.USER_ACTION, 'User saving all multi-model results', {
+      resultsCount: results.length
+    });
+
+    try {
+      const equippedItems = getEquippedItems();
+      const equippedItemIds = equippedItems.map(item => item.id);
+      let savedCount = 0;
+
+      // Save each result as a separate outfit
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        
+        if (result.imageUrl) {
+          const outfitId = `multi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${i}`;
+          
+          const aiModelName = result.model === 'gpt-5' ? 'gpt-5' :
+                             result.model === 'gpt-5-mini' ? 'gpt-5-mini' :
+                             result.model === 'gpt-5-nano' ? 'gpt-5-nano' : 
+                             result.model;
+
+          const newOutfit: LovedOutfit = {
+            id: outfitId,
+            image: result.imageUrl,
+            weatherData: weatherData.weatherData,
+            styleDNA: styleDNA || null,
+            selectedItems: equippedItemIds,
+            gender: selectedGender,
+            createdAt: new Date(),
+            isLoved: false,
+            viewed: false,
+            aiModel: aiModelName, // Track which model generated this
+            wearHistory: [],
+            lastWorn: undefined,
+            timesWorn: 0,
+            hasBeenViewed: false,
+            metadata: {
+              occasion: 'general',
+              style: ['ai-generated'],
+              tags: [`generated-by-${aiModelName}`],
+              weatherAppropriateness: weatherData.weatherData?.condition || 'unknown'
+            }
+          };
+
+          // Add the outfit to the collection
+          setLovedOutfits(prev => [newOutfit, ...prev]);
+          savedCount++;
+          
+          logger.info(LogCategories.OUTFIT_GENERATION, `Saved multi-model outfit ${i + 1}/3`, {
+            outfitId,
+            aiModel: aiModelName,
+            hasImage: !!result.imageUrl
+          });
+        }
+      }
+
+      // Increment unviewed outfits count for badge
+      setUnviewedOutfitsCount(prev => prev + savedCount);
+
+      // Close modal and show success
+      setShowMultiModelSelector(false);
+      
+      // Optional: Show success message or navigate to outfits
+      setTimeout(() => {
+        logger.info(LogCategories.USER_ACTION, 'All multi-model outfits saved successfully', {
+          savedCount
+        });
+      }, 500);
+
+    } catch (error) {
+      logger.error(LogCategories.OUTFIT_GENERATION, 'Failed to save all multi-model results', error as Error);
+    }
+  }, [getEquippedItems, weatherData, styleDNA, selectedGender, setLovedOutfits]);
 
   // Image and description states (keeping these for backward compatibility)
   const [image, setImage] = useState<string | null>(null);
@@ -1273,6 +1736,7 @@ const WardrobeUploadScreen = () => {
             createdAt: new Date(),
             isLoved: false, // Don't automatically love generated outfits
             viewed: false, // New outfit hasn't been viewed yet
+            aiModel: 'gpt-5-mini', // Default single model generation uses Mini
             // Include metadata from AI generation
             metadata: outfitGeneration.lastGeneratedMetadata,
             // Wear tracking fields
@@ -1297,6 +1761,9 @@ const WardrobeUploadScreen = () => {
           
           // Increment unviewed outfits count
           setUnviewedOutfitsCount(prev => prev + 1);
+          
+          // Track generation cost
+          await costTracker.recordGeneration('gpt-5-mini', true);
           
           const message = styleDNA ? "AI-generated outfit created on YOUR style! 🎨✨" : "AI-generated outfit created! 📸";
           alert(message + "\n\n✨ Outfit automatically saved to your Loved collection!");
@@ -1638,6 +2105,7 @@ const WardrobeUploadScreen = () => {
       createdAt: new Date(),
       isLoved: false, // Don't automatically love when saving
       viewed: false, // New outfit hasn't been viewed yet
+      aiModel: 'gpt-5-mini', // Default single model generation uses Mini
       // Include metadata from AI generation
       metadata: outfitGeneration.lastGeneratedMetadata,
       // Wear tracking fields
@@ -2837,12 +3305,81 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   {weatherData.hasWeatherData && weatherData.weatherData && (
     <View style={styles.weatherContextBanner}>
       <Text style={styles.weatherText}>
-        {WeatherService.getWeatherEmoji(weatherData.weatherData.condition)} {weatherData.weatherData.temperature}°C • {weatherData.weatherData.condition} in {weatherData.weatherData.location}
+        {WeatherService.getWeatherEmoji(weatherData.weatherData.condition)} {temperatureUtils.formatTemperature(weatherData.weatherData.temperature)} • {weatherData.weatherData.condition} in {weatherData.weatherData.location}
       </Text>
       {weatherData.weatherContext && (
         <Text style={styles.weatherDescription}>
           {weatherData.weatherContext.description}
         </Text>
+      )}
+      {weatherData.weatherContext?.outfitSuggestion && (
+        <Text style={styles.weatherOutfitSuggestion}>
+          💡 {weatherData.weatherContext.outfitSuggestion}
+        </Text>
+      )}
+      
+      {/* Daily Weather Scene Image */}
+      {dailyWeatherScene && (
+        <View style={styles.dailyWeatherSceneContainer}>
+          <Text style={styles.dailyWeatherSceneTitle}>🎨 Today's Style Scene</Text>
+          <Animated.View style={{ opacity: sceneOpacity }}>
+            <TouchableOpacity 
+              style={styles.dailyWeatherSceneImageContainer}
+              onPress={() => {
+                // Could open full-screen view or show more details
+                logger.info(LogCategories.USER_ACTION, 'Daily weather scene image tapped', {
+                  date: dailyWeatherScene.date,
+                  location: weatherData.weatherData?.location
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <SafeImage
+                uri={dailyWeatherScene.imageUrl}
+                style={styles.dailyWeatherSceneImage}
+                resizeMode="cover"
+              />
+              
+              {/* Date Overlay */}
+              <View style={styles.dailyWeatherSceneOverlay}>
+                <Text style={styles.dailyWeatherSceneDate}>
+                  {new Date(dailyWeatherScene.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short', 
+                    day: 'numeric'
+                  })}
+                </Text>
+              </View>
+
+              {/* Regenerate Button */}
+              <TouchableOpacity
+                style={styles.regenerateSceneButton}
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent triggering the image tap
+                  handleRegenerateWeatherScene();
+                }}
+                disabled={isRegeneratingScene}
+                activeOpacity={0.7}
+              >
+                {isRegeneratingScene ? (
+                  <ActivityIndicator 
+                    size="small" 
+                    color="#FFFFFF" 
+                    style={styles.regenerateLoader}
+                  />
+                ) : (
+                  <Text style={styles.regenerateSceneIcon}>🔄</Text>
+                )}
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
+          <Text style={styles.dailyWeatherSceneDescription} numberOfLines={2}>
+            {dailyWeatherScene.prompt.length > 100 
+              ? `${dailyWeatherScene.prompt.substring(0, 100)}...`
+              : dailyWeatherScene.prompt
+            }
+          </Text>
+        </View>
       )}
     </View>
   )}
@@ -3170,6 +3707,50 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
     {getEquippedItems().length > 0 && (
       <Text style={styles.equippedCount}>
         Equipped: {getEquippedItems().length} items
+      </Text>
+    )}
+  </View>
+
+  {/* Multi-Model Generation Button */}
+  <View style={{ marginTop: 15, alignItems: 'center' }}>
+    <TouchableOpacity
+      onPress={handleMultiModelGeneration}
+      disabled={isGeneratingMultiModel || getEquippedItems().length < 1}
+      style={[
+        styles.multiModelButton,
+        {
+          opacity: (isGeneratingMultiModel || getEquippedItems().length < 1) ? 0.5 : 1,
+          backgroundColor: theme.colors.surface
+        }
+      ]}
+    >
+      <View style={styles.multiModelButtonContent}>
+        <Text style={styles.multiModelButtonIcon}>🎭</Text>
+        <View style={styles.multiModelButtonText}>
+          <Text style={[styles.multiModelButtonTitle, { color: theme.colors.text }]}>
+            {isGeneratingMultiModel ? 'Generating...' : 'Multi-Model Generation'}
+          </Text>
+          <Text style={[styles.multiModelButtonSubtitle, { color: theme.colors.textSecondary }]}>
+            Compare GPT-5 Pro, Mini & Nano results
+          </Text>
+        </View>
+        <View style={styles.multiModelBadges}>
+          <View style={[styles.modelBadge, { backgroundColor: '#FF6B6B' }]}>
+            <Text style={styles.modelBadgeText}>PRO</Text>
+          </View>
+          <View style={[styles.modelBadge, { backgroundColor: '#4ECDC4' }]}>
+            <Text style={styles.modelBadgeText}>MINI</Text>
+          </View>
+          <View style={[styles.modelBadge, { backgroundColor: '#45B7D1' }]}>
+            <Text style={styles.modelBadgeText}>NANO</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+
+    {getEquippedItems().length > 0 && !isGeneratingMultiModel && (
+      <Text style={[styles.multiModelHint, { color: theme.colors.textSecondary }]}>
+        💡 Generate 3 different styles, pick your favorite!
       </Text>
     )}
   </View>
@@ -3628,6 +4209,23 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
         visible={showMigrationModal}
         onComplete={handleMigrationComplete}
       />
+
+      {/* Multi-Model Image Selector Modal */}
+      {multiModelResults && (
+        <MultiModelImageSelector
+          visible={showMultiModelSelector}
+          results={multiModelResults}
+          recommendedIndex={multiModelRecommendedIndex}
+          onSelect={handleMultiModelImageSelection}
+          onSaveAll={handleSaveAllMultiModelResults}
+          onClose={() => setShowMultiModelSelector(false)}
+          context={{
+            occasion: 'general',
+            weather: weatherData.weatherData?.condition,
+            style: 'contemporary'
+          }}
+        />
+      )}
       
     </SafeAreaView>
   );

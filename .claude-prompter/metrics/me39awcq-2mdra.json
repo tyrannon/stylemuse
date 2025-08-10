@@ -1,0 +1,55 @@
+{
+  "runId": "me39awcq-2mdra",
+  "timestamp": "2025-08-08T20:06:43.109Z",
+  "prompt": "React Native runtime error debugging: StyleMuse multi-model outfit generation fails with Promise rejection in TouchableOpacity onPress handler. Stack trace shows error around line 11167-11172 in hermes bundle. User gets 'unable to generate outfit images with multiple models' alert. I've implemented: 1) multiModelOutfitGenerator.ts with GPT-5 model routing 2) MultiModelImageSelector modal component 3) Integration in WardrobeUploadScreen with debug fallback. What are the most likely root causes and recommended debugging approach for React Native Promise rejections in button handlers?",
+  "models": [
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 10259,
+      "tokenUsage": {
+        "promptTokens": 147,
+        "completionTokens": 713,
+        "totalTokens": 860
+      },
+      "cost": 0.001573,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:06:37.461Z"
+    },
+    {
+      "modelName": "gpt-4o",
+      "engine": "gpt-4o",
+      "executionTime": 13138,
+      "cost": 0.00821,
+      "qualityScore": 9.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:06:40.341Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 15740,
+      "tokenUsage": {
+        "promptTokens": 147,
+        "completionTokens": 785,
+        "totalTokens": 932
+      },
+      "cost": 0.001717,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-08T20:06:42.939Z"
+    }
+  ],
+  "totalCost": 0.0115,
+  "totalTime": 15950,
+  "successRate": 1,
+  "averageQualityScore": 8.333333333333334,
+  "taskComplexity": 8,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}

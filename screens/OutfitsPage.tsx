@@ -14,6 +14,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { OutfitFilterBar } from '../components/OutfitFilterBar';
 import { useOutfitFilter, matchesFilters } from '../contexts/OutfitFilterContext';
 import { MetadataDisplay } from './components/MetadataDisplay';
+import { temperatureUtils } from '../utils/TemperatureUtils';
 
 interface OutfitsPageProps {
   lovedOutfits: LovedOutfit[];
@@ -414,7 +415,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                     {outfit.weatherData && (
                       <View style={styles.outfitWeatherBadge}>
                         <Text style={styles.outfitWeatherText}>
-                          🌡️ {outfit.weatherData.temperature}°F
+                          🌡️ {temperatureUtils.formatTemperature(outfit.weatherData.temperature)}
                         </Text>
                       </View>
                     )}
@@ -514,7 +515,7 @@ export const OutfitsPage: React.FC<OutfitsPageProps> = ({
                   {outfit.weatherData && (
                     <View style={styles.outfitWeatherBadge}>
                       <Text style={styles.outfitWeatherText}>
-                        🌡️ {outfit.weatherData.temperature}°F
+                        🌡️ {temperatureUtils.formatTemperature(outfit.weatherData.temperature)}
                       </Text>
                     </View>
                   )}

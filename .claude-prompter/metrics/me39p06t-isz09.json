@@ -1,0 +1,60 @@
+{
+  "runId": "me39p06t-isz09",
+  "timestamp": "2025-08-08T20:17:38.880Z",
+  "prompt": "React Native debugging: StyleMuse multi-model generation fails with asyncGeneratorStep error. Stack trace shows: map (native) → asyncGeneratorStep → Promise rejection in Hermes bundle lines 98343-98345. This suggests an issue with async/await in a map function that's not being handled properly. The cleanup log '🏁 Multi-model generation cleanup' runs, indicating the finally block executes but the try block fails during async map operations. What are the most common causes of asyncGeneratorStep errors in React Native and how to fix Promise handling in map functions?",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 7604,
+      "tokenUsage": {
+        "promptTokens": 143,
+        "completionTokens": 490,
+        "totalTokens": 633
+      },
+      "cost": 0.001123,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-08T20:17:32.948Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 11007,
+      "tokenUsage": {
+        "promptTokens": 143,
+        "completionTokens": 647,
+        "totalTokens": 790
+      },
+      "cost": 0.0014370000000000001,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-08T20:17:36.350Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 13376,
+      "tokenUsage": {
+        "promptTokens": 143,
+        "completionTokens": 705,
+        "totalTokens": 848
+      },
+      "cost": 0.001553,
+      "qualityScore": 8.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:17:38.717Z"
+    }
+  ],
+  "totalCost": 0.004113,
+  "totalTime": 13576,
+  "successRate": 1,
+  "averageQualityScore": 8.166666666666666,
+  "taskComplexity": 4,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}

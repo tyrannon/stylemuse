@@ -77,6 +77,8 @@ export interface LovedOutfit {
   createdAt: Date;
   isLoved?: boolean;
   viewed?: boolean; // Track if user has opened this outfit - used for red dot indicators
+  // AI Model tracking
+  aiModel?: string; // Track which AI model generated this outfit (e.g., 'gpt-5', 'gpt-5-mini', 'gpt-5-nano')
   // Metadata fields for filtering
   metadata?: {
     occasion?: 'work' | 'casual' | 'formal' | 'party' | 'athletic' | 'date';

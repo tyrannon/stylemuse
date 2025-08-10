@@ -1,0 +1,22 @@
+{
+  "runId": "me39iwjf-l74sj",
+  "timestamp": "2025-08-08T20:12:53.116Z",
+  "prompt": "React Native hook error debugging: 'unifiedLoading.start is not a function' in StyleMuse outfit generation. Error occurs in TouchableOpacity onPress handler when trying to call unifiedLoading.start(). The unifiedLoading comes from useUnifiedLoading hook. Stack trace shows executeDispatchesAndReleaseTopLevel error in Hermes bundle. I can see the cleanup log '🏁 Multi-model generation cleanup' which means the finally block ran. This suggests unifiedLoading is undefined/null during the try block. What are the most likely causes of React Native hook returning undefined and how to fix this robustly?",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 3,
+    "successCount": 3,
+    "errorCount": 0,
+    "totalExecutionTime": 28521
+  }
+}

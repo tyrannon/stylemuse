@@ -2415,4 +2415,146 @@ export const createStyles = (theme: any) => StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  weatherOutfitSuggestion: {
+    fontSize: 13,
+    color: theme.colors.primary,
+    textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: 12,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+
+  // Daily Weather Scene Styles
+  dailyWeatherSceneContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  dailyWeatherSceneTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  dailyWeatherSceneImageContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dailyWeatherSceneImage: {
+    width: 350,
+    height: 280, // Taller to show full person without head cutoff
+  },
+  dailyWeatherSceneOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  dailyWeatherSceneDate: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  dailyWeatherSceneDescription: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: 16,
+    fontStyle: 'italic',
+    lineHeight: 14,
+  },
+  
+  // Regenerate Scene Button Styles
+  regenerateSceneButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  regenerateSceneIcon: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  regenerateLoader: {
+    width: 16,
+    height: 16,
+  },
+
+  // Multi-Model Generation Styles
+  multiModelButton: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  multiModelButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  multiModelButtonIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  multiModelButtonText: {
+    flex: 1,
+  },
+  multiModelButtonTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  multiModelButtonSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  multiModelBadges: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  modelBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  modelBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  multiModelHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
 });

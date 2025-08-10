@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import Constants from 'expo-constants';
+import { temperatureUtils } from '../utils/TemperatureUtils';
 
 export interface WeatherData {
   temperature: number;
@@ -9,6 +10,7 @@ export interface WeatherData {
   timestamp: number;
   location: string;
   description: string;
+  country?: string; // Country code for temperature unit detection
 }
 
 export interface WeatherContext {
@@ -16,6 +18,7 @@ export interface WeatherContext {
   condition: string;
   description: string;
   appropriateFor: string[];
+  outfitSuggestion?: string; // AI-generated outfit suggestion
 }
 
 export class WeatherService {
@@ -61,7 +64,7 @@ export class WeatherService {
   /**
    * Convert weather data to outfit context
    */
-  static getWeatherContext(weather: WeatherData): WeatherContext {
+  static async getWeatherContext(weather: WeatherData): Promise<WeatherContext> {
     const temp = weather.temperature;
     const condition = weather.condition;
     
@@ -88,11 +91,22 @@ export class WeatherService {
       appropriateFor.push('fitted_clothing', 'avoid_loose_fabrics');
     }
     
+    // Generate AI outfit suggestion (async, may be cached)
+    let outfitSuggestion: string | undefined;
+    try {
+      const { WeatherOutfitSuggestionService } = await import('./WeatherOutfitSuggestionService');
+      outfitSuggestion = await WeatherOutfitSuggestionService.getOutfitSuggestion(weather);
+    } catch (error) {
+      console.warn('Failed to get outfit suggestion:', error);
+      outfitSuggestion = undefined;
+    }
+
     return {
       temperature: temp,
       condition: condition,
       description: this.getWeatherDescription(weather),
-      appropriateFor
+      appropriateFor,
+      outfitSuggestion
     };
   }
   
@@ -102,12 +116,13 @@ export class WeatherService {
   private static getWeatherDescription(weather: WeatherData): string {
     const temp = weather.temperature;
     const condition = weather.condition;
+    const tempDisplay = temperatureUtils.formatTemperature(temp);
     
-    if (temp < 0) return `Very cold (${temp}°C) - bundle up!`;
-    if (temp < 10) return `Cold (${temp}°C) - wear layers`;
-    if (temp < 20) return `Cool (${temp}°C) - light jacket recommended`;
-    if (temp < 30) return `Warm (${temp}°C) - comfortable weather`;
-    return `Hot (${temp}°C) - stay cool!`;
+    if (temp < 0) return `Very cold (${tempDisplay}) - bundle up!`;
+    if (temp < 10) return `Cold (${tempDisplay}) - wear layers`;
+    if (temp < 20) return `Cool (${tempDisplay}) - light jacket recommended`;
+    if (temp < 30) return `Warm (${tempDisplay}) - comfortable weather`;
+    return `Hot (${tempDisplay}) - stay cool!`;
   }
   
   /**
@@ -171,7 +186,8 @@ export class WeatherService {
         humidity: data.main.humidity,
         timestamp: Date.now(),
         location: data.name || 'Unknown',
-        description: data.weather[0].description
+        description: data.weather[0].description,
+        country: data.sys?.country // Country code from OpenWeather API
       };
     } catch (error) {
       console.warn('🌤️ WeatherService: Failed to fetch weather data:', error);

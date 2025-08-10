@@ -257,6 +257,16 @@ export class AnalyticsService {
       itemCount: number;
       generationType: string;
     }>;
+    multiModelGenerations?: Array<{
+      generationId: string;
+      timestamp: string;
+      results: Array<{ model: string; success: boolean; cost: number; latency: number }>;
+      selectedModel?: string;
+      userRating?: number;
+      totalCost: number;
+      totalLatency: number;
+      successCount: number;
+    }>;
   }> {
     try {
       const stored = await AsyncStorage.getItem(this.ANALYTICS_STORAGE_KEY);
@@ -269,8 +279,157 @@ export class AnalyticsService {
 
     // Return default structure
     return {
-      outfitGenerations: []
+      outfitGenerations: [],
+      multiModelGenerations: []
     };
+  }
+
+  /**
+   * Track multi-model generation analytics
+   */
+  static async trackMultiModelGeneration(
+    generationId: string,
+    results: Array<{ model: string; success: boolean; cost: number; latency: number }>,
+    selectedModel?: string,
+    userRating?: number
+  ): Promise<void> {
+    try {
+      const analyticsData = await this.getAnalyticsData();
+      
+      const multiModelEvent = {
+        generationId,
+        timestamp: new Date().toISOString(),
+        results,
+        selectedModel,
+        userRating,
+        totalCost: results.reduce((sum, r) => sum + r.cost, 0),
+        totalLatency: results.reduce((sum, r) => sum + r.latency, 0),
+        successCount: results.filter(r => r.success).length,
+      };
+
+      if (!analyticsData.multiModelGenerations) {
+        analyticsData.multiModelGenerations = [];
+      }
+
+      analyticsData.multiModelGenerations = [
+        ...analyticsData.multiModelGenerations,
+        multiModelEvent
+      ].slice(-500); // Keep last 500 multi-model generations
+
+      await AsyncStorage.setItem(this.ANALYTICS_STORAGE_KEY, JSON.stringify(analyticsData));
+
+      logger.info(LogCategories.ANALYTICS, 'Multi-model generation tracked', {
+        generationId,
+        selectedModel,
+        successCount: multiModelEvent.successCount,
+        totalCost: multiModelEvent.totalCost.toFixed(4)
+      });
+
+    } catch (error) {
+      logger.error(LogCategories.ANALYTICS, 'Failed to track multi-model generation', error);
+    }
+  }
+
+  /**
+   * Get multi-model analytics for dashboard
+   */
+  static async getMultiModelAnalytics(): Promise<{
+    totalGenerations: number;
+    modelPreferences: Record<string, { selections: number; averageRating: number }>;
+    averageCostPerGeneration: number;
+    successRates: Record<string, number>;
+    userSavings: number; // Estimated savings from using preferred models
+  }> {
+    try {
+      const analyticsData = await this.getAnalyticsData();
+      const generations = analyticsData.multiModelGenerations || [];
+
+      if (generations.length === 0) {
+        return {
+          totalGenerations: 0,
+          modelPreferences: {},
+          averageCostPerGeneration: 0,
+          successRates: {},
+          userSavings: 0
+        };
+      }
+
+      // Calculate model preferences
+      const modelPreferences: Record<string, { selections: number; ratings: number[]; successes: number; attempts: number }> = {};
+      let totalCost = 0;
+
+      generations.forEach(gen => {
+        totalCost += gen.totalCost;
+        
+        // Track selection preferences
+        if (gen.selectedModel) {
+          if (!modelPreferences[gen.selectedModel]) {
+            modelPreferences[gen.selectedModel] = { selections: 0, ratings: [], successes: 0, attempts: 0 };
+          }
+          modelPreferences[gen.selectedModel].selections++;
+          if (gen.userRating) {
+            modelPreferences[gen.selectedModel].ratings.push(gen.userRating);
+          }
+        }
+
+        // Track success rates for all models
+        gen.results.forEach(result => {
+          if (!modelPreferences[result.model]) {
+            modelPreferences[result.model] = { selections: 0, ratings: [], successes: 0, attempts: 0 };
+          }
+          modelPreferences[result.model].attempts++;
+          if (result.success) {
+            modelPreferences[result.model].successes++;
+          }
+        });
+      });
+
+      // Calculate final metrics
+      const finalPreferences: Record<string, { selections: number; averageRating: number }> = {};
+      const successRates: Record<string, number> = {};
+
+      Object.entries(modelPreferences).forEach(([model, data]) => {
+        finalPreferences[model] = {
+          selections: data.selections,
+          averageRating: data.ratings.length > 0 
+            ? data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length 
+            : 0
+        };
+        successRates[model] = data.attempts > 0 ? data.successes / data.attempts : 0;
+      });
+
+      // Calculate estimated user savings (compared to always using most expensive model)
+      const mostExpensiveModelCost = 0.06; // GPT-5 cost per 1K tokens
+      const userSavings = generations.reduce((savings, gen) => {
+        if (gen.selectedModel) {
+          const selectedResult = gen.results.find(r => r.model === gen.selectedModel);
+          if (selectedResult) {
+            const wouldHaveCost = mostExpensiveModelCost;
+            const actualCost = selectedResult.cost;
+            return savings + Math.max(0, wouldHaveCost - actualCost);
+          }
+        }
+        return savings;
+      }, 0);
+
+      return {
+        totalGenerations: generations.length,
+        modelPreferences: finalPreferences,
+        averageCostPerGeneration: totalCost / generations.length,
+        successRates,
+        userSavings
+      };
+
+    } catch (error) {
+      logger.error(LogCategories.ANALYTICS, 'Failed to get multi-model analytics', error);
+      return {
+        totalGenerations: 0,
+        modelPreferences: {},
+        averageCostPerGeneration: 0,
+        successRates: {},
+        userSavings: 0
+      };
+    }
   }
 
   /**
@@ -334,4 +493,5 @@ export class AnalyticsService {
       };
     }
   }
+
 }

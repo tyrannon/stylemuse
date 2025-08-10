@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { WeatherService, WeatherData, WeatherContext } from '../services/WeatherService';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
+import { temperatureUtils } from '../utils/TemperatureUtils';
 
 export interface UseWeatherDataReturn {
   weatherData: WeatherData | null;
@@ -37,12 +38,21 @@ export const useWeatherData = (): UseWeatherDataReturn => {
       
       if (data) {
         setWeatherData(data);
-        setWeatherContext(WeatherService.getWeatherContext(data));
+        
+        // Get weather context with outfit suggestions (async)
+        const context = await WeatherService.getWeatherContext(data);
+        setWeatherContext(context);
+        
+        // Initialize temperature unit based on country if available
+        if (data.country) {
+          await temperatureUtils.initialize(data.country);
+        }
         
         logger.info(LogCategories.API_CALLS, 'Weather data fetched successfully', {
           temperature: data.temperature,
           condition: data.condition,
           location: data.location,
+          country: data.country,
           cached: Date.now() - data.timestamp > 1000 // Was it from cache?
         });
       } else {

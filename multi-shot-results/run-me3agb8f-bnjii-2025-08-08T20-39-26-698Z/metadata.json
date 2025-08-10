@@ -1,0 +1,23 @@
+{
+  "runId": "me3agb8f-bnjii",
+  "timestamp": "2025-08-08T20:39:26.698Z",
+  "prompt": "gpt-5,gpt-5-mini,gpt-4o",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 4,
+    "errorCount": 0,
+    "totalExecutionTime": 63545
+  }
+}

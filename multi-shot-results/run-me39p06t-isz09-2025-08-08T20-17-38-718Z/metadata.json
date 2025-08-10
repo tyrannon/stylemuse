@@ -1,0 +1,22 @@
+{
+  "runId": "me39p06t-isz09",
+  "timestamp": "2025-08-08T20:17:38.718Z",
+  "prompt": "React Native debugging: StyleMuse multi-model generation fails with asyncGeneratorStep error. Stack trace shows: map (native) → asyncGeneratorStep → Promise rejection in Hermes bundle lines 98343-98345. This suggests an issue with async/await in a map function that's not being handled properly. The cleanup log '🏁 Multi-model generation cleanup' runs, indicating the finally block executes but the try block fails during async map operations. What are the most common causes of asyncGeneratorStep errors in React Native and how to fix Promise handling in map functions?",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 3,
+    "successCount": 3,
+    "errorCount": 0,
+    "totalExecutionTime": 31987
+  }
+}

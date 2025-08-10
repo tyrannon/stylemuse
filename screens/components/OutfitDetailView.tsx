@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MetadataDisplay } from './MetadataDisplay';
 import { OCCASION_OPTIONS } from '../../contexts/OutfitFilterContext';
+import { temperatureUtils } from '../../utils/TemperatureUtils';
 
 // Helper function to safely format dates
 const formatDate = (date: any): string => {
@@ -139,7 +140,7 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
           <View style={styles.itemDetailField}>
             <Text style={styles.itemDetailLabel}>Weather:</Text>
             <Text style={styles.itemDetailValue}>
-              🌡️ {outfit.weatherData.temperature}°F
+              🌡️ {temperatureUtils.formatTemperature(outfit.weatherData.temperature)}
             </Text>
           </View>
         )}
@@ -164,6 +165,32 @@ export const OutfitDetailView: React.FC<OutfitDetailViewProps> = ({
              '👤 Unisex'}
           </Text>
         </View>
+
+        {/* AI Model Information */}
+        {outfit.aiModel && (
+          <View style={styles.itemDetailField}>
+            <Text style={styles.itemDetailLabel}>AI Model:</Text>
+            <Text style={styles.itemDetailValue}>
+              🤖 {outfit.aiModel === 'gpt-5' ? 'GPT-5 Pro' : 
+                   outfit.aiModel === 'gpt-5-mini' ? 'GPT-5 Mini' : 
+                   outfit.aiModel === 'gpt-5-nano' ? 'GPT-5 Nano' : 
+                   outfit.aiModel}
+            </Text>
+          </View>
+        )}
+
+        {/* Generation Cost Information */}
+        {outfit.aiModel && (
+          <View style={styles.itemDetailField}>
+            <Text style={styles.itemDetailLabel}>Generation Cost:</Text>
+            <Text style={styles.itemDetailValue}>
+              💰 ${outfit.aiModel === 'gpt-5' ? '0.15' : 
+                    outfit.aiModel === 'gpt-5-mini' ? '0.05' : 
+                    outfit.aiModel === 'gpt-5-nano' ? '0.02' : 
+                    '0.05'}
+            </Text>
+          </View>
+        )}
 
         {/* Metadata Display */}
         {outfit.metadata && <MetadataDisplay metadata={outfit.metadata} />}

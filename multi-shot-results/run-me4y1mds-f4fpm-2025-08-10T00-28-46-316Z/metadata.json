@@ -1,0 +1,23 @@
+{
+  "runId": "me4y1mds-f4fpm",
+  "timestamp": "2025-08-10T00:28:46.316Z",
+  "prompt": "Analyze fashion app monetization strategy: 1) Default to GPT-5 Mini (/bin/zsh.05) single model generation vs current 3-model system 2) Settings page with model selection + cost table (Nano /bin/zsh.02, Mini /bin/zsh.05, Pro /bin/zsh.15) 3) Display generation costs in outfit detail screens 4) Future token-based pricing where Pro costs more tokens. Pros/cons of single-model default vs multi-model choice for user experience and business model?",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 4,
+    "errorCount": 0,
+    "totalExecutionTime": 158444
+  }
+}

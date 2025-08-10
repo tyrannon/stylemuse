@@ -1,0 +1,74 @@
+{
+  "runId": "me3bylv0-em74d",
+  "timestamp": "2025-08-08T21:22:43.235Z",
+  "prompt": "Analyze DALL-E API 400 error in React Native StyleMuse app - GPT-5 Pro model failing while GPT-5 Mini and Nano succeed",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 5975,
+      "tokenUsage": {
+        "promptTokens": 30,
+        "completionTokens": 394,
+        "totalTokens": 424
+      },
+      "cost": 0.000818,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T21:20:58.758Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 9969,
+      "tokenUsage": {
+        "promptTokens": 30,
+        "completionTokens": 659,
+        "totalTokens": 689
+      },
+      "cost": 0.001348,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T21:21:02.751Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 11405,
+      "tokenUsage": {
+        "promptTokens": 30,
+        "completionTokens": 766,
+        "totalTokens": 796
+      },
+      "cost": 0.001562,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-08T21:21:04.185Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 110266,
+      "tokenUsage": {
+        "promptTokens": 43,
+        "completionTokens": 2010,
+        "totalTokens": 2053
+      },
+      "cost": 0.004063000000000001,
+      "qualityScore": 5.5,
+      "success": true,
+      "timestamp": "2025-08-08T21:22:43.050Z"
+    }
+  ],
+  "totalCost": 0.007791000000000001,
+  "totalTime": 110495,
+  "successRate": 1,
+  "averageQualityScore": 7,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

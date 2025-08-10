@@ -1,0 +1,60 @@
+{
+  "runId": "me39iwjf-l74sj",
+  "timestamp": "2025-08-08T20:12:53.280Z",
+  "prompt": "React Native hook error debugging: 'unifiedLoading.start is not a function' in StyleMuse outfit generation. Error occurs in TouchableOpacity onPress handler when trying to call unifiedLoading.start(). The unifiedLoading comes from useUnifiedLoading hook. Stack trace shows executeDispatchesAndReleaseTopLevel error in Hermes bundle. I can see the cleanup log '🏁 Multi-model generation cleanup' which means the finally block ran. This suggests unifiedLoading is undefined/null during the try block. What are the most likely causes of React Native hook returning undefined and how to fix this robustly?",
+  "models": [
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 6380,
+      "tokenUsage": {
+        "promptTokens": 151,
+        "completionTokens": 592,
+        "totalTokens": 743
+      },
+      "cost": 0.001335,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-08T20:12:48.064Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 10709,
+      "tokenUsage": {
+        "promptTokens": 151,
+        "completionTokens": 788,
+        "totalTokens": 939
+      },
+      "cost": 0.001727,
+      "qualityScore": 8.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:12:52.389Z"
+    },
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 11432,
+      "tokenUsage": {
+        "promptTokens": 151,
+        "completionTokens": 568,
+        "totalTokens": 719
+      },
+      "cost": 0.0012870000000000002,
+      "qualityScore": 8.5,
+      "success": true,
+      "timestamp": "2025-08-08T20:12:53.116Z"
+    }
+  ],
+  "totalCost": 0.0043490000000000004,
+  "totalTime": 11640,
+  "successRate": 1,
+  "averageQualityScore": 8.333333333333334,
+  "taskComplexity": 4,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 60000,
+    "retries": 1
+  }
+}

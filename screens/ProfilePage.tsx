@@ -9,6 +9,9 @@ import { DataResetService } from '../utils/DataResetService';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { costTracker, UsageStats, GenerationRecord } from '../utils/CostTracker';
+import { temperatureUtils, TemperatureUnit } from '../utils/TemperatureUtils';
+import { DailyWeatherSceneService, DailyWeatherScene } from '../services/DailyWeatherSceneService';
 import * as Haptics from 'expo-haptics';
 import { SettingsRow, SettingsSection, ThemeModeOption } from '../components/SettingsComponents';
 
@@ -305,6 +308,100 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
+  const [selectedAIModel, setSelectedAIModel] = useState<'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5'>('gpt-5-mini');
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('celsius');
+  const [featuredImages, setFeaturedImages] = useState<GenerationRecord[]>([]);
+  const [weatherScenes, setWeatherScenes] = useState<DailyWeatherScene[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+
+  // Load saved AI model preference and usage stats
+  useEffect(() => {
+    const loadAIModelPreference = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('preferred_ai_model');
+        if (saved) {
+          setSelectedAIModel(saved as 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5');
+        }
+      } catch (error) {
+        logger.error(LogCategories.STORAGE, 'Failed to load AI model preference', error);
+      }
+    };
+    
+    const loadUsageStats = async () => {
+      try {
+        setLoadingStats(true);
+        const stats = await costTracker.getUsageStats();
+        setUsageStats(stats);
+      } catch (error) {
+        logger.error(LogCategories.ANALYTICS, 'Failed to load usage stats', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    const loadTemperatureUnit = async () => {
+      try {
+        const currentUnit = await temperatureUtils.initialize();
+        setTemperatureUnit(currentUnit);
+      } catch (error) {
+        logger.error(LogCategories.STORAGE, 'Failed to load temperature unit', error);
+      }
+    };
+
+    const loadFeaturedImages = async () => {
+      try {
+        setLoadingImages(true);
+        // Load image generations
+        const images = await costTracker.getImageGenerations(20); // Get last 20 images
+        setFeaturedImages(images);
+        
+        // Load weather scenes
+        const scenes = await DailyWeatherSceneService.getPreviousScenes(10); // Get last 10 scenes
+        setWeatherScenes(scenes);
+        
+        logger.info(LogCategories.ANALYTICS, 'Featured images loaded', {
+          imageGenerations: images.length,
+          weatherScenes: scenes.length
+        });
+      } catch (error) {
+        logger.error(LogCategories.ANALYTICS, 'Failed to load featured images', error);
+      } finally {
+        setLoadingImages(false);
+      }
+    };
+    
+    loadAIModelPreference();
+    loadUsageStats();
+    loadTemperatureUnit();
+    loadFeaturedImages();
+  }, []);
+
+  // Save AI model preference
+  const handleModelChange = async (model: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5') => {
+    try {
+      await AsyncStorage.setItem('preferred_ai_model', model);
+      setSelectedAIModel(model);
+      triggerHaptic('light');
+      logger.info(LogCategories.USER_ACTION, 'AI model preference changed', { model });
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Failed to save AI model preference', error);
+    }
+  };
+
+  // Handle temperature unit change
+  const handleTemperatureUnitChange = async (unit: TemperatureUnit) => {
+    try {
+      await temperatureUtils.setUnit(unit);
+      setTemperatureUnit(unit);
+      triggerHaptic('light');
+      logger.info(LogCategories.USER_ACTION, 'Temperature unit changed', { unit });
+    } catch (error) {
+      logger.error(LogCategories.STORAGE, 'Failed to save temperature unit', error);
+    }
+  };
 
   const handleStartFresh = async () => {
     try {
@@ -411,6 +508,38 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
           theme={theme}
         />
         
+        {/* Temperature Unit */}
+        <View style={styles.themeContainer}>
+          <SettingsRow
+            icon="🌡️"
+            title="Temperature Unit"
+            theme={theme}
+            hasChevron={false}
+            rightComponent={
+              <View style={styles.themeOptions}>
+                {(['celsius', 'fahrenheit'] as const).map((unit) => (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[
+                      styles.tempUnitOption,
+                      temperatureUnit === unit && styles.tempUnitOptionActive,
+                      { borderColor: theme.colors.border }
+                    ]}
+                    onPress={() => handleTemperatureUnitChange(unit)}
+                  >
+                    <Text style={[
+                      styles.tempUnitOptionText,
+                      { color: temperatureUnit === unit ? theme.colors.primary : theme.colors.textSecondary }
+                    ]}>
+                      {unit === 'celsius' ? '°C' : '°F'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            }
+          />
+        </View>
+
         {/* Display Options */}
         <SettingsRow
           icon="📱"
@@ -463,6 +592,232 @@ const SettingsTabContent: React.FC<SettingsTabContentProps> = ({
           theme={theme}
         />
       </SettingsSection>
+
+      {/* AI Generation Section */}
+      <SettingsSection title="AI Generation" theme={theme}>
+        <SettingsRow
+          icon="🤖"
+          title="Default AI Model"
+          value={selectedAIModel === 'gpt-5' ? 'GPT-5 Pro' : 
+                selectedAIModel === 'gpt-5-mini' ? 'GPT-5 Mini' : 
+                'GPT-5 Nano'}
+          onPress={() => setShowModelSelector(true)}
+          theme={theme}
+        />
+        
+        <View style={styles.costTableContainer}>
+          <Text style={[styles.costTableTitle, { color: theme.colors.textSecondary }]}>
+            💰 Generation Costs per Image
+          </Text>
+          <View style={styles.costTable}>
+            <View style={[styles.costRow, selectedAIModel === 'gpt-5-nano' && styles.selectedCostRow]}>
+              <Text style={[styles.costModelName, { color: theme.colors.text }]}>GPT-5 Nano</Text>
+              <Text style={[styles.costValue, { color: '#4ECDC4' }]}>$0.02</Text>
+              <Text style={[styles.costDescription, { color: theme.colors.textSecondary }]}>Fast & Cheap</Text>
+            </View>
+            <View style={[styles.costRow, selectedAIModel === 'gpt-5-mini' && styles.selectedCostRow]}>
+              <Text style={[styles.costModelName, { color: theme.colors.text }]}>GPT-5 Mini</Text>
+              <Text style={[styles.costValue, { color: '#45B7D1' }]}>$0.05</Text>
+              <Text style={[styles.costDescription, { color: theme.colors.textSecondary }]}>Balanced (Recommended)</Text>
+            </View>
+            <View style={[styles.costRow, selectedAIModel === 'gpt-5' && styles.selectedCostRow]}>
+              <Text style={[styles.costModelName, { color: theme.colors.text }]}>GPT-5 Pro</Text>
+              <Text style={[styles.costValue, { color: '#FF6B6B' }]}>$0.15</Text>
+              <Text style={[styles.costDescription, { color: theme.colors.textSecondary }]}>Premium Quality</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Usage Statistics */}
+        <View style={styles.costTableContainer}>
+          <Text style={[styles.costTableTitle, { color: theme.colors.textSecondary }]}>
+            📊 Usage Statistics
+          </Text>
+          {loadingStats ? (
+            <Text style={[styles.statsLoading, { color: theme.colors.textSecondary }]}>Loading stats...</Text>
+          ) : usageStats ? (
+            <View style={styles.statsContainer}>
+              <View style={styles.statsRow}>
+                <Text style={[styles.statsLabel, { color: theme.colors.text }]}>Total Generated:</Text>
+                <Text style={[styles.statsValue, { color: theme.colors.primary }]}>{usageStats.totalGenerations}</Text>
+              </View>
+              <View style={styles.statsRow}>
+                <Text style={[styles.statsLabel, { color: theme.colors.text }]}>Total Cost:</Text>
+                <Text style={[styles.statsValue, { color: '#FF6B6B' }]}>${usageStats.totalCost.toFixed(2)}</Text>
+              </View>
+              <View style={styles.statsRow}>
+                <Text style={[styles.statsLabel, { color: theme.colors.text }]}>This Month:</Text>
+                <Text style={[styles.statsValue, { color: '#45B7D1' }]}>${usageStats.monthlyCost.toFixed(2)}</Text>
+              </View>
+              <View style={styles.statsRow}>
+                <Text style={[styles.statsLabel, { color: theme.colors.text }]}>Today:</Text>
+                <Text style={[styles.statsValue, { color: '#4ECDC4' }]}>${usageStats.dailyCost.toFixed(2)}</Text>
+              </View>
+              {usageStats.lastGeneration && (
+                <View style={styles.statsRow}>
+                  <Text style={[styles.statsLabel, { color: theme.colors.text }]}>Last Generated:</Text>
+                  <Text style={[styles.statsValue, { color: theme.colors.textSecondary }]}>
+                    {usageStats.lastGeneration.toLocaleDateString()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.statsLoading, { color: theme.colors.textSecondary }]}>No usage data yet</Text>
+          )}
+        </View>
+
+        {/* Featured Images Gallery */}
+        <View style={styles.costTableContainer}>
+          <Text style={[styles.costTableTitle, { color: theme.colors.textSecondary }]}>
+            🖼️ Featured Images Gallery
+          </Text>
+          {loadingImages ? (
+            <Text style={[styles.statsLoading, { color: theme.colors.textSecondary }]}>Loading images...</Text>
+          ) : (
+            <View style={styles.featuredImagesContainer}>
+              {/* Recent Outfit Generations */}
+              {featuredImages.length > 0 && (
+                <View style={styles.imageSection}>
+                  <Text style={[styles.imageSectionTitle, { color: theme.colors.text }]}>
+                    🎨 Recent Outfit Generations ({featuredImages.length})
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageGallery}>
+                    {featuredImages.map((image) => (
+                      <TouchableOpacity 
+                        key={image.id}
+                        style={styles.imageCard}
+                        onPress={() => {
+                          Alert.alert(
+                            'Image Details',
+                            `Generated: ${new Date(image.timestamp).toLocaleDateString()}\nModel: ${image.model}\nCost: $${image.cost.toFixed(2)}`,
+                            [
+                              { text: 'Close', style: 'cancel' }
+                            ]
+                          );
+                        }}
+                      >
+                        {image.imageUrl && (
+                          <SafeImage
+                            uri={image.imageUrl}
+                            style={styles.imagePreview}
+                            resizeMode="cover"
+                          />
+                        )}
+                        <View style={styles.imageOverlay}>
+                          <Text style={styles.imageDate}>
+                            {new Date(image.timestamp).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Text>
+                          <Text style={styles.imageCost}>${image.cost.toFixed(2)}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Daily Weather Scenes */}
+              {weatherScenes.length > 0 && (
+                <View style={styles.imageSection}>
+                  <Text style={[styles.imageSectionTitle, { color: theme.colors.text }]}>
+                    🌤️ Daily Weather Scenes ({weatherScenes.length})
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageGallery}>
+                    {weatherScenes.map((scene) => (
+                      <TouchableOpacity 
+                        key={scene.date}
+                        style={styles.imageCard}
+                        onPress={() => {
+                          Alert.alert(
+                            'Scene Details',
+                            `Date: ${scene.date}\nLocation: ${scene.weatherData?.location || 'Unknown'}\nWeather: ${scene.weatherData?.condition || 'Unknown'}\n\n"${scene.prompt.substring(0, 150)}${scene.prompt.length > 150 ? '...' : ''}"`,
+                            [
+                              { text: 'Close', style: 'cancel' }
+                            ]
+                          );
+                        }}
+                      >
+                        <SafeImage
+                          uri={scene.imageUrl}
+                          style={styles.imagePreview}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.imageOverlay}>
+                          <Text style={styles.imageDate}>
+                            {new Date(scene.date).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Text>
+                          <Text style={styles.imageCost}>Scene</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* No images message */}
+              {featuredImages.length === 0 && weatherScenes.length === 0 && (
+                <Text style={[styles.statsLoading, { color: theme.colors.textSecondary }]}>
+                  No generated images yet. Start creating outfits to see them here!
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      </SettingsSection>
+
+      {/* Model Selector Modal */}
+      {showModelSelector && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Select AI Model</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+              Choose your preferred model for outfit generation
+            </Text>
+            
+            {[
+              { id: 'gpt-5-nano' as const, name: 'GPT-5 Nano', cost: '$0.02', desc: 'Fastest and cheapest option', color: '#4ECDC4' },
+              { id: 'gpt-5-mini' as const, name: 'GPT-5 Mini', cost: '$0.05', desc: 'Best balance of quality and cost (Recommended)', color: '#45B7D1' },
+              { id: 'gpt-5' as const, name: 'GPT-5 Pro', cost: '$0.15', desc: 'Highest quality and reliability', color: '#FF6B6B' },
+            ].map((model) => (
+              <TouchableOpacity
+                key={model.id}
+                style={[
+                  styles.modelOption,
+                  selectedAIModel === model.id && { borderColor: theme.colors.primary, borderWidth: 2 }
+                ]}
+                onPress={() => {
+                  handleModelChange(model.id);
+                  setShowModelSelector(false);
+                }}
+              >
+                <View style={styles.modelOptionContent}>
+                  <View style={styles.modelOptionHeader}>
+                    <Text style={[styles.modelOptionName, { color: theme.colors.text }]}>{model.name}</Text>
+                    <Text style={[styles.modelOptionCost, { color: model.color }]}>{model.cost}</Text>
+                  </View>
+                  <Text style={[styles.modelOptionDesc, { color: theme.colors.textSecondary }]}>{model.desc}</Text>
+                </View>
+                {selectedAIModel === model.id && (
+                  <Text style={[styles.checkmark, { color: theme.colors.primary }]}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+            
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => setShowModelSelector(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Account & Subscription Section */}
       <SettingsSection title="Account & Subscription" theme={theme}>
@@ -925,5 +1280,231 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // AI Model Selection Styles
+  costTableContainer: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  costTableTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  costTable: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  costRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    marginVertical: 2,
+  },
+  selectedCostRow: {
+    backgroundColor: 'rgba(70, 183, 209, 0.1)',
+  },
+  costModelName: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  costValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 8,
+  },
+  costDescription: {
+    fontSize: 12,
+    flex: 1.2,
+    textAlign: 'right',
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modelOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modelOptionContent: {
+    flex: 1,
+  },
+  modelOptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modelOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modelOptionCost: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modelOptionDesc: {
+    fontSize: 13,
+  },
+  checkmark: {
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  modalCloseButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Usage Statistics Styles
+  statsContainer: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  statsLabel: {
+    fontSize: 14,
+    flex: 1,
+  },
+  statsValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  statsLoading: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+
+  // Featured Images Gallery Styles
+  featuredImagesContainer: {
+    marginTop: 8,
+  },
+  imageSection: {
+    marginBottom: 16,
+  },
+  imageSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  imageGallery: {
+    paddingLeft: 4,
+  },
+  imageCard: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: 12,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  imageDate: {
+    fontSize: 8,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  imageCost: {
+    fontSize: 7,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    textAlign: 'center',
+  },
+
+  // Temperature Unit Styles
+  tempUnitOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginHorizontal: 2,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  tempUnitOptionActive: {
+    borderWidth: 2,
+  },
+  tempUnitOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

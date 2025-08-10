@@ -1,0 +1,23 @@
+{
+  "runId": "me3bylv0-em74d",
+  "timestamp": "2025-08-08T21:22:43.050Z",
+  "prompt": "Analyze DALL-E API 400 error in React Native StyleMuse app - GPT-5 Pro model failing while GPT-5 Mini and Nano succeed",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 4,
+    "errorCount": 0,
+    "totalExecutionTime": 137615
+  }
+}
