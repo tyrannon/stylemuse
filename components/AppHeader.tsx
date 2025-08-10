@@ -29,7 +29,7 @@ export default function AppHeader({ showCurrency = true, userId = 'user123', sho
   return (
     <View 
       style={[
-        styles.header, 
+        styles.container, 
         { 
           paddingTop: insets.top + 8,
           backgroundColor: theme.background
@@ -37,8 +37,9 @@ export default function AppHeader({ showCurrency = true, userId = 'user123', sho
       ]}
       pointerEvents="box-none"
     >
-      <View style={styles.brand} pointerEvents="box-none">
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+      {/* Row 1: StyleMuse Brand */}
+      <View style={styles.brandRow} pointerEvents="box-none">
+        <Text style={[styles.title, { color: theme.text }]}>
           StyleMuse
         </Text>
         <View style={[styles.betaBadge, { backgroundColor: theme.accent }]}>
@@ -46,8 +47,9 @@ export default function AppHeader({ showCurrency = true, userId = 'user123', sho
         </View>
       </View>
 
-      {!isCompact && (
-        <View style={styles.actions} pointerEvents="box-none">
+      {/* Row 2: Gamification Elements */}
+      {!isCompact && (showStreak || showCurrency) && (
+        <View style={styles.gamificationRow} pointerEvents="box-none">
           {showStreak && (
             <View style={styles.streakWrapper}>
               <StreakDisplay 
@@ -75,55 +77,46 @@ export default function AppHeader({ showCurrency = true, userId = 'user123', sho
 }
 
 const styles = StyleSheet.create({
-  header: {
+  container: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
-  brand: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minWidth: 100,
-    marginRight: 12,
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   title: { 
-    fontSize: 20, 
+    fontSize: 28, 
     fontWeight: '800',
-    flexShrink: 1,
-    minWidth: 0,
+    letterSpacing: -0.5,
     marginRight: 8,
   },
   betaBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    flexShrink: 0,
   },
   betaText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  actions: { 
+  gamificationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-    flexGrow: 0,
+    justifyContent: 'center',
+    gap: 12,
   },
   currencyWrapper: {
     minWidth: 120,
-    height: 32,
-    flexGrow: 0,
-    flexShrink: 0,
+    height: 36,
   },
   streakWrapper: {
-    marginRight: 8,
-    flexShrink: 0,
+    minWidth: 80,
+    height: 36,
   },
 });

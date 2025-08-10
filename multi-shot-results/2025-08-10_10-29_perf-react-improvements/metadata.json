@@ -1,0 +1,18 @@
+{
+  "runId": "me5ykslf-4pfne",
+  "timestamp": "2025-08-10T17:29:30.833Z",
+  "prompt": "are the top 5 performance improvements for a React Native fashion app and gamification features",
+  "engines": [],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 0,
+    "successCount": 0,
+    "errorCount": 0,
+    "totalExecutionTime": 0
+  }
+}

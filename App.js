@@ -32,9 +32,14 @@ export default function App() {
 
   const initializeSoundService = async () => {
     try {
-      // Temporarily disable sound service initialization for debugging
-      // await soundService.initialize();
-      logger.info(LogCategories.SOUND, 'Sound service initialization skipped for debugging');
+      // Initialize sound service on app startup
+      await soundService.initialize();
+      
+      // Start playing background music and ambience
+      await soundService.playBackgroundMusic();
+      await soundService.playAmbience();
+      
+      logger.info(LogCategories.SOUND, 'Sound service initialized successfully');
     } catch (error) {
       logger.error(LogCategories.SOUND, 'Failed to initialize sound service', error);
     }
