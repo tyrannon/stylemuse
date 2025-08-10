@@ -1,0 +1,74 @@
+{
+  "runId": "me5y59il-yi5gy",
+  "timestamp": "2025-08-10T17:19:10.391Z",
+  "prompt": "analyze React Navigation setup in StyleMuse app for adding new screen StreakCalendarScreen to navigation stack and fixing navigation errors",
+  "models": [
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 12559,
+      "tokenUsage": {
+        "promptTokens": 35,
+        "completionTokens": 752,
+        "totalTokens": 787
+      },
+      "cost": 0.001539,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T17:17:39.945Z"
+    },
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 15908,
+      "tokenUsage": {
+        "promptTokens": 35,
+        "completionTokens": 687,
+        "totalTokens": 722
+      },
+      "cost": 0.001409,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T17:17:43.295Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 21554,
+      "tokenUsage": {
+        "promptTokens": 35,
+        "completionTokens": 978,
+        "totalTokens": 1013
+      },
+      "cost": 0.0019909999999999997,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-10T17:17:48.938Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 102826,
+      "tokenUsage": {
+        "promptTokens": 32,
+        "completionTokens": 1777,
+        "totalTokens": 1809
+      },
+      "cost": 0.003586,
+      "qualityScore": 5.5,
+      "success": true,
+      "timestamp": "2025-08-10T17:19:10.214Z"
+    }
+  ],
+  "totalCost": 0.008525,
+  "totalTime": 103042,
+  "successRate": 1,
+  "averageQualityScore": 7.375,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

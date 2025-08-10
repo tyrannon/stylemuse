@@ -5,6 +5,7 @@ import { CurrencyDisplay } from './CurrencyDisplay';
 import { useTheme } from '../contexts/ThemeContext';
 import { StreakDisplay } from './StreakDisplay';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../types/navigation';
 
 interface AppHeaderProps {
   showCurrency?: boolean;
@@ -16,13 +17,13 @@ export default function AppHeader({ showCurrency = true, userId = 'user123', sho
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { theme } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<RootStackNavigationProp>();
   
   const isCompact = width < 380; // Adjust for smaller devices
   
   const handleStreakPress = () => {
     // Navigate to StreakCalendarScreen
-    navigation.navigate('StreakCalendar' as never);
+    navigation.navigate('StreakCalendar');
   };
 
   return (
@@ -86,8 +87,8 @@ const styles = StyleSheet.create({
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
-    minWidth: 0,
+    flex: 1,
+    minWidth: 100,
     marginRight: 12,
   },
   title: { 

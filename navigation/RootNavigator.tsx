@@ -2,10 +2,12 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WardrobeUploadScreen from '../screens/WardrobeUploadScreen';
 import { OnboardingNavigator } from '../components/onboarding/OnboardingNavigator';
+import StreakCalendarScreen from '../screens/StreakCalendarScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
   MainApp: undefined;
+  StreakCalendar: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,6 +33,14 @@ export function RootNavigator({ initialRouteName, onOnboardingComplete }: RootNa
       <Stack.Screen 
         name="MainApp" 
         component={WardrobeUploadScreen}
+      />
+      <Stack.Screen 
+        name="StreakCalendar" 
+        component={StreakCalendarScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'modal'
+        }}
       />
     </Stack.Navigator>
   );

@@ -19,6 +19,7 @@ import { streakService, StreakData } from '../services/StreakService';
 import { logger } from '../utils/DebugLogger';
 import { LogCategories } from '../constants/LogCategories';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../types/navigation';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CALENDAR_PADDING = 20;
@@ -37,7 +38,7 @@ interface CalendarDay {
 
 export default function StreakCalendarScreen() {
   const { theme } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<RootStackNavigationProp>();
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
