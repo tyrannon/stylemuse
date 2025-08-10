@@ -58,6 +58,7 @@ import { getLaundryStatusDisplay } from '../utils/laundryStatus';
 import { StorageService } from '../services/StorageService';
 import { PersistenceService } from '../services/PersistenceService';
 import { DataMigrationService, MigrationSummary } from '../services/DataMigrationService';
+import { soundService } from '../services/SoundService';
 import { WeatherService } from '../services/WeatherService';
 import { DailyWeatherSceneService } from '../services/DailyWeatherSceneService';
 import { createStyles } from './styles/WardrobeUploadScreen.styles';
@@ -2039,7 +2040,10 @@ const WardrobeUploadScreen = () => {
   };
 
   // Function to clear gear slot
-  const clearGearSlot = (slotKey: string) => {
+  const clearGearSlot = async (slotKey: string) => {
+    // Play error sound when removing item from slot
+    await soundService.playSound('error');
+    
     outfitGeneration.setGearSlots({
       ...outfitGeneration.gearSlots,
       [slotKey]: {
@@ -3808,8 +3812,10 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
   <View style={{ marginTop: 16, alignItems: 'center' }}>
     <Animated.View style={{ transform: [{ scale: clearAllBounce }] }}>
       <TouchableOpacity
-        onPress={() => {
+        onPress={async () => {
           createBounceAnimation(clearAllBounce).start();
+          // Play error sound when clearing all slots
+          await soundService.playSound('error');
           outfitGeneration.setGearSlots({
             top: { itemId: null, itemImage: null, itemTitle: null },
             bottom: { itemId: null, itemImage: null, itemTitle: null },
