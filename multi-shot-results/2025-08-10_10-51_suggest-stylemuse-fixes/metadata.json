@@ -1,0 +1,23 @@
+{
+  "runId": "me5zaygm-htant",
+  "timestamp": "2025-08-10T17:51:06.335Z",
+  "prompt": "suggest fixes for stylemuse",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 4,
+    "errorCount": 0,
+    "totalExecutionTime": 116921
+  }
+}

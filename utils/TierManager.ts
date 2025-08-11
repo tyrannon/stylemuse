@@ -28,7 +28,7 @@ export interface UsageStats {
 export class TierManager {
   private static readonly TIER_LIMITS: Record<UserTier, TierLimits> = {
     free: {
-      aiGenerationsPerMonth: 5,
+      aiGenerationsPerMonth: 3, // Reduced from 5 for better conversion (Phase 4A)
       maxWardrobeItems: 50,
       maxSavedOutfits: 3,
       hasAdvancedAnalytics: false,

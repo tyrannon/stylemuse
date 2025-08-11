@@ -1,0 +1,69 @@
+{
+  "runId": "me6gnlv9-86ot6",
+  "timestamp": "2025-08-11T01:57:38.094Z",
+  "prompt": "Node.js TypeScript file extension error with expo-modules-core: ERR_UNKNOWN_FILE_EXTENSION for .ts files in node_modules. Tried Node 20 and 24, both fail. Need immediate resolution for React Native Expo project.",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 9881,
+      "tokenUsage": {
+        "promptTokens": 53,
+        "completionTokens": 692,
+        "totalTokens": 745
+      },
+      "cost": 0.0014370000000000001,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-11T01:55:46.719Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 12542,
+      "tokenUsage": {
+        "promptTokens": 53,
+        "completionTokens": 616,
+        "totalTokens": 669
+      },
+      "cost": 0.001285,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-11T01:55:49.379Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 17714,
+      "tokenUsage": {
+        "promptTokens": 53,
+        "completionTokens": 884,
+        "totalTokens": 937
+      },
+      "cost": 0.001821,
+      "qualityScore": 8,
+      "success": true,
+      "timestamp": "2025-08-11T01:55:54.549Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 60001,
+      "cost": 0,
+      "success": false,
+      "error": "Request timeout after 60s - consider using a smaller model or increasing timeout",
+      "timestamp": "2025-08-11T01:57:37.853Z"
+    }
+  ],
+  "totalCost": 0.004543,
+  "totalTime": 121294,
+  "successRate": 0.75,
+  "averageQualityScore": 8,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}

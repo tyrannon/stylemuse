@@ -52,6 +52,9 @@ import { MultiModelImageSelector } from '../components/MultiModelImageSelector';
 import { multiModelGenerator, ModelResult } from '../utils/multiModelOutfitGenerator';
 import { costTracker } from '../utils/CostTracker';
 import { temperatureUtils } from '../utils/TemperatureUtils';
+// import { subscriptionService } from '../services/SubscriptionService';
+import { UsageStatsCard } from '../components/UsageStatsCard';
+import { useTierManagement } from '../hooks/useTierManagement';
 
 // Utils and Services
 import { getLaundryStatusDisplay } from '../utils/laundryStatus';
@@ -78,6 +81,7 @@ const WardrobeUploadScreen = () => {
   const navigationState = useNavigationState();
   const { theme, isDark } = useTheme();
   const unifiedLoading = useUnifiedLoading();
+  const tierManagement = useTierManagement();
   const styles = createStyles(theme);
   
   // Ref for AIOutfitAssistant to trigger modal
@@ -606,6 +610,55 @@ const WardrobeUploadScreen = () => {
       return;
     }
 
+    // CRITICAL: Check tier limits for AI generation (Phase 4A Revenue Protection)
+    try {
+      const aiLimitCheck = await tierManagement.checkAIGeneration();
+      
+      if (!aiLimitCheck.allowed) {
+        logger.warn(LogCategories.MONETIZATION, 'Multi-model generation blocked by tier limits', {
+          userTier: tierManagement.userTier,
+          remaining: aiLimitCheck.remaining,
+          limit: aiLimitCheck.limit,
+          used: tierManagement.usage.aiGenerationsThisMonth
+        });
+        
+        Alert.alert(
+          "Upgrade Required",
+          `You've reached your monthly AI generation limit (${aiLimitCheck.limit}). Upgrade to StyleMuse Pro for unlimited multi-model outfit generation!`,
+          [
+            { 
+              text: "Upgrade", 
+              style: "default",
+              onPress: async () => {
+                logger.info(LogCategories.MONETIZATION, 'User clicked upgrade from multi-model limit');
+                try {
+                  // await subscriptionService.showUpgradeOptions();
+                } catch (error) {
+                  logger.error(LogCategories.MONETIZATION, 'Failed to show upgrade options', error as Error);
+                }
+              }
+            },
+            { text: "Cancel", style: "cancel" }
+          ]
+        );
+        return;
+      }
+      
+      logger.info(LogCategories.MONETIZATION, 'AI generation allowed', {
+        remaining: aiLimitCheck.remaining,
+        limit: aiLimitCheck.limit
+      });
+      
+    } catch (error) {
+      logger.error(LogCategories.MONETIZATION, 'Failed to check AI generation limits', error);
+      Alert.alert(
+        "Error",
+        "Unable to verify your subscription status. Please try again.",
+        [{ text: "OK", style: "default" }]
+      );
+      return;
+    }
+
     logger.info(LogCategories.OUTFIT_GENERATION, '🎭 Starting multi-model outfit image generation', {
       equippedItems: getEquippedItems().length,
       hasStyleDNA: !!styleDNA,
@@ -717,6 +770,18 @@ const WardrobeUploadScreen = () => {
         models: results.map(r => r.model).join(', ')
       });
 
+      // CRITICAL: Increment AI usage for tier tracking (Phase 4A Revenue Protection)
+      try {
+        await tierManagement.incrementAIUsage();
+        logger.info(LogCategories.MONETIZATION, 'AI usage incremented for multi-model generation', {
+          previousUsage: tierManagement.usage.aiGenerationsThisMonth,
+          newUsage: tierManagement.usage.aiGenerationsThisMonth + 1
+        });
+      } catch (error) {
+        logger.error(LogCategories.MONETIZATION, 'Failed to increment AI usage after multi-model generation', error);
+        // Continue anyway - don't block user experience
+      }
+      
       // Set results and show modal
       setMultiModelResults(results);
       setMultiModelRecommendedIndex(recommendedIndex);
@@ -3340,9 +3405,20 @@ ${suggestion.missingItems && suggestion.missingItems.length > 0 ?
 
 
 
-
-
-
+{/* Usage Stats Card - Phase 4A Revenue Integration */}
+{tierManagement.userTier === 'free' && (
+  <UsageStatsCard 
+    style={{ marginHorizontal: 20, marginBottom: 20 }}
+    onUpgrade={async () => {
+      logger.info(LogCategories.MONETIZATION, 'User clicked upgrade from usage stats card');
+      try {
+        // await subscriptionService.showUpgradeOptions();
+      } catch (error) {
+        logger.error(LogCategories.MONETIZATION, 'Failed to show upgrade options from stats card', error as Error);
+      }
+    }}
+  />
+)}
 
 {/* Outfit Builder - Always Show */}
 <View style={{ 

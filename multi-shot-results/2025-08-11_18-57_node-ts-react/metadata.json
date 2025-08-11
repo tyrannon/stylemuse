@@ -1,0 +1,23 @@
+{
+  "runId": "me6gnlv9-86ot6",
+  "timestamp": "2025-08-11T01:57:37.853Z",
+  "prompt": "Node.js TypeScript file extension error with expo-modules-core: ERR_UNKNOWN_FILE_EXTENSION for .ts files in node_modules. Tried Node 20 and 24, both fail. Need immediate resolution for React Native Expo project.",
+  "engines": [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "qwen3:latest"
+  ],
+  "config": {
+    "strategy": "both",
+    "baseDir": "./multi-shot-results",
+    "branchPrefix": "multishot",
+    "maxAge": 7
+  },
+  "summary": {
+    "totalEngines": 4,
+    "successCount": 3,
+    "errorCount": 1,
+    "totalExecutionTime": 100138
+  }
+}

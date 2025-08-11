@@ -1,0 +1,74 @@
+{
+  "runId": "me65sgi8-wq98p",
+  "timestamp": "2025-08-10T20:53:20.013Z",
+  "prompt": "suggest React Native fashion app UI patterns",
+  "models": [
+    {
+      "modelName": "gpt-5-nano",
+      "engine": "gpt-5-nano",
+      "executionTime": 8804,
+      "tokenUsage": {
+        "promptTokens": 11,
+        "completionTokens": 380,
+        "totalTokens": 391
+      },
+      "cost": 0.000771,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-10T20:51:35.557Z"
+    },
+    {
+      "modelName": "gpt-5-mini",
+      "engine": "gpt-5-mini",
+      "executionTime": 10044,
+      "tokenUsage": {
+        "promptTokens": 11,
+        "completionTokens": 718,
+        "totalTokens": 729
+      },
+      "cost": 0.001447,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-10T20:51:36.796Z"
+    },
+    {
+      "modelName": "gpt-5",
+      "engine": "gpt-5",
+      "executionTime": 15989,
+      "tokenUsage": {
+        "promptTokens": 11,
+        "completionTokens": 999,
+        "totalTokens": 1010
+      },
+      "cost": 0.002009,
+      "qualityScore": 7.5,
+      "success": true,
+      "timestamp": "2025-08-10T20:51:42.739Z"
+    },
+    {
+      "modelName": "qwen3:latest",
+      "engine": "qwen3:latest",
+      "executionTime": 113059,
+      "tokenUsage": {
+        "promptTokens": 15,
+        "completionTokens": 2048,
+        "totalTokens": 2063
+      },
+      "cost": 0.004111,
+      "qualityScore": 5,
+      "success": true,
+      "timestamp": "2025-08-10T20:53:19.812Z"
+    }
+  ],
+  "totalCost": 0.008338,
+  "totalTime": 113305,
+  "successRate": 1,
+  "averageQualityScore": 6.875,
+  "taskComplexity": 3,
+  "contextMetadata": {
+    "concurrent": true,
+    "maxConcurrency": 5,
+    "timeout": 120000,
+    "retries": 1
+  }
+}
