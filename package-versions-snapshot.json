@@ -1,0 +1,201 @@
+{
+  "version": "1.0.0",
+  "name": "stylemuse-app",
+  "dependencies": {
+    "@babel/core": {
+      "version": "7.27.4",
+      "resolved": "https://registry.npmjs.org/@babel/core/-/core-7.27.4.tgz",
+      "overridden": false
+    },
+    "@expo/metro-runtime": {
+      "version": "5.0.4",
+      "resolved": "https://registry.npmjs.org/@expo/metro-runtime/-/metro-runtime-5.0.4.tgz",
+      "overridden": false
+    },
+    "@react-native-async-storage/async-storage": {
+      "version": "2.1.2",
+      "resolved": "https://registry.npmjs.org/@react-native-async-storage/async-storage/-/async-storage-2.1.2.tgz",
+      "overridden": false
+    },
+    "@react-navigation/native-stack": {
+      "version": "7.3.20",
+      "resolved": "https://registry.npmjs.org/@react-navigation/native-stack/-/native-stack-7.3.20.tgz",
+      "overridden": false
+    },
+    "@react-navigation/native": {
+      "version": "7.1.14",
+      "resolved": "https://registry.npmjs.org/@react-navigation/native/-/native-7.1.14.tgz",
+      "overridden": false
+    },
+    "@react-navigation/stack": {
+      "version": "7.4.2",
+      "resolved": "https://registry.npmjs.org/@react-navigation/stack/-/stack-7.4.2.tgz",
+      "overridden": false
+    },
+    "@shopify/react-native-skia": {
+      "version": "2.1.1",
+      "resolved": "https://registry.npmjs.org/@shopify/react-native-skia/-/react-native-skia-2.1.1.tgz",
+      "overridden": false
+    },
+    "@types/react-native": {
+      "version": "0.73.0",
+      "resolved": "https://registry.npmjs.org/@types/react-native/-/react-native-0.73.0.tgz",
+      "overridden": false
+    },
+    "@types/react": {
+      "version": "19.0.14",
+      "resolved": "https://registry.npmjs.org/@types/react/-/react-19.0.14.tgz",
+      "overridden": false
+    },
+    "@xstate/react": {
+      "version": "6.0.0",
+      "resolved": "https://registry.npmjs.org/@xstate/react/-/react-6.0.0.tgz",
+      "overridden": false
+    },
+    "dotenv": {
+      "version": "16.5.0",
+      "resolved": "https://registry.npmjs.org/dotenv/-/dotenv-16.5.0.tgz",
+      "overridden": false
+    },
+    "expo-av": {
+      "version": "15.1.7",
+      "resolved": "https://registry.npmjs.org/expo-av/-/expo-av-15.1.7.tgz",
+      "overridden": false
+    },
+    "expo-blur": {
+      "version": "14.1.5",
+      "resolved": "https://registry.npmjs.org/expo-blur/-/expo-blur-14.1.5.tgz",
+      "overridden": false
+    },
+    "expo-camera": {
+      "version": "16.1.10",
+      "resolved": "https://registry.npmjs.org/expo-camera/-/expo-camera-16.1.10.tgz",
+      "overridden": false
+    },
+    "expo-document-picker": {
+      "version": "13.1.6",
+      "resolved": "https://registry.npmjs.org/expo-document-picker/-/expo-document-picker-13.1.6.tgz",
+      "overridden": false
+    },
+    "expo-file-system": {
+      "version": "18.1.11",
+      "resolved": "https://registry.npmjs.org/expo-file-system/-/expo-file-system-18.1.11.tgz",
+      "overridden": false
+    },
+    "expo-haptics": {
+      "version": "14.1.4",
+      "resolved": "https://registry.npmjs.org/expo-haptics/-/expo-haptics-14.1.4.tgz",
+      "overridden": false
+    },
+    "expo-image-manipulator": {
+      "version": "13.1.7",
+      "resolved": "https://registry.npmjs.org/expo-image-manipulator/-/expo-image-manipulator-13.1.7.tgz",
+      "overridden": false
+    },
+    "expo-image-picker": {
+      "version": "16.1.4",
+      "resolved": "https://registry.npmjs.org/expo-image-picker/-/expo-image-picker-16.1.4.tgz",
+      "overridden": false
+    },
+    "expo-location": {
+      "version": "18.1.6",
+      "resolved": "https://registry.npmjs.org/expo-location/-/expo-location-18.1.6.tgz",
+      "overridden": false
+    },
+    "expo-media-library": {
+      "version": "17.1.7",
+      "resolved": "https://registry.npmjs.org/expo-media-library/-/expo-media-library-17.1.7.tgz",
+      "overridden": false
+    },
+    "expo-sharing": {
+      "version": "13.1.5",
+      "resolved": "https://registry.npmjs.org/expo-sharing/-/expo-sharing-13.1.5.tgz",
+      "overridden": false
+    },
+    "expo-status-bar": {
+      "version": "2.2.3",
+      "resolved": "https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-2.2.3.tgz",
+      "overridden": false
+    },
+    "expo-web-browser": {
+      "version": "14.2.0",
+      "resolved": "https://registry.npmjs.org/expo-web-browser/-/expo-web-browser-14.2.0.tgz",
+      "overridden": false
+    },
+    "expo": {
+      "version": "53.0.18",
+      "resolved": "https://registry.npmjs.org/expo/-/expo-53.0.18.tgz",
+      "overridden": false
+    },
+    "react-dom": {
+      "version": "19.0.0",
+      "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.0.0.tgz",
+      "overridden": false
+    },
+    "react-native-device-info": {
+      "version": "14.0.4",
+      "resolved": "https://registry.npmjs.org/react-native-device-info/-/react-native-device-info-14.0.4.tgz",
+      "overridden": false
+    },
+    "react-native-fs": {
+      "version": "2.20.0",
+      "resolved": "https://registry.npmjs.org/react-native-fs/-/react-native-fs-2.20.0.tgz",
+      "overridden": false
+    },
+    "react-native-gesture-handler": {
+      "version": "2.24.0",
+      "resolved": "https://registry.npmjs.org/react-native-gesture-handler/-/react-native-gesture-handler-2.24.0.tgz",
+      "overridden": false
+    },
+    "react-native-reanimated": {
+      "version": "3.17.5",
+      "resolved": "https://registry.npmjs.org/react-native-reanimated/-/react-native-reanimated-3.17.5.tgz",
+      "overridden": false
+    },
+    "react-native-safe-area-context": {
+      "version": "5.4.0",
+      "resolved": "https://registry.npmjs.org/react-native-safe-area-context/-/react-native-safe-area-context-5.4.0.tgz",
+      "overridden": false
+    },
+    "react-native-screens": {
+      "version": "4.11.1",
+      "resolved": "https://registry.npmjs.org/react-native-screens/-/react-native-screens-4.11.1.tgz",
+      "overridden": false
+    },
+    "react-native-svg": {
+      "version": "15.12.0",
+      "resolved": "https://registry.npmjs.org/react-native-svg/-/react-native-svg-15.12.0.tgz",
+      "overridden": false
+    },
+    "react-native-vector-icons": {
+      "version": "10.2.0",
+      "resolved": "https://registry.npmjs.org/react-native-vector-icons/-/react-native-vector-icons-10.2.0.tgz",
+      "overridden": false
+    },
+    "react-native-web": {
+      "version": "0.20.0",
+      "resolved": "https://registry.npmjs.org/react-native-web/-/react-native-web-0.20.0.tgz",
+      "overridden": false
+    },
+    "react-native": {
+      "version": "0.79.5",
+      "resolved": "https://registry.npmjs.org/react-native/-/react-native-0.79.5.tgz",
+      "overridden": false
+    },
+    "react": {
+      "version": "19.0.0",
+      "resolved": "https://registry.npmjs.org/react/-/react-19.0.0.tgz",
+      "overridden": false
+    },
+    "typescript": {
+      "version": "5.8.3",
+      "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.8.3.tgz",
+      "overridden": false
+    },
+    "xstate": {
+      "version": "5.20.1",
+      "resolved": "https://registry.npmjs.org/xstate/-/xstate-5.20.1.tgz",
+      "overridden": false
+    }
+  }
+}
